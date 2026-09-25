@@ -1,6 +1,6 @@
 import base64
 import os
-import psycopg2 # type: ignore
+from psycopg2cffi import compat; compat.make_psycopg_green(); import psycopg2
 from psycopg2.extras import DictCursor # type: ignore
 import urllib.parse
 from datetime import date, datetime, timedelta
