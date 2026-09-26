@@ -1,7 +1,7 @@
 import base64
 import os
-import psycopg2
-from psycopg2.extras import DictCursor
+import psycopg2 # type: ignore
+from psycopg2.extras import DictCursor # type: ignore
 import urllib.parse
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
