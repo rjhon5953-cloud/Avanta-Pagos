@@ -136,7 +136,7 @@ def obtener_clientes_completos():
         # Limpieza absoluta de strings de teléfonos devueltos por PostgreSQL
         tel_raw = str(cliente_dict.get("telefono") or '')
         cliente_dict["telefono"] = tel_raw.replace("(", "").replace(")", "").replace("'", "").replace(",", "").replace('"', '').strip()
- 
+        
         atrasadas = 0
         for p in cliente_dict["pagos"]:
             if not p.get("pagado") and p.get("fecha", "") <= hoy_str:
