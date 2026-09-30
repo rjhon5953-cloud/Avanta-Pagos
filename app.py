@@ -6,7 +6,7 @@ import urllib.parse
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
-from flask import Flask, jsonify, redirect, render_template_string, request, session, url_parser
+from flask import Flask, jsonify, redirect, render_template_string, request, session
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "avanta_secret_key_1.3_2026")
