@@ -549,20 +549,23 @@ def dashboard_principal():
     
     # Formateo profesional de fecha para el Badge Superior
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-    meses_año = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-    fecha_badge = f"{dias_semana[hoy.weekday()]}, {hoy.day} de {meses_año[hoy.month - 1]} del {hoy.year}"
+    meses_ano = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    fecha_badge = f"{dias_semana[hoy.weekday()]}, {hoy.day} de {meses_ano[hoy.month - 1]} del {hoy.year}"
 
     conn = get_db()
     with conn.cursor() as cursor:
-        # Sumatorias automatizadas de Recaudo y Gastos del Día
+        # Sumatorias automatizadas de Recaudo y Gastos del Día (Extrayendo la posición [0] de la tupla)
         cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) FROM pagos WHERE fecha_pago_real = %s", (hoy_str,))
-        recaudo_hoy = cursor.fetchone()[0]
+        res_cobrado = cursor.fetchone()
+        total_cobrado_hoy = float(res_cobrado[0]) if res_cobrado and res_cobrado[0] is not None else 0.0
         
         cursor.execute("SELECT COALESCE(SUM(monto), 0) FROM balance_movimientos WHERE tipo = 'Salida' AND fecha = %s", (hoy_str,))
-        gastos_hoy = cursor.fetchone()[0]
+        res_gastos = cursor.fetchone()
+        total_gastos_hoy = float(res_gastos[0]) if res_gastos and res_gastos[0] is not None else 0.0
         
         cursor.execute("SELECT COUNT(*) FROM clientes WHERE fecha_inicio = %s", (hoy_str,))
-        creditos_nuevos_hoy = cursor.fetchone()[0]
+        res_nuevos = cursor.fetchone()
+        creditos_nuevos_hoy = int(res_nuevos[0]) if res_nuevos and res_nuevos[0] is not None else 0
 
     clientes_ruta = obtener_clientes_ruta_hoy()
     
@@ -577,14 +580,14 @@ def dashboard_principal():
 
     capital_en_calle = sum(max(0.0, c["monto_total"] - sum(p["valor_pagado"] for p in c["pagos"])) for c in clientes_ruta)
 
-    # Contenido dinámico empaquetado para el Dash
+    # Contenido dinámico empaquetado para el Dash con formato limpio
     contexto_dash = f"""
     <div class="date-badge"><i class="fa-solid fa-calendar-day"></i> {fecha_badge}</div>
     
     <div class="grid-kpis">
         <div class="kpi-card">
             <div class="kpi-title">Recaudo Hoy / Créditos Hoy</div>
-            <div class="kpi-val">${recaudo_hoy:.2f} / {creditos_nuevos_hoy} Créd.</div>
+            <div class="kpi-val">${total_cobrado_hoy:.2f} / {creditos_nuevos_hoy} Créd.</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-title">Capital Total en Calle</div>
@@ -594,7 +597,7 @@ def dashboard_principal():
 
     <div class="expected-card">
         <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
-        <div class="kpi-val" style="color:#0369a1; font-size:16px;">
+        <div class="kpi-val" style="color:#0369a1; font-size:13px;">
             Mínimo: <b>${debido_minimo_dia:.2f}</b> | Acumulado en Mora: <b>${debido_total_acumulado:.2f}</b>
         </div>
     </div>
@@ -614,7 +617,7 @@ def dashboard_principal():
         pagado_cl = sum(p["valor_pagado"] for p in c["pagos"])
         saldo_cl = c["monto_total"] - pagado_cl
         cuota_p = next((p for p in c["pagos"] if p["pagado"] == 0), None)
-        es_mora_cl = c["cuotas_atrasadas"] > 0
+        es_mora_cl = c.get("saltado_hoy", 0) > 0
 
         contexto_dash += f"""
         <div class="card cliente-card" data-nombre="{c['nombre'].lower()}" data-mora="{"1" if es_mora_cl else "0"}">
