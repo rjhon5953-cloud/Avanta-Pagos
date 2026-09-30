@@ -20,7 +20,7 @@ def get_db():
 def init_db():
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 🏢 Creación o validación de la estructura base de tablas
+            # 🏢 Estructura de Clientes base
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS clientes (
@@ -28,9 +28,6 @@ def init_db():
                     orden INTEGER NOT NULL DEFAULT 0,
                     nombre TEXT NOT NULL,
                     telefono TEXT,
-                    direccion TEXT DEFAULT '',
-                    referencia TEXT DEFAULT '',
-                    identificacion TEXT,
                     monto REAL NOT NULL,
                     interes_porcentaje REAL NOT NULL DEFAULT 20,
                     monto_total REAL NOT NULL DEFAULT 0,
@@ -47,10 +44,14 @@ def init_db():
                 """
             )
             
-            # 🔥 INYECCIÓN QUIRÚRGICA: Agregamos las columnas faltantes si no existen en Neon
+            # 🔥 INYECCIÓN MASIVA BLINDADA: Agregamos todas las columnas operativas faltantes en Neon
+            cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS direccion TEXT DEFAULT ''")
+            cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS referencia TEXT DEFAULT ''")
+            cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS identificacion TEXT DEFAULT ''")
             cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'Activo'")
             cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS enrutado_forzado INTEGER NOT NULL DEFAULT 0")
 
+            # Estructura de Pagos
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS pagos (
@@ -66,6 +67,7 @@ def init_db():
                 )
                 """
             )
+            # Estructura de Egresos / Balance
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS balance_movimientos (
@@ -79,6 +81,7 @@ def init_db():
                 )
                 """
             )
+            # Estructura de Configuración
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS configuracion (
