@@ -20,7 +20,7 @@ def get_db():
 def init_db():
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 🏢 Tabla de Clientes con Estados (Activo, Inactivo, Lista Negra) y Geolocalización GPS
+            # 🏢 Creación o validación de la estructura base de tablas
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS clientes (
@@ -39,16 +39,18 @@ def init_db():
                     valor_cuota REAL NOT NULL,
                     fecha_inicio TEXT NOT NULL,
                     fecha_vencimiento TEXT NOT NULL,
-                    estado TEXT NOT NULL DEFAULT 'Activo', -- Activo, Inactivo, Lista Negra
                     saltado_hoy INTEGER NOT NULL DEFAULT 0,
                     fecha_gestion TEXT DEFAULT '',
                     latitud TEXT DEFAULT '',
-                    longitud TEXT DEFAULT '',
-                    enrutado_forzado INTEGER NOT NULL DEFAULT 0
+                    longitud TEXT DEFAULT ''
                 )
                 """
             )
-            # 💵 Tabla de Control de Cuotas y Pagos individuales
+            
+            # 🔥 INYECCIÓN QUIRÚRGICA: Agregamos las columnas faltantes si no existen en Neon
+            cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'Activo'")
+            cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS enrutado_forzado INTEGER NOT NULL DEFAULT 0")
+
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS pagos (
@@ -64,12 +66,11 @@ def init_db():
                 )
                 """
             )
-            # 📊 Tabla de Balance, Movimientos (Inversión/Entrada) y Egresos (Gastos) con Fotos
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS balance_movimientos (
                     id SERIAL PRIMARY KEY,
-                    tipo TEXT NOT NULL, -- Entrada, Salida
+                    tipo TEXT NOT NULL,
                     categoria TEXT NOT NULL,
                     concepto TEXT NOT NULL,
                     monto REAL NOT NULL,
@@ -78,7 +79,6 @@ def init_db():
                 )
                 """
             )
-            # ⚙️ Tabla de Configuración de la Empresa, Perfil y Ticket POS
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS configuracion (
@@ -88,7 +88,6 @@ def init_db():
                 )
                 """
             )
-            # Valores por defecto para Configuración si no existen
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('usuario', 'admin') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('clave', '1234') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('empresa_nombre', 'AVANTA PAGOS') ON CONFLICT DO NOTHING")
