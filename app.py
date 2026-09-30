@@ -174,12 +174,12 @@ LOGIN_HTML = """
         .logo-container { margin-bottom: 24px; }
         .logo-icon { font-size: 42px; background: linear-gradient(45deg, #00a8cc, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; display: inline-block; margin-bottom: 4px; }
         .logo-subtitle { color: #94a3b8; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
-        h2 { color: white; font-size: 20px; font-weight: 700; margin-bottom: 24px; }
+        h2 { color: white; font-size: 20px; font-weight: 700; margin-bottom: 24px; text-align: center; }
         .input-group { text-align: left; margin-bottom: 16px; }
         label { color: #cbd5e1; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: block; letter-spacing: 0.5px; }
-        input { width: 100%; padding: 12px 14px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; color: white; font-size: 14px; outline: none; transition: all 0.3s ease; }
+        input { width: 100%; padding: 12px 14px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; color: white; font-size: 14px; outline: none; transition: all 0.3s ease; display: block; margin-top: 4px; }
         input:focus { border-color: #00a8cc; box-shadow: 0 0 0 3px rgba(0, 168, 204, 0.2); }
-        .btn-access { background: linear-gradient(90deg, #00a8cc 0%, #0284c7 100%); color: white; font-weight: 700; font-size: 14px; border: none; padding: 14px; border-radius: 10px; width: 100%; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); transition: all 0.2s ease; }
+        .btn-access { background: linear-gradient(90deg, #00a8cc 0%, #0284c7 100%); color: white; font-weight: 700; font-size: 14px; border: none; padding: 14px; border-radius: 10px; width: 100%; cursor: pointer; margin-top: 14px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); transition: all 0.2s ease; display: block; }
         .btn-access:active { transform: scale(0.98); opacity: 0.9; }
         .version-text { color: #64748b; font-size: 11px; font-weight: 600; margin-top: 24px; letter-spacing: 0.5px; }
         .error-msg { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 16px; text-align: left; }
@@ -194,11 +194,20 @@ LOGIN_HTML = """
         <h2>Control de Acceso</h2>
         {% if error %} <div class="error-msg">⚠️ {{ error }}</div> {% endif %}
         <form action="/login" method="POST">
-        Usuario Comercial
-        Contraseña
-    Acceder al Sistema
-
-    Avanta Pagos versión 1.3
+            <div class="input-group">
+                <label>Usuario Comercial</label>
+                <input type="text" name="usuario" required placeholder="Ingresa tu usuario">
+            </div>
+            <div class="input-group">
+                <label>Contraseña</label>
+                <input type="password" name="clave" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn-access">Acceder al Sistema</button>
+        </form>
+        <div class="version-text">Avanta Pagos versión 1.3</div>
+    </div>
+</body>
+</html>
 """
 HTML_TEMPLATE = """
 <!DOCTYPE html>
