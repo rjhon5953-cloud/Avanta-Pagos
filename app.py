@@ -554,7 +554,7 @@ def dashboard_principal():
 
     conn = get_db()
     with conn.cursor() as cursor:
-        # Sumatorias automatizadas de Recaudo y Gastos del Día (Extrayendo la posición [0] de la tupla)
+        # CORRECCIÓN POSTGRESQL: Extraemos la posición [0] de la fila devuelta por Neon
         cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) FROM pagos WHERE fecha_pago_real = %s", (hoy_str,))
         res_cobrado = cursor.fetchone()
         total_cobrado_hoy = float(res_cobrado[0]) if res_cobrado and res_cobrado[0] is not None else 0.0
@@ -566,6 +566,7 @@ def dashboard_principal():
         cursor.execute("SELECT COUNT(*) FROM clientes WHERE fecha_inicio = %s", (hoy_str,))
         res_nuevos = cursor.fetchone()
         creditos_nuevos_hoy = int(res_nuevos[0]) if res_nuevos and res_nuevos[0] is not None else 0
+    conn.close()
 
     clientes_ruta = obtener_clientes_ruta_hoy()
     
@@ -648,7 +649,6 @@ def dashboard_principal():
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(contexto_dash)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(contexto_dash))
-
 
 # --- 👥 SECCIÓN 1: MENÚ CLIENTES (GESTIÓN COMPLETA, HISTORIAL Y RENOVACIONES) ---
 @app.route("/menu/clientes")
