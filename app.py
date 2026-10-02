@@ -232,8 +232,7 @@ CONTENIDO_HTML = """
             <div style="font-size:14px; font-weight:800; color:#0f2b5c; margin-top:2px;">${{ "%.2f"|format(capital_en_calle) }}</div>
         </div>
     </div>
-"""
-CONTENIDO_HTML += """
+
     <div class="expected-card">
         <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
         <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo de Ruta: <b>${{ "%.2f"|format(debido_minimo_dia) }}</b> | Acumulado Mora: <b>${{ "%.2f"|format(debido_total_acumulado) }}</b></div>
@@ -244,18 +243,19 @@ CONTENIDO_HTML += """
         <button onclick="filtrarEstado('mora')" class="btn-filtro" id="f-mora">⚠️ Mora</button>
         <button onclick="filtrarEstado('aldia')" class="btn-filtro" id="f-aldia">✅ Al Día</button>
     </div>
-
+"""
+CONTENIDO_HTML += """
     <div class="section-header-title"><i class="fa-solid fa-route"></i> Ruta Principal</div>
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente, ID o referencia..." onkeyup="filtrarClientes()">
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente o referencia..." onkeyup="filtrarClientes()">
 
     <div id="clientesContainer">
         {% for c in clientes %}
             {% set pagado = c.pagos | map(attribute='valor_pagado') | sum %}
             {% set saldo = c.monto_total - pagado %}
             {% set cuota_pendiente = c.pagos | selectattr('pagado', 'equalto', 0) | list | first %}
-            {% set es_mora = c.cuotas_atrasadas > 0 %}
+            {% set es_mora = c.saltado_hoy > 0 or c.cuotas_atrasadas > 0 %}
 
-            <div class="card cliente-card" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-id="{{ c.identificacion or '' }}" data-mora="{{ 1 if es_mora else 0 }}">
+            <div class="card cliente-card" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}">
                 <div class="flex-between">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <div style="display:flex; flex-direction:column; gap:2px;">
@@ -272,21 +272,23 @@ CONTENIDO_HTML += """
                                 {% endif %}
                             </div>
                             <div style="font-size:11px; color:#6b7280; margin-top:2px;">
-                                Ref: <b>{{ c.referencia or 'Ninguna' }}</b> | Tel: <b>{{ c.telefono or 'N/A' }}</b>
+                                Ref: <b>{{ c.referencia or 'Ninguna' }}</b> | Cuota Base: <b>${{ "%.2f"|format(c.valor_cuota) }}</b>
                             </div>
                         </div>
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size:10px; color:#6b7280; font-weight:bold;">Cuota:</div>
-                        <div style="font-size:16px; font-weight:800; color:#0f2b5c;">${{ "%.2f"|format(c.valor_cuota) }}</div>
+                        <div style="font-size:10px; color:#64748b; font-weight:bold;">Métricas:</div>
+                        <div style="font-size:12px; font-weight:700; color:#ef4444; margin-top:2px;">Atraso: <b>{{ c.saltado_hoy }} días</b></div>
+                        <div style="font-size:12px; font-weight:700; color:#0f2b5c;">Saldo: <b>${{ "%.2f"|format(saldo) }}</b></div>
                     </div>
                 </div>
 
                 <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:10px;">
                     {% if cuota_pendiente %}
-                        <button class="btn-accion btn-pagar" onclick="ejecutarPago({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }})">Cobrar</button>
-                        <button class="btn-accion btn-abono" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})">Abono</button>
-                        <button class="btn-accion btn-nopagar" onclick="ejecutarNoPago({{ c.id }})">Saltar</button>
+                        <!-- 🔄 Botón Pago: Abre la ventana modal para ingresar abonos o cuotas completas -->
+                        <button class="btn-accion btn-pagar" style="background:#10b981;" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})"><i class="fa-solid fa-money-bill-wave"></i> Pago</button>
+                        <!-- ❌ Botón No Pago: Registra el salto diario de cobranza de forma inmediata -->
+                        <button class="btn-accion btn-nopagar" style="background:#ef4444;" onclick="ejecutarNoPago({{ c.id }})"><i class="fa-solid fa-ban"></i> No pago</button>
                     {% endif %}
                 </div>
             </div>
@@ -317,12 +319,10 @@ CONTENIDO_HTML += """
                         <div style="font-size:11px; color:#64748b; margin-top:2px;">Saldo: ${{ "%.2f"|format(cl.monto_total) }} | Frecuencia: {{ cl.frecuencia }}</div>
                     </div>
                     <div style="display:flex; gap:6px; align-items:center;">
-                        <!-- 🔄 Enlace dinámico funcional de renovación directa al formulario -->
                         <button class="btn-accion btn-abono" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="border:none; padding:8px 12px;"><i class="fa-solid fa-rotate"></i> Renovar</button>
                         {% if cl.estado != 'Lista Negra' %}
                             <button class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/clientes/lista_negra/{{ cl.id }}'" style="background:#475569; padding:8px 12px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
                         {% endif %}
-                        <!-- 🗑️💥 Botón de borrado estilizado en rojo intenso con icono y emojis solicitados -->
                         <a href="/api/eliminar_cliente/{{ cl.id }}" onclick="return confirm('¿Eliminar cliente permanentemente de la ruta?')" class="btn-accion btn-nopagar" style="text-decoration:none; padding:8px 12px; background:#dc2626;"><i class="fa-solid fa-trash-can"></i> 🗑️💥 Borrar</a>
                     </div>
                 </div>
@@ -397,7 +397,7 @@ CONTENIDO_HTML += """
             </select>
             
             <label>Descripción / Detalle</label>
-            <input type="text" name="concepto_mov" placeholder="Ej: Abastecimiento combustible ruta" required>
+            <input type="text" name="concepto_mov" placeholder="Ej: Compra de repuestos de moto" required>
             
             <label>Monto ($)</label>
             <input type="number" step="any" name="monto_mov" placeholder="Valor en dinero" required>
@@ -434,6 +434,7 @@ CONTENIDO_HTML += """
     </div>
 {% endif %}
 """
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="es">
@@ -464,14 +465,11 @@ HTML_TEMPLATE = """
         .kpi-title { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; }
         .kpi-val { font-size: 15px; font-weight: 800; color: #0f2b5c; }
         .expected-card { background: #f0f9ff; border: 1px solid #bae6fd; padding: 12px; border-radius: 12px; margin-bottom: 12px; text-align: left; }
-        .toggle-section { background: white; border: 1px solid #e2e8f0; padding: 6px; border-radius: 12px; display: flex; gap: 6px; margin-bottom: 12px; }
-        .btn-toggle { flex: 1; border: none; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 800; color: #64748b; background: #f1f5f9; }
-        .btn-toggle.active { background: #0f2b5c; color: white; }
         .search-box { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; margin-bottom: 12px; font-size: 13px; outline: none; }
         .card { background: white; padding: 14px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
         .btn-accion { border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 11px; cursor: pointer; color: white; text-align: center; }
-        .btn-pagar { background: #10b981; } .btn-abono { background: #00a8cc; } .btn-nopagar { background: #ef4444; }
+        .btn-pagar { background: #10b981; } .btn-nopagar { background: #ef4444; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); z-index: 400; justify-content: center; align-items: center; padding: 16px; }
         .modal-content { background: white; border-radius: 16px; padding: 20px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; text-align: center; }
         .modal-grid-data { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left; margin-bottom: 12px; }
@@ -489,8 +487,6 @@ HTML_TEMPLATE = """
         }
     </style>
 </head>
-"""
-HTML_TEMPLATE += """
 <body>
     <div class="navbar">
         <button class="btn-menu btn-nav-icon" onclick="toggleDrawer()"><i class="fa-solid fa-bars"></i> Menú</button>
@@ -505,16 +501,17 @@ HTML_TEMPLATE += """
             <div style="font-size:11px; opacity:0.8; margin-top:4px;"><i class="fa-solid fa-phone"></i> Soporte: +593991234567</div>
         </div>
         <ul class="drawer-menu">
-            <li><a href="#" onclick="navegarRuta('/')"><i class="fa-solid fa-route"></i> 1. Ruta Principal</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/clientes')"><i class="fa-solid fa-users"></i> 2. Clientes</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/creditos')"><i class="fa-solid fa-hand-holding-dollar"></i> 3. Créditos</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/ruta_orden')"><i class="fa-solid fa-arrow-down-up-lock"></i> 4. Ruta</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/listados')"><i class="fa-solid fa-list-check"></i> 5. Listados</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/balance')"><i class="fa-solid fa-scale-balanced"></i> 6. Balance</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/agregar_lista')"><i class="fa-solid fa-user-plus"></i> 7. Agregar a lista</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/salvar_datos')"><i class="fa-solid fa-cloud-arrow-up"></i> 8. Salvar datos</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/bluetooth')"><i class="fa-solid fa-print"></i> 9. Opciones Bluetooth</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/configuracion')"><i class="fa-solid fa-sliders"></i> 10. Acciones o Config.</a></li>
+            <!-- ⚡ ICONOS LIMPIOS SIN ENUMERACIÓN SOLICITADOS -->
+            <li><a href="#" onclick="navegarRuta('/')"><i class="fa-solid fa-map-location-dot"></i> Ruta Principal</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/clientes')"><i class="fa-solid fa-address-book"></i> Clientes</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/creditos')"><i class="fa-solid fa-hand-holding-dollar"></i> Créditos Activos</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/ruta_orden')"><i class="fa-solid fa-arrow-down-up-lock"></i> Reordenar Ruta</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/listados')"><i class="fa-solid fa-list-check"></i> Listados Históricos</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/balance')"><i class="fa-solid fa-wallet"></i> Balance de Caja</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/agregar_lista')"><i class="fa-solid fa-user-plus"></i> Agregar a Lista</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/salvar_datos')"><i class="fa-solid fa-cloud-arrow-up"></i> Salvar en Nube</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/bluetooth')"><i class="fa-solid fa-print"></i> Conexión Bluetooth</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/configuracion')"><i class="fa-solid fa-sliders"></i> Ajustes de Sistema</a></li>
             <li><a href="/logout" style="color:#ef4444;"><i class="fa-solid fa-power-off"></i> Cerrar Sesión</a></li>
         </ul>
     </div>
@@ -522,7 +519,8 @@ HTML_TEMPLATE += """
     <div class="main-container" id="mainContent">
         {{ contenido_html | safe }}
     </div>
-
+"""
+HTML_TEMPLATE += """
     <div class="modal" id="modalInfoCliente">
         <div class="modal-content">
             <h3 id="inf_nombre" style="margin-bottom:12px; color:#0f2b5c;">Cargando Ficha...</h3>
@@ -556,10 +554,10 @@ HTML_TEMPLATE += """
 
     <div class="modal" id="modalAbono">
         <div class="modal-content">
-            <h3>✏️ Registrar Abono Parcial</h3>
+            <h3 id="modalAbonoTitulo">✏️ Registrar Pago</h3>
             <input type="hidden" id="abonoClienteId"><input type="hidden" id="abonoNumCuota">
             <input type="number" step="any" id="abonoMontoInput" placeholder="Monto del dinero ($)">
-            <button onclick="confirmarAbono()" class="btn-primary" style="margin-top:10px; background:#00a8cc; color:white; border:none;">💾 Guardar Abono</button>
+            <button onclick="confirmarAbono()" class="btn-primary" style="margin-top:10px; background:#10b981; color:white; border:none;">💾 Guardar Recaudo</button>
             <button onclick="cerrarModal('modalAbono')" class="btn-modal-close">Cancelar</button>
         </div>
     </div>
@@ -625,7 +623,7 @@ function verFichaCliente(id) {
                 document.getElementById('inf_saldo_act').innerText = '$' + d.data.saldo_actual.toFixed(2);
                 document.getElementById('btn_llamar').href = 'tel:' + d.data.telefono;
                 
-                // 🗺️ ENLACE SATELITAL DE MAPAS CORREGIDO PARA ABRIR LA APP DEL CELULAR
+                // 🗺️ ENLACE DE MAPAS CORREGIDO PARA ABRIR LA APP DEL CELULAR EN RUTA
                 document.getElementById('btn_mapa').href = 'https://google.com' + d.data.latitud + ',' + d.data.longitud;
                 
                 document.getElementById('modalInfoCliente').style.display = 'flex';
@@ -658,11 +656,11 @@ function calcularCuota() {
         document.getElementById('simulacionText').innerText = '$' + (total / cuotas).toFixed(2) + ' / cuota';
     }
 }
-function ejecutarPago(clienteId, numCuota, monto) { procesarPagoAPI(clienteId, numCuota, monto); }
 function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota) {
     document.getElementById('abonoClienteId').value = clienteId;
     document.getElementById('abonoNumCuota').value = numCuota;
-    document.getElementById('abonoMontoInput').value = pendiente;
+    document.getElementById('abonoMontoInput').value = pendiente.toFixed(2);
+    document.getElementById('modalAbonoTitulo').innerText = '✏️ Registrar Pago - Cuota #' + numCuota;
     document.getElementById('modalAbono').style.display = 'flex';
 }
 function confirmarAbono() {
@@ -683,7 +681,7 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 document.getElementById('tMonto').innerText = data.recibo.monto.toFixed(2);
                 document.getElementById('tSaldo').innerText = data.recibo.saldo.toFixed(2);
                 
-                // 📲 ENLACE DE WHATSAPP REPARADO QUE ABRE LA APLICACIÓN NATIVA DIRECTAMENTE
+                // 📲 ENLACE DE WHATSAPP REPARADO QUE ABRE LA APP ORIGINAL DEL DISPOSITIVO
                 const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
                 document.getElementById('modalWsBtn').href = 'https://whatsapp.com' + numPuro + '&text=' + data.recibo.mensaje_ws;
                 
@@ -953,24 +951,39 @@ def seccion_reordenar_ruta():
     if not session.get("autenticado"): return "Sesión expirada"
     conn = get_db()
     with conn.cursor() as cursor:
-        cursor.execute("SELECT id, nombre, orden FROM clientes WHERE estado = 'Activo' ORDER BY orden ASC, id DESC")
+        cursor.execute("SELECT id, nombre, orden, referencia, frecuencia FROM clientes WHERE estado = 'Activo' ORDER BY orden ASC, id DESC")
         todos = cursor.fetchall()
     conn.close()
 
     html_orden = """
     <div class="section-header-title"><i class="fa-solid fa-arrow-down-up-lock"></i> Modificar Orden de la Ruta</div>
-    <p style="font-size:11px; color:#64748b; margin-bottom:10px;">Usa las flechas para organizar la secuencia de visitas diarias de tus cobradores.</p>
+    <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Organiza la secuencia de visitas diarias de tus cobradores. Los clientes aparecerán en el Dashboard en este orden estricto.</p>
     """
-    for cl in todos:
+    for index, cl in enumerate(todos):
         html_orden += f"""
-        <div class="card" style="padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:700; font-size:13px; color:#0f2b5c;">{cl['orden']}. {cl['nombre']}</span>
+        <div class="card" style="padding:14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-left:4px solid #00a8cc; box-shadow:0 2px 4px rgba(0,0,0,0.04);">
+            <div style="text-align:left; display:flex; align-items:center; gap:12px;">
+                <div style="background:#0f2b5c; color:white; font-size:12px; font-weight:800; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(15,43,92,0.2);">
+                    {index + 1}
+                </div>
+                <div>
+                    <span style="font-weight:800; font-size:14px; color:#0f2b5c; display:block;">{cl['nombre']}</span>
+                    <span style="font-size:11px; color:#64748b; display:block; margin-top:2px;">📍 Ref: {cl['referencia'] or 'N/A'}</span>
+                </div>
+            </div>
             <div style="display:flex; gap:6px;">
-                <a href="/mover/{cl['id']}/subir" style="text-decoration:none; font-size:12px; background:#f1f5f9; padding:6px 10px; border-radius:6px; font-weight:bold;">Intercambiar ⬆️</a>
-                <a href="/mover/{cl['id']}/bajar" style="text-decoration:none; font-size:12px; background:#f1f5f9; padding:6px 10px; border-radius:6px; font-weight:bold;">Intercambiar ⬇️</a>
+                <a href="/mover/{cl['id']}/subir" style="text-decoration:none; font-size:11px; background:#f1f5f9; color:#0f2b5c; padding:8px 10px; border-radius:8px; font-weight:800; display:flex; align-items:center; gap:4px; border:1px solid #e2e8f0; transition:all 0.2s;">
+                    ▲ Subir
+                </a>
+                <a href="/mover/{cl['id']}/bajar" style="text-decoration:none; font-size:11px; background:#f1f5f9; color:#0f2b5c; padding:8px 10px; border-radius:8px; font-weight:800; display:flex; align-items:center; gap:4px; border:1px solid #e2e8f0; transition:all 0.2s;">
+                    ▼ Bajar
+                </a>
             </div>
         </div>
         """
+    if not todos:
+        html_orden += '<p style="font-size:12px; color:#64748b; text-align:center; padding:20px;">No hay clientes activos para ordenar en la ruta.</p>'
+
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(html_orden)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_orden))
 
@@ -1032,10 +1045,10 @@ def seccion_agregar_lista():
             <label>Selecciona el Cliente Semanal a Forzar Cobro Hoy</label>
             <select name="cliente_forzar_id" required style="width:100%; padding:10px; border-radius:8px; margin-bottom:10px;">
                 {% for c in todos %}
-                    <option value="{{ c['id'] }}">👤 {{ c['nombre'] }} ({{ c['frecuencia'] BlackList }})</option>
+                    <option value="{{ c['id'] }}">👤 {{ c['nombre'] }} ({{ c['frecuencia'] }})</option>
                 {% endfor %}
             </select>
-            <button type="submit" class="btn-primary" style="background:#0f2b5c; border:none; padding:12px; color:white; font-weight:bold; border-radius:8px; width:100%;">⚡ Enrutar y Forzar Cobro Hoy</button>
+            <button type="submit" class="btn-primary" style="background:#0f2b5c; border:none; padding:12px; color:white; font-weight:bold; border-radius:8px; width:100%; cursor:pointer;">⚡ Enrutar y Forzar Cobro Hoy</button>
         </form>
     </div>
     """
