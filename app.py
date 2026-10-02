@@ -330,44 +330,73 @@ CONTENIDO_HTML = """
         </div>
         <div class="kpi-card" style="border-left:4px solid #ef4444; background:white; padding:10px; border-radius:8px;">
             <div class="kpi-title">Salidas / Gastos</div>
-                -${{ "%.2f"|format(salidas_totales) }}
-                Efectivo Líquido Neto
-                ${{ "%.2f"|format(efectivo_neto) }}
-                Registrar Movimiento de Flujo
-                Tipo de Flujo
-                📥 Entrada / Inversión Capital
-                📤 Salida / Registro de Gasto
-                Categoría del Egreso
-                ⛽ Combustible / Gasolina
-                🍔 Alimentación / Almuerzo
-                🛠️ Mantenimiento Vehículo
-                🎒 Viáticos de Ruta
-                💵 Sueldos / Pagos
-                📦 Otros Egresos
-                Descripción / Detalle
-                Monto ($)
-                📸 Foto Factura / Comprobante
-                Guardar Registro
-                📋 Historial de Movimientos de Hoy
-            {% if gastos_list %}
+            <div class="kpi-val" style="color:#ef4444;">-${{ "%.2f"|format(salidas_totales) }}</div>
+        </div>
+    </div>
+
+    <div class="card" style="background:#0f2b5c; color:white; text-align:center; padding:12px;">
+        <div class="kpi-title" style="color:white; opacity:0.8;">Efectivo Líquido Neto</div>
+        <div class="kpi-val" style="color:white; font-size:20px; margin-top:2px;">${{ "%.2f"|format(efectivo_neto) }}</div>
+    </div>
+
+    <div class="card" style="padding:16px;">
+        <div class="kpi-title" style="margin-bottom:8px;">Registrar Movimiento de Flujo</div>
+        <form action="/api/balance/guardar_movimiento" method="POST" enctype="multipart/form-data">
+            <label>Tipo de Flujo</label>
+            <select name="tipo_mov" required>
+                <option value="Entrada">📥 Entrada / Inversión Capital</option>
+                <option value="Salida" selected>📤 Salida / Registro de Gasto</option>
+            </select>
+            
+            <label>Categoría del Egreso</label>
+            <select name="categoria_mov">
+                <option value="Combustible">⛽ Combustible / Gasolina</option>
+                <option value="Alimentación">🍔 Alimentación / Almuerzo</option>
+                <option value="Mantenimiento">🛠️ Mantenimiento Vehículo</option>
+                <option value="Viáticos">🎒 Viáticos de Ruta</option>
+                <option value="Sueldos">💵 Sueldos / Pagos</option>
+                <option value="Otros" selected>📦 Otros Egresos</option>
+            </select>
+            
+            <label>Descripción / Detalle</label>
+            <input type="text" name="concepto_mov" placeholder="Ej: Compra de repuestos de moto" required>
+            
+            <label>Monto ($)</label>
+            <input type="number" step="any" name="monto_mov" placeholder="Valor en dinero" required>
+            
+            <label>📸 Foto Factura / Comprobante</label>
+            <input type="file" name="foto_mov" accept="image/*" capture="environment" style="border:none; padding:4px 0;">
+            
+            <button type="submit" class="btn-primary" style="background:#0f2b5c; color:white; border:none; font-weight:bold; padding:12px; margin-top:10px; width:100%; border-radius:8px;">Guardar Registro</button>
+        </form>
+    </div>
+
+    <div class="card" style="padding:16px; text-align:left;">
+        <h4 style="font-size:13px; color:#0f2b5c; margin-bottom:10px;">📋 Historial de Movimientos de Hoy</h4>
+        {% if gastos_list %}
             {% for g in gastos_list %}
-
-        [{{ g.categoria }}] {{ g.concepto }}
-
-        {% if g.tipo == 'Entrada' %}+{% else %}-{% endif %}${{ "%.2f"|format(g.monto) }}
-
-            {% if g.comprobante %}
-            📷 Ver
-    {% endif %}
-        🗑️
-
-    {% endfor %}
-    {% else %}
-        No hay flujos asentados hoy.
-    {% endif %}
-
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding:8px 0; font-size:12px;">
+                    <div style="flex:1;">
+                        <b>[{{ g.categoria }}]</b> {{ g.concepto }}
+                        <span style="color: {% if g.tipo == 'Entrada' %}#10b981{% else %}#ef4444{% endif %}; font-weight:bold; margin-left:6px;">
+                            {% if g.tipo == 'Entrada' %}+{% else %}-{% endif %}${{ "%.2f"|format(g.monto) }}
+                        </span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        {% if g.comprobante %}
+                            <button type="button" onclick="verFoto('{{ g.comprobante }}')" style="padding:4px 8px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer;">📷 Ver</button>
+                        {% endif %}
+                        <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Borrar este flujo contable hoy?')" style="color:#ef4444; text-decoration:none; font-weight:bold; font-size:14px; margin-left:4px;">🗑️</a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p style="font-size:11px; color:#64748b; text-align:center;">No hay flujos asentados hoy.</p>
+        {% endif %}
+    </div>
 {% endif %}
 """
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="es">
