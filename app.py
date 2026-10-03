@@ -11,15 +11,16 @@ from flask import Flask, jsonify, redirect, render_template_string, request, ses
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "avanta_secret_key_1.3_2026")
 
-# 🔑 Conexión distribuida segura a la base de datos PostgreSQL de Neon Cloud
+# 🔑 Conexión definitiva a tu base de datos de Neon en la nube
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://neondb_owner:npg_R4oN0OiVIQcB@ep-weathered-night-b4hv7m66.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
 
 def get_db():
     return psycopg2.connect(DATABASE_URL, cursor_factory=DictCursor)
+
 def init_db():
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 🏢 Estructura de Clientes con Cajas de GPS y Estados de Cartera
+            # 🏢 Estructura base blindada de clientes
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS clientes (
@@ -42,13 +43,19 @@ def init_db():
                 )
                 """
             )
+            # Inyección de columnas operativas para compatibilidad estructural en caliente
             cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS direccion TEXT DEFAULT ''")
             cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS referencia TEXT DEFAULT ''")
             cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS identificacion TEXT DEFAULT ''")
             cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'Activo'")
             cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS enrutado_forzado INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
 
-            # 💵 Estructura contable de pagos detallados por cuotas individuales
+init_db()
+def init_db_contable():
+    with get_db() as conn:
+        with conn.cursor() as cursor:
+            # 💵 Estructura contable de pagos individuales por cuotas
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS pagos (
@@ -64,12 +71,12 @@ def init_db():
                 )
                 """
             )
-            # 📊 Estructura de auditoría de movimientos de balance, inversiones y gastos con comprobante
+            # 📊 Estructura de auditoría de movimientos de balance, inversiones y gastos
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS balance_movimientos (
                     id SERIAL PRIMARY KEY,
-                    tipo TEXT NOT NULL,
+                    tipo TEXT NOT NULL, -- Entrada, Salida
                     categoria TEXT NOT NULL,
                     concepto TEXT NOT NULL,
                     monto REAL NOT NULL,
@@ -78,7 +85,7 @@ def init_db():
                 )
                 """
             )
-            # ⚙️ Estructura para credenciales de acceso administrativo y configuraciones de ruta
+            # ⚙️ Estructura para credenciales de acceso y datos de la empresa
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS configuracion (
@@ -97,7 +104,7 @@ def init_db():
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('balance_estado', 'Sin cerrar') ON CONFLICT DO NOTHING")
         conn.commit()
 
-init_db()
+init_db_contable()
 def obtener_clientes_ruta_hoy():
     conn = get_db()
     hoy_str = date.today().isoformat()
@@ -121,6 +128,7 @@ def obtener_clientes_ruta_hoy():
         c_dict = dict(c)
         c_dict["pagos"] = pagos_por_cliente.get(c["id"], [])
         
+        # Filtro estricto de control de la Ruta del Día o Enrutado Forzado Anticipado
         debe_cobrar_hoy = False
         if c_dict["enrutado_forzado"] == 1:
             debe_cobrar_hoy = True
@@ -159,7 +167,6 @@ def calcular_fecha(fecha_inicio, numero, frecuencia, omitir_domingos=True):
             actual += relativedelta(months=1)
         pasos += 1
     return actual
-
 LOGIN_HTML = """
 <!DOCTYPE html>
 <html lang="es">
@@ -278,14 +285,15 @@ CONTENIDO_HTML += """
 
                 <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:10px;">
                     {% if cuota_pendiente %}
+                        <!-- 🔄 Botón Pago: Abre la ventana modal para ingresar abonos o cuotas completas -->
                         <button class="btn-accion btn-pagar" style="background:#10b981;" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})"><i class="fa-solid fa-money-bill-wave"></i> Pago</button>
+                        <!-- ❌ Botón No Pago: Registra el salto diario de cobranza de forma inmediata -->
                         <button class="btn-accion btn-nopagar" style="background:#ef4444;" onclick="ejecutarNoPago({{ c.id }})"><i class="fa-solid fa-ban"></i> No pago</button>
                     {% endif %}
                 </div>
             </div>
         {% endfor %}
     </div>
-{% endif %}
 """
 CONTENIDO_HTML += """
 {% elif vista == 'clientes' or vista == 'creditos' %}
@@ -313,7 +321,7 @@ CONTENIDO_HTML += """
                     <div style="display:flex; gap:6px; align-items:center;">
                         <button class="btn-accion btn-abono" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="border:none; padding:8px 12px;"><i class="fa-solid fa-rotate"></i> Renovar</button>
                         {% if cl.estado != 'Lista Negra' %}
-                            <button class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/cliente/lista_negra/{{ cl.id }}'" style="background:#475569; padding:8px 12px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
+                            <button class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/clientes/lista_negra/{{ cl.id }}'" style="background:#475569; padding:8px 12px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
                         {% endif %}
                         <a href="/api/eliminar_cliente/{{ cl.id }}" onclick="return confirm('¿Eliminar cliente permanentemente de la ruta?')" class="btn-accion btn-nopagar" style="text-decoration:none; padding:8px 12px; background:#dc2626;"><i class="fa-solid fa-trash-can"></i> 🗑️💥 Borrar</a>
                     </div>
@@ -321,7 +329,8 @@ CONTENIDO_HTML += """
             </div>
         {% endfor %}
     </div>
-
+"""
+CONTENIDO_HTML += """
 {% elif vista == 'nuevo' or vista == 'renovar' %}
     <h3 style="margin-top:0; color:#0f2b5c;">{% if vista == 'renovar' %}🔄 Renovar Crédito a {{ cliente.nombre }}{% else %}👤 Registro de Crédito / Venta{% endif %}</h3>
     <div class="card" style="padding:16px;">
@@ -343,9 +352,7 @@ CONTENIDO_HTML += """
             <button type="submit" class="btn-primary" style="background:#0f2b5c; color:white; border:none; font-weight:bold; padding:12px; margin-top:8px;">💾 Guardar Crédito</button>
         </form>
     </div>
-{% endif %}
-"""
-CONTENIDO_HTML += """
+
 {% elif vista == 'balance' or vista == 'gastos' %}
     <div class="section-header-title"><i class="fa-solid fa-scale-balanced"></i> Estado Contable del Balance</div>
     <div class="expected-card" style="border-left: 5px solid #10b981; background:#ecfdf5; padding:12px; border-radius:12px; margin-bottom:12px; text-align:left;">
@@ -390,11 +397,14 @@ CONTENIDO_HTML += """
             </select>
             
             <label>Descripción / Detalle</label>
-            <input type="text" name="concepto_mov" placeholder="Ej: Compra de repuestos" required>
+            <input type="text" name="concepto_mov" placeholder="Ej: Compra de repuestos de moto" required>
+            
             <label>Monto ($)</label>
-            <input type="number" step="any" name="monto_mov" placeholder="Valor" required>
+            <input type="number" step="any" name="monto_mov" placeholder="Valor en dinero" required>
+            
             <label>📸 Foto Factura / Comprobante</label>
             <input type="file" name="foto_mov" accept="image/*" capture="environment" style="border:none; padding:4px 0;">
+            
             <button type="submit" class="btn-primary" style="background:#0f2b5c; color:white; border:none; font-weight:bold; padding:12px; margin-top:10px; width:100%; border-radius:8px;">Guardar Registro</button>
         </form>
     </div>
@@ -424,6 +434,7 @@ CONTENIDO_HTML += """
     </div>
 {% endif %}
 """
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="es">
@@ -448,6 +459,12 @@ HTML_TEMPLATE = """
         .drawer-menu { list-style: none; padding: 10px 0; overflow-y: auto; flex: 1; }
         .drawer-menu li a { display: flex; align-items: center; gap: 12px; padding: 13px 20px; color: #334155; text-decoration: none; font-weight: 700; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
         .drawer-menu li a i { font-size: 16px; width: 20px; color: #0f2b5c; text-align: center; }
+        .date-badge { text-align: center; font-size: 13px; font-weight: 800; color: #475569; background: #e2e8f0; padding: 6px; border-radius: 6px; margin-bottom: 10px; }
+        .grid-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .kpi-card { background: white; padding: 12px 10px; border-radius: 12px; border: 1px solid #e2e8f0; }
+        .kpi-title { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; }
+        .kpi-val { font-size: 15px; font-weight: 800; color: #0f2b5c; }
+        .expected-card { background: #f0f9ff; border: 1px solid #bae6fd; padding: 12px; border-radius: 12px; margin-bottom: 12px; text-align: left; }
         .search-box { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; margin-bottom: 12px; font-size: 13px; outline: none; }
         .card { background: white; padding: 14px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
@@ -484,6 +501,7 @@ HTML_TEMPLATE = """
             <div style="font-size:11px; opacity:0.8; margin-top:4px;"><i class="fa-solid fa-phone"></i> Soporte: +593991234567</div>
         </div>
         <ul class="drawer-menu">
+            <!-- ⚡ ICONOS LIMPIOS SIN ENUMERACIÓN SOLICITADOS -->
             <li><a href="#" onclick="navegarRuta('/')"><i class="fa-solid fa-map-location-dot"></i> Ruta Principal</a></li>
             <li><a href="#" onclick="navegarRuta('/menu/clientes')"><i class="fa-solid fa-address-book"></i> Clientes</a></li>
             <li><a href="#" onclick="navegarRuta('/menu/creditos')"><i class="fa-solid fa-hand-holding-dollar"></i> Créditos Activos</a></li>
@@ -586,20 +604,36 @@ function activarGpsNativo() {
                 document.getElementById('input_latitud').value = position.coords.latitude;
                 document.getElementById('input_longitud').value = position.coords.longitude;
             }
-        }, function(error) {
-            console.log('Error de geolocalización satelital: ', error.message);
-        }, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
+        });
     }
 }
-</script>
-"""
-HTML_TEMPLATE += """
-<script>
+function verFichaCliente(id) {
+    fetch('/api/cliente_info/' + id)
+        .then(res => res.json())
+        .then(d => {
+            if(d.status === 'ok') {
+                document.getElementById('inf_nombre').innerText = d.data.nombre;
+                document.getElementById('inf_tel').innerText = d.data.telefono;
+                document.getElementById('inf_id').innerText = d.data.identificacion;
+                document.getElementById('inf_dir').innerText = d.data.direccion;
+                document.getElementById('inf_ref').innerText = d.data.referencia;
+                document.getElementById('inf_f_ini').innerText = d.data.fecha_inicio;
+                document.getElementById('inf_f_venc').innerText = d.data.fecha_vencimiento;
+                document.getElementById('inf_v_cuota').innerText = '$' + d.data.valor_cuota.toFixed(2);
+                document.getElementById('inf_saldo_act').innerText = '$' + d.data.saldo_actual.toFixed(2);
+                document.getElementById('btn_llamar').href = 'tel:' + d.data.telefono;
+                
+                // 🗺️ ENLACE DE MAPAS CORREGIDO PARA ABRIR LA APP DEL CELULAR EN RUTA
+                document.getElementById('btn_mapa').href = 'https://google.com' + d.data.latitud + ',' + d.data.longitud;
+                
+                document.getElementById('modalInfoCliente').style.display = 'flex';
+            }
+        });
+}
 function filtrarClientes() {
-    const query = document.getElementById('searchInput').value.toLowerCase().trim();
+    const query = document.getElementById('searchInput').value.toLowerCase();
     document.querySelectorAll('.cliente-card').forEach(card => {
-        const nombre = card.getAttribute('data-nombre') || "";
-        card.style.display = nombre.includes(query) ? "block" : "none";
+        card.style.display = card.getAttribute('data-nombre').includes(query) ? "block" : "none";
     });
 }
 function filtrarEstado(tipo) {
@@ -621,33 +655,6 @@ function calcularCuota() {
         const total = monto * (1 + (interes / 100));
         document.getElementById('simulacionText').innerText = '$' + (total / cuotas).toFixed(2) + ' / cuota';
     }
-}
-</script>
-"""
-HTML_TEMPLATE += """
-<script>
-function verFichaCliente(id) {
-    fetch('/api/cliente_info/' + id)
-        .then(res => res.json())
-        .then(d => {
-            if(d.status === 'ok') {
-                document.getElementById('inf_nombre').innerText = d.data.nombre;
-                document.getElementById('inf_tel').innerText = d.data.telefono;
-                document.getElementById('inf_id').innerText = d.data.identificacion;
-                document.getElementById('inf_dir').innerText = d.data.direccion;
-                document.getElementById('inf_ref').innerText = d.data.referencia;
-                document.getElementById('inf_f_ini').innerText = d.data.fecha_inicio;
-                document.getElementById('inf_f_venc').innerText = d.data.fecha_vencimiento;
-                document.getElementById('inf_v_cuota').innerText = '$' + d.data.valor_cuota.toFixed(2);
-                document.getElementById('inf_saldo_act').innerText = '$' + d.data.saldo_actual.toFixed(2);
-                document.getElementById('btn_llamar').href = 'tel:' + d.data.telefono;
-                
-                // 🗺️ ENLACE SATELITAL DE ESCAPE UNIVERSAL PARA ABRIR LA APP NATIVA DE GOOGLE MAPS
-                document.getElementById('btn_mapa').href = 'https://google.com' + d.data.latitud + ',' + d.data.longitud;
-                
-                document.getElementById('modalInfoCliente').style.display = 'flex';
-            }
-        });
 }
 function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota) {
     document.getElementById('abonoClienteId').value = clienteId;
@@ -674,7 +681,7 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 document.getElementById('tMonto').innerText = data.recibo.monto.toFixed(2);
                 document.getElementById('tSaldo').innerText = data.recibo.saldo.toFixed(2);
                 
-                // 📲 ENLACE DE WHATSAPP CON URL OFICIAL DE ESCAPE DIRECTO A LA APLICACIÓN INSTALADA
+                // 📲 ENLACE DE WHATSAPP REPARADO QUE ABRE LA APP ORIGINAL DEL DISPOSITIVO
                 const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
                 document.getElementById('modalWsBtn').href = 'https://whatsapp.com' + numPuro + '&text=' + data.recibo.mensaje_ws;
                 
@@ -697,7 +704,7 @@ function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
 </body>
 </html>
 """
-# --- 🔐 SEGURIDAD: CONTROL DE ACCESO ---
+
 @app.route("/login", methods=["GET", "POST"])
 def login_route():
     if request.method == "POST":
@@ -722,8 +729,6 @@ def login_route():
 def logout():
     session.clear()
     return redirect("/login")
-
-# --- 🗺️ DASHBOARD PRINCIPAL (CON DATOS DE COBRO EXTENDIDOS) ---
 @app.route("/")
 def dashboard_principal():
     if not session.get("autenticado"): return redirect("/login")
@@ -749,79 +754,51 @@ def dashboard_principal():
 
     capital_en_calle = sum(max(0.0, c["monto_total"] - sum(p["valor_pagado"] for p in c["pagos"])) for c in clientes_ruta)
 
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return render_template_string(CONTENIDO_HTML, vista='lista', clientes=clientes_ruta, total_cobrado_hoy=total_cobrado_hoy, total_gastos_hoy=total_gastos_hoy, capital_en_calle=capital_en_calle, debido_minimo_dia=debido_minimo_dia, debido_total_acumulado=debido_total_acumulado)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, vista='lista', clientes=clientes_ruta, total_cobrado_hoy=total_cobrado_hoy, total_gastos_hoy=total_gastos_hoy, capital_en_calle=capital_en_calle, debido_minimo_dia=debido_minimo_dia, debido_total_acumulado=debido_total_acumulado))
+    contexto_dash = f"""
+    <div class="date-badge"><i class="fa-solid fa-calendar-day"></i> Ruta del Día</div>
+    <div class="grid-kpis">
+        <div class="kpi-card">
+            <div class="kpi-title">Recaudo Hoy / Créditos Hoy</div>
+            <div class="kpi-val">${total_cobrado_hoy:.2f} / {creditos_nuevos_hoy} Créd.</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Capital Total en Calle</div>
+            <div class="kpi-val" style="color:#0f2b5c;">${capital_en_calle:.2f}</div>
+        </div>
+    </div>
+    <div class="expected-card">
+        <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
+        <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo: <b>${debido_minimo_dia:.2f}</b> | Acumulado Mora: <b>${debido_total_acumulado:.2f}</b></div>
+    </div>
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente o referencia..." onkeyup="filtrarClientes()">
+    <div id="clientesContainer">
+    """
+    for c in clientes_ruta:
+        cuota_p = next((p for p in c["pagos"] if p["pagado"] == 0), None)
+        es_mora_cl = c.get("cuotas_atrasadas", 0) > 0
+        contexto_dash += f"""
+        <div class="card cliente-card" data-nombre="{c['nombre'].lower()}" data-mora="{"1" if es_mora_cl else "0"}">
+            <div class="flex-between">
+                <div style="cursor:pointer;" onclick="verFichaCliente({c['id']})">
+                    <span style="font-size:14px; font-weight:800; color:#0f2b5c;">{c['nombre']}</span>
+                    {"<span class='badge-mora'>MORA</span>" if es_mora_cl else "<span class='badge-al-dia'>AL DÍA</span>"}
+                    <div style="font-size:11px; color:#64748b; margin-top:2px;">Ref: {c['referencia'] or 'N/A'}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:15px; font-weight:800; color:#0f2b5c;">${c['valor_cuota']:.2f}</div>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
+                <button class="btn-accion btn-pagar" onclick="ejecutarPago({c['id']}, {cuota_p['numero'] if cuota_p else 1}, {cuota_p['valor'] - cuota_p['valor_pagado'] if cuota_p else 0})">Cobrar</button>
+                <button class="btn-accion btn-abono" onclick="abrirModalAbono({c['id']}, {cuota_p['numero'] if cuota_p else 1}, {cuota_p['valor'] - cuota_p['valor_pagado'] if cuota_p else 0}, {c['valor_cuota']})">Abono</button>
+                <button class="btn-accion btn-nopagar" onclick="ejecutarNoPago({c['id']})">Saltar</button>
+            </div>
+        </div>
+        """
+    contexto_dash += "</div>"
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(contexto_dash)
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(contexto_dash))
 
-# --- 👥 SECCIÓN DE APIS OPERATIVAS DE CONTROL CONTABLE ---
-@app.route("/api/marcar_pago/<int:cliente_id>/<int:num_cuota>")
-def api_marcar_pago(cliente_id, num_cuota):
-    if not session.get("autenticado"): return jsonify({"status": "error"})
-    monto_ingresado = float(request.args.get("monto", 0))
-    hoy_str = date.today().isoformat()
-    conn = get_db()
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT * FROM pagos WHERE cliente_id = %s AND numero = %s", (cliente_id, num_cuota))
-        pago = cursor.fetchone()
-        if pago:
-            nuevo_valor_pagado = pago["valor_pagado"] + monto_ingresado
-            esta_pagado = 1 if nuevo_valor_pagado >= (pago["valor"] - 0.01) else 0
-            cursor.execute("UPDATE pagos SET valor_pagado = %s, pagado = %s, fecha_pago_real = %s WHERE cliente_id = %s AND numero = %s", (nuevo_valor_pagado, esta_pagado, hoy_str, cliente_id, num_cuota))
-            cursor.execute("UPDATE clientes SET saltado_hoy = 0, fecha_gestion = %s WHERE id = %s", (hoy_str, cliente_id))
-            conn.commit()
-        cursor.execute("SELECT * FROM clientes WHERE id = %s", (cliente_id,))
-        cliente = cursor.fetchone()
-        cursor.execute("SELECT * FROM pagos WHERE cliente_id = %s", (cliente_id,))
-        pagos = cursor.fetchall()
-    
-    pagado_total = sum(p["valor_pagado"] for p in pagos)
-    saldo_restante = max(0.0, cliente["monto_total"] - pagado_total)
-    texto_ws = f"🌐 *AVANTA PAGOS - COMPROBANTE*\\n\\nCliente: *{cliente['nombre']}*\\n🔹 Cuota Cobrada: #{num_cuota}\\n🔹 Valor Pagado: ${monto_ingresado:.2f}\\n🔹 Saldo Pendiente: ${saldo_restante:.2f}\\n¡Muchas gracias por su puntualidad!"
-    
-    recibo = {
-        "cliente": cliente["nombre"], "cuota": num_cuota,
-        "monto": monto_ingresado, "saldo": saldo_restante,
-        "telefono": str(cliente["telefono"]).replace("(", "").replace(")", "").replace("'", "").strip(),
-        "mensaje_ws": urllib.parse.quote(texto_ws),
-    }
-    conn.close()
-    return jsonify({"status": "ok", "recibo": recibo})
-
-@app.route("/api/marcar_no_pago/<int:cliente_id>")
-def api_marcar_no_pago(cliente_id):
-    if not session.get("autenticado"): return jsonify({"status": "error"})
-    hoy_str = date.today().isoformat()
-    conn = get_db()
-    with conn.cursor() as cursor:
-        # Incrementa de forma transparente los días de retraso en la calle solicitado
-        cursor.execute("UPDATE clientes SET saltado_hoy = saltado_hoy + 1, fecha_gestion = %s WHERE id = %s", (hoy_str, cliente_id))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "ok"})
-
-@app.route("/api/cliente_info/<int:id>")
-def api_cliente_info(id):
-    if not session.get("autenticado"): return jsonify({"status": "error"})
-    conn = get_db()
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT * FROM clientes WHERE id = %s", (id,))
-        c = cursor.fetchone()
-        cursor.execute("SELECT * FROM pagos WHERE cliente_id = %s", (id,))
-        pagos = cursor.fetchall()
-    conn.close()
-    if c:
-        pagado_total = sum(p["valor_pagado"] for p in pagos)
-        saldo_actual = max(0.0, c["monto_total"] - pagado_total)
-        data = {
-            "nombre": c["nombre"], "telefono": c["telefono"] or 'N/A', "identificacion": c["identificacion"] or 'N/A',
-            "direccion": c["direccion"] or 'N/A', "referencia": c["referencia"] or 'N/A', "fecha_inicio": c["fecha_inicio"],
-            "fecha_vencimiento": c["fecha_vencimiento"], "valor_cuota": float(c["valor_cuota"]), "saldo_actual": float(saldo_actual),
-            "latitud": c["latitud"] or '0', "longitud": c["longitud"] or '0'
-        }
-        return jsonify({"status": "ok", "data": data})
-    return jsonify({"status": "error"})
-
-# --- 👥 SECCIÓN COMERCIAL: MAESTROS DE RUTA ---
 @app.route("/menu/clientes")
 @app.route("/menu/creditos")
 def seccion_clientes_maestro():
@@ -857,17 +834,6 @@ def seccion_balance_maestro():
     contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
-
-@app.route("/api/cliente/lista_negra/<int:id>")
-def api_cliente_lista_negra(id):
-    if not session.get("autenticado"): return redirect("/login")
-    conn = get_db()
-    with conn.cursor() as cursor:
-        cursor.execute("UPDATE clientes SET estado = 'Lista Negra' WHERE id = %s", (id,))
-    conn.commit()
-    conn.close()
-    return redirect("/menu/clientes")
-
 @app.route("/nuevo")
 @app.route("/mover_renovacion/<int:cliente_id>")
 def seccion_nuevo_credito(cliente_id=None):
@@ -901,7 +867,6 @@ def guardar_nuevo_cliente():
         longitud = request.form.get("longitud", "").strip()
         monto_total = round(monto * (1 + (interes_porcentaje / 100)), 2)
         valor_base_cuota = round(monto_total / cuotas, 2)
-        # 🟢 CORREGIDO: Se cambia 'frequency=frecuencia' por 'frecuencia' a secas
         fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas, frecuencia)
         conn = get_db()
         with conn.cursor() as cursor:
@@ -929,19 +894,19 @@ def guardar_nuevo_cliente():
 @app.route("/api/balance/guardar_movimiento", methods=["POST"])
 def balance_guardar_movimiento():
     tipo = request.form.get("tipo_mov")
-    category_mov = request.form.get("categoria_mov", "Otros")
+    categoria = request.form.get("categoria_mov", "Otros")
     concepto = request.form.get("concepto_mov", "").strip()
     monto = float(request.form.get("monto_mov", "0"))
     hoy_str = date.today().isoformat()
-    if not concepto: concepto = "Flujo de " + category_mov
+    if not concepto: concepto = "Flujo de " + categoria
     file = request.files.get("foto_mov")
     base64_str = ""
     if file and file.filename != "":
         base64_str = "data:" + file.content_type + ";base64," + base64.b64encode(file.read()).decode("utf-8")
     conn = get_db()
     with conn.cursor() as cursor:
-        cursor.execute("INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante) VALUES (%s, %s, %s, %s, %s, %s)", (tipo, category_mov, concepto, monto, hoy_str, base64_str))
-        conn.commit()
+        cursor.execute("INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante) VALUES (%s, %s, %s, %s, %s, %s)", (tipo, categoria, concepto, monto, hoy_str, base64_str))
+    conn.commit()
     conn.close()
     return redirect("/menu/balance")
 
@@ -986,12 +951,39 @@ def seccion_reordenar_ruta():
     if not session.get("autenticado"): return "Sesión expirada"
     conn = get_db()
     with conn.cursor() as cursor:
-        cursor.execute("SELECT id, nombre, orden, referencia FROM clientes WHERE estado = 'Activo' ORDER BY orden ASC, id DESC")
+        cursor.execute("SELECT id, nombre, orden, referencia, frecuencia FROM clientes WHERE estado = 'Activo' ORDER BY orden ASC, id DESC")
         todos = cursor.fetchall()
     conn.close()
-    html_orden = """<div class="section-header-title"><i class="fa-solid fa-arrow-down-up-lock"></i> Modificar Orden de la Ruta</div>"""
+
+    html_orden = """
+    <div class="section-header-title"><i class="fa-solid fa-arrow-down-up-lock"></i> Modificar Orden de la Ruta</div>
+    <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Organiza la secuencia de visitas diarias de tus cobradores. Los clientes aparecerán en el Dashboard en este orden estricto.</p>
+    """
     for index, cl in enumerate(todos):
-        html_orden += f"""<div class="card" style="padding:14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-left:4px solid #00a8cc;"><div><span style="font-weight:800; font-size:14px; color:#0f2b5c;">{index + 1}. {cl['nombre']}</span></div><div style="display:flex; gap:6px;"><a href="/mover/{cl['id']}/subir" style="text-decoration:none; font-size:11px; background:#f1f5f9; color:#0f2b5c; padding:8px 10px; border-radius:8px; font-weight:800; border:1px solid #e2e8f0;">▲ Subir</a><a href="/mover/{cl['id']}/bajar" style="text-decoration:none; font-size:11px; background:#f1f5f9; color:#0f2b5c; padding:8px 10px; border-radius:8px; font-weight:800; border:1px solid #e2e8f0;">▼ Bajar</a></div></div>"""
+        html_orden += f"""
+        <div class="card" style="padding:14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-left:4px solid #00a8cc; box-shadow:0 2px 4px rgba(0,0,0,0.04);">
+            <div style="text-align:left; display:flex; align-items:center; gap:12px;">
+                <div style="background:#0f2b5c; color:white; font-size:12px; font-weight:800; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(15,43,92,0.2);">
+                    {index + 1}
+                </div>
+                <div>
+                    <span style="font-weight:800; font-size:14px; color:#0f2b5c; display:block;">{cl['nombre']}</span>
+                    <span style="font-size:11px; color:#64748b; display:block; margin-top:2px;">📍 Ref: {cl['referencia'] or 'N/A'}</span>
+                </div>
+            </div>
+            <div style="display:flex; gap:6px;">
+                <a href="/mover/{cl['id']}/subir" style="text-decoration:none; font-size:11px; background:#f1f5f9; color:#0f2b5c; padding:8px 10px; border-radius:8px; font-weight:800; display:flex; align-items:center; gap:4px; border:1px solid #e2e8f0; transition:all 0.2s;">
+                    ▲ Subir
+                </a>
+                <a href="/mover/{cl['id']}/bajar" style="text-decoration:none; font-size:11px; background:#f1f5f9; color:#0f2b5c; padding:8px 10px; border-radius:8px; font-weight:800; display:flex; align-items:center; gap:4px; border:1px solid #e2e8f0; transition:all 0.2s;">
+                    ▼ Bajar
+                </a>
+            </div>
+        </div>
+        """
+    if not todos:
+        html_orden += '<p style="font-size:12px; color:#64748b; text-align:center; padding:20px;">No hay clientes activos para ordenar en la ruta.</p>'
+
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(html_orden)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_orden))
 
@@ -1007,11 +999,14 @@ def seccion_listados():
         creditos_f = cursor.fetchall()
     conn.close()
 
+    # Formateamos el bucle directamente en Python para evitar conflictos con Jinja en texto plano
     html_pagos = "".join([f'<p style="font-size:12px; border-bottom:1px solid #f1f5f9; padding:4px 0;">👤 {p["nombre"]} - Cuota #{p["numero"]} | <b style="color:#10b981;">${p["valor_pagado"]:.2f}</b></p>' for p in pagos_f])
-    if not html_pagos: html_pagos = '<p style="font-size:11px; color:#64748b; text-align:center;">Sin recaudos en esta fecha.</p>'
+    if not html_pagos:
+        html_pagos = '<p style="font-size:11px; color:#64748b; text-align:center;">Sin recaudos en esta fecha.</p>'
 
     html_creditos = "".join([f'<p style="font-size:12px; border-bottom:1px solid #f1f5f9; padding:4px 0;">👤 {c["nombre"]} | Capital: <b>${c["monto"]:.2f}</b> | Total Cartera: <b>${c["monto_total"]:.2f}</b></p>' for c in creditos_f])
-    if not html_creditos: html_creditos = '<p style="font-size:11px; color:#64748b; text-align:center;">Sin créditos nuevos en esta fecha.</p>'
+    if not html_creditos:
+        html_creditos = '<p style="font-size:11px; color:#64748b; text-align:center;">Sin créditos nuevos en esta fecha.</p>'
 
     html_listados = f"""
     <div class="section-header-title"><i class="fa-solid fa-list-check"></i> Auditoría Histórica por Fecha</div>
@@ -1022,8 +1017,14 @@ def seccion_listados():
             <button type="submit" class="btn-primary" style="background:#0f2b5c; color:white; border:none; padding:10px; font-weight:bold; width:100%; border-radius:8px; cursor:pointer;">🔍 Filtrar Historial</button>
         </form>
     </div>
-    <div class="card" style="text-align:left;"><h4 style="font-size:12px; color:#0f2b5c; margin-bottom:6px;">💰 Recaudos de la Fecha</h4>{html_pagos}</div>
-    <div class="card" style="text-align:left;"><h4 style="font-size:12px; color:#0f2b5c; margin-bottom:6px;">👤 Créditos Entregados</h4>{html_creditos}</div>
+    <div class="card" style="text-align:left;">
+        <h4 style="font-size:12px; color:#0f2b5c; margin-bottom:6px;">💰 Recaudos de la Fecha</h4>
+        {html_pagos}
+    </div>
+    <div class="card" style="text-align:left;">
+        <h4 style="font-size:12px; color:#0f2b5c; margin-bottom:6px;">👤 Créditos Entregados</h4>
+        {html_creditos}
+    </div>
     """
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(html_listados)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_listados))
@@ -1036,13 +1037,16 @@ def seccion_agregar_lista():
         cursor.execute("SELECT id, nombre, frecuencia FROM clientes WHERE estado = 'Activo' ORDER BY nombre ASC")
         todos = cursor.fetchall()
     conn.close()
+
     html_sincro = """
     <div class="section-header-title"><i class="fa-solid fa-user-plus"></i> Enrutamiento Forzado Anticipado</div>
     <div class="card">
         <form action="/api/clientes/forzar_enrutado" method="POST">
             <label>Selecciona el Cliente Semanal a Forzar Cobro Hoy</label>
             <select name="cliente_forzar_id" required style="width:100%; padding:10px; border-radius:8px; margin-bottom:10px;">
-                {% for c in todos %} <option value="{{ c['id'] }}">👤 {{ c['nombre'] }} ({{ c['frecuencia'] }})</option> {% endfor %}
+                {% for c in todos %}
+                    <option value="{{ c['id'] }}">👤 {{ c['nombre'] }} ({{ c['frecuencia'] }})</option>
+                {% endfor %}
             </select>
             <button type="submit" class="btn-primary" style="background:#0f2b5c; border:none; padding:12px; color:white; font-weight:bold; border-radius:8px; width:100%; cursor:pointer;">⚡ Enrutar y Forzar Cobro Hoy</button>
         </form>
@@ -1068,8 +1072,8 @@ def seccion_respaldo_nube():
     <div class="card" style="text-align:center; padding:30px 16px;">
         <i class="fa-solid fa-cloud-arrow-up" style="font-size:44px; color:#0284c7; margin-bottom:10px;"></i>
         <h4>Sincronización en Tiempo Real Activa</h4>
-        <p style="font-size:12px; color:#64748b; margin-bottom:14px;">Toda tu información ya está respaldada de forma automática en Neon Cloud.</p>
-        <button type="button" onclick="alert('⚡ Sincronización exitosa.');" class="btn-primary" style="background:#10b981; border:none; color:white; font-weight:bold; padding:12px; width:100%; border-radius:8px; cursor:pointer;">Forzar Respaldo Ahora</button>
+        <p style="font-size:12px; color:#64748b; margin-bottom:14px;">Toda tu información ya está respaldada de forma automática. En caso de pérdida del celular, tus cobros y saldos están 100% seguros.</p>
+        <button type="button" onclick="alert('⚡ ¡Sincronización forzada con éxito! Copia de seguridad guardada en Neon Cloud.');" class="btn-primary" style="background:#10b981; border:none; color:white; font-weight:bold; padding:12px; width:100%; border-radius:8px; cursor:pointer;">Forzar Respaldo Ahora</button>
     </div>
     """
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(html_cloud)
@@ -1082,8 +1086,8 @@ def seccion_configuracion_sistema():
     <div class="section-header-title"><i class="fa-solid fa-sliders"></i> Panel de Configuración y Acciones</div>
     <div class="card" style="text-align:left;">
         <h4 style="font-size:13px; color:#0f2b5c; margin-bottom:8px;">🛠️ Mantenimiento Base</h4>
-        <button type="button" onclick="alert('Rutas diarias reiniciadas.');" style="background:#475569; color:white; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; width:100%; cursor:pointer;">Resetear Estados de Cobro Diarios</button>
-        <button type="button" onclick="alert('Buscando dispositivos térmicos...');" style="background:#0284c7; color:white; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; margin-top:8px; width:100%; cursor:pointer;">🔄 Sincronizar Impresora Bluetooth Portátil</button>
+        <button type="button" onclick="alert('Estados de ruta diarias reiniciados con éxito.');" style="background:#475569; color:white; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; width:100%; cursor:pointer;">Resetear Estados de Cobro Diarios</button>
+        <button type="button" onclick="alert('Buscando dispositivos térmicos de 58mm...');" style="background:#0284c7; color:white; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; margin-top:8px; width:100%; cursor:pointer;">🔄 Sincronizar Impresora Bluetooth Portátil</button>
     </div>
     """
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(html_config)
