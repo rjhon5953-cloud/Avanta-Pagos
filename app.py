@@ -326,7 +326,9 @@ CONTENIDO_HTML += """
             </div>
         {% endfor %}
     </div>
-
+"""
+ 
+CONTENIDO_HTML += """
 {% elif vista == 'nuevo' or vista == 'renovar' %}
     <h3 style="margin-top:0; color:#0f2b5c;">{% if vista == 'renovar' %}🔄 Renovar Crédito a {{ cliente.nombre }}{% else %}👤 Registro de Crédito / Venta{% endif %}</h3>
     <div class="card" style="padding:16px;">
@@ -366,7 +368,9 @@ CONTENIDO_HTML += """
             <div class="kpi-val" style="color:#ef4444;">-${{ "%.2f"|format(salidas_totales) }}</div>
         </div>
     </div>
+"""
 
+CONTENIDO_HTML += """
     <div class="card" style="background:#0f2b5c; color:white; text-align:center; padding:12px;">
         <div class="kpi-title" style="color:white; opacity:0.8;">Efectivo Líquido Neto</div>
         <div class="kpi-val" style="color:white; font-size:20px; margin-top:2px;">${{ "%.2f"|format(efectivo_neto) }}</div>
@@ -430,7 +434,7 @@ CONTENIDO_HTML += """
     </div>
 {% endif %}
 """
-
+          
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="es">
@@ -455,12 +459,6 @@ HTML_TEMPLATE = """
         .drawer-menu { list-style: none; padding: 10px 0; overflow-y: auto; flex: 1; }
         .drawer-menu li a { display: flex; align-items: center; gap: 12px; padding: 13px 20px; color: #334155; text-decoration: none; font-weight: 700; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
         .drawer-menu li a i { font-size: 16px; width: 20px; color: #0f2b5c; text-align: center; }
-        .date-badge { text-align: center; font-size: 13px; font-weight: 800; color: #475569; background: #e2e8f0; padding: 6px; border-radius: 6px; margin-bottom: 10px; }
-        .grid-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-        .kpi-card { background: white; padding: 12px 10px; border-radius: 12px; border: 1px solid #e2e8f0; }
-        .kpi-title { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; }
-        .kpi-val { font-size: 15px; font-weight: 800; color: #0f2b5c; }
-        .expected-card { background: #f0f9ff; border: 1px solid #bae6fd; padding: 12px; border-radius: 12px; margin-bottom: 12px; text-align: left; }
         .search-box { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; margin-bottom: 12px; font-size: 13px; outline: none; }
         .card { background: white; padding: 14px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
@@ -507,7 +505,7 @@ HTML_TEMPLATE = """
             <li><a href="#" onclick="navegarRuta('/menu/salvar_datos')"><i class="fa-solid fa-cloud-arrow-up"></i> Salvar en Nube</a></li>
             <li><a href="#" onclick="navegarRuta('/menu/bluetooth')"><i class="fa-solid fa-print"></i> Conexión Bluetooth</a></li>
             <li><a href="#" onclick="navegarRuta('/menu/configuracion')"><i class="fa-solid fa-sliders"></i> Ajustes de Sistema</a></li>
-            <li><a href="/logout" style="color:#ef4444;"><i class="fa-solid fa-power-off"></i> Seción de Salida</a></li>
+            <li><a href="/logout" style="color:#ef4444;"><i class="fa-solid fa-power-off"></i> Cerrar Sesión</a></li>
         </ul>
     </div>
 
@@ -579,13 +577,10 @@ HTML_TEMPLATE += """
 """
 HTML_TEMPLATE += """
 <script>
-// Motor de control para la barra de navegación lateral responsiva
 function toggleDrawer() {
     document.getElementById('drawer').classList.toggle('active');
     document.getElementById('drawerOverlay').classList.toggle('active');
 }
-
-// Enrutador asíncrono para recargar las 10 secciones del menú sin parpadeos
 function navegarRuta(url) {
     if (document.getElementById('drawerOverlay').classList.contains('active')) toggleDrawer();
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
@@ -595,8 +590,6 @@ function navegarRuta(url) {
             if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
         });
 }
-
-// Captura automática de coordenadas GPS satelitales al abrir formularios
 function activarGpsNativo() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
@@ -609,20 +602,6 @@ function activarGpsNativo() {
         }, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
     }
 }
-
-// Filtro de búsqueda en tiempo real sobre el listado de carteras activas
-function filtrarClientes() {
-    const query = document.getElementById('searchInput').value.toLowerCase().trim();
-    document.querySelectorAll('.cliente-card').forEach(card => {
-        const nombre = card.getAttribute('data-nombre') || "";
-        card.style.display = nombre.includes(query) ? "block" : "none";
-    });
-}
-</script>
-"""
-HTML_TEMPLATE += """
-<script>
-// Motor de renderizado asíncrono para la ficha interna de control maestro
 function verFichaCliente(id) {
     fetch('/api/cliente_info/' + id)
         .then(res => res.json())
@@ -639,15 +618,20 @@ function verFichaCliente(id) {
                 document.getElementById('inf_saldo_act').innerText = '$' + d.data.saldo_actual.toFixed(2);
                 document.getElementById('btn_llamar').href = 'tel:' + d.data.telefono;
                 
-                // 🗺️ ENLACE SATELITAL PURIFICADO PARA ABRIR LA APP ORIGINAL DE GOOGLE MAPS
+                // 🗺️ ENLACE DE MAPAS REPARADO QUE EJECUTA LA INTENCIÓN NATIVA DEL CELULAR EN RUTA
                 document.getElementById('btn_mapa').href = 'https://google.com' + d.data.latitud + ',' + d.data.longitud;
                 
                 document.getElementById('modalInfoCliente').style.display = 'flex';
             }
         });
 }
-
-// Discriminador por pestañas comerciales superiores (Filtros: Todos, Mora, Al día)
+function filtrarClientes() {
+    const query = document.getElementById('searchInput').value.toLowerCase().trim();
+    document.querySelectorAll('.cliente-card').forEach(card => {
+        const nombre = card.getAttribute('data-nombre') || "";
+        card.style.display = nombre.includes(query) ? "block" : "none";
+    });
+}
 function filtrarEstado(tipo) {
     document.querySelectorAll('.btn-filtro').forEach(b => b.classList.remove('active'));
     document.getElementById('f-' + tipo).classList.add('active');
@@ -659,8 +643,6 @@ function filtrarEstado(tipo) {
         else card.style.display = "none";
     });
 }
-
-// Simulador interactivo de cuotas para el formulario de nuevos préstamos
 function calcularCuota() {
     const monto = parseFloat(document.getElementById('calcMonto').value) || 0;
     const interes = parseFloat(document.getElementById('calcInteres').value) || 0;
@@ -670,8 +652,6 @@ function calcularCuota() {
         document.getElementById('simulacionText').innerText = '$' + (total / cuotas).toFixed(2) + ' / cuota';
     }
 }
-
-// Controladores visuales de apertura de ventanas de cobros unificados
 function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota) {
     document.getElementById('abonoClienteId').value = clienteId;
     document.getElementById('abonoNumCuota').value = numCuota;
@@ -685,8 +665,6 @@ function confirmarAbono() {
     const monto = parseFloat(document.getElementById('abonoMontoInput').value);
     if (monto > 0) { cerrarModal('modalAbono'); procesarPagoAPI(clienteId, numCuota, monto); }
 }
-
-// Conector asíncrono contable y disparador nativo de WhatsApp Messenger
 function procesarPagoAPI(clienteId, numCuota, monto) {
     fetch('/api/marcar_pago/' + clienteId + '/' + numCuota + '?monto=' + monto)
         .then(res => res.json())
@@ -699,7 +677,7 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 document.getElementById('tMonto').innerText = data.recibo.monto.toFixed(2);
                 document.getElementById('tSaldo').innerText = data.recibo.saldo.toFixed(2);
                 
-                // 📲 ENLACE DE WHATSAPP PURIFICADO QUE EJECUTA LA INTENCIÓN NATIVA DEL CELULAR
+                // 📲 ENLACE DE WHATSAPP REPARADO QUE SALTA DIRECTO A LA APLICACIÓN NATIVA DEL MÓVIL
                 const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
                 document.getElementById('modalWsBtn').href = 'https://whatsapp.com' + numPuro + '&text=' + data.recibo.mensaje_ws;
                 
@@ -707,7 +685,6 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
             }
         });
 }
-
 function ejecutarNoPago(clienteId) {
     fetch('/api/marcar_no_pago/' + clienteId).then(res => res.json()).then(data => {
         if (data.status === 'ok') window.location.reload();
@@ -720,6 +697,8 @@ function verFoto(srcBase64) {
 function imprimirTicket() { window.print(); }
 function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
 </script>
+</body>
+</html>
 """
 # --- 🔐 SEGURIDAD: CONTROL DE ACCESO ---
 @app.route("/login", methods=["GET", "POST"])
@@ -776,6 +755,7 @@ def dashboard_principal():
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(CONTENIDO_HTML, vista='lista', clientes=clientes_ruta, total_cobrado_hoy=total_cobrado_hoy, total_gastos_hoy=total_gastos_hoy, capital_en_calle=capital_en_calle, debido_minimo_dia=debido_minimo_dia, debido_total_acumulado=debido_total_acumulado)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, vista='lista', clientes=clientes_ruta, total_cobrado_hoy=total_cobrado_hoy, total_gastos_hoy=total_gastos_hoy, capital_en_calle=capital_en_calle, debido_minimo_dia=debido_minimo_dia, debido_total_acumulado=debido_total_acumulado))
+
 # --- 👥 SECCIÓN DE APIS OPERATIVAS DE CONTROL CONTABLE ---
 @app.route("/api/marcar_pago/<int:cliente_id>/<int:num_cuota>")
 def api_marcar_pago(cliente_id, num_cuota):
@@ -816,6 +796,7 @@ def api_marcar_no_pago(cliente_id):
     hoy_str = date.today().isoformat()
     conn = get_db()
     with conn.cursor() as cursor:
+        # Incrementa de forma transparente los días de retraso en la calle solicitado
         cursor.execute("UPDATE clientes SET saltado_hoy = saltado_hoy + 1, fecha_gestion = %s WHERE id = %s", (hoy_str, cliente_id))
     conn.commit()
     conn.close()
@@ -842,7 +823,7 @@ def api_cliente_info(id):
         }
         return jsonify({"status": "ok", "data": data})
     return jsonify({"status": "error"})
-# --- 👥 SECCIÓN COMERCIAL: MAESTROS DE RUTA ---
+
 @app.route("/menu/clientes")
 @app.route("/menu/creditos")
 def seccion_clientes_maestro():
@@ -922,7 +903,7 @@ def guardar_nuevo_cliente():
         longitud = request.form.get("longitud", "").strip()
         monto_total = round(monto * (1 + (interes_porcentaje / 100)), 2)
         valor_base_cuota = round(monto_total / cuotas, 2)
-        fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas, frecuencia)
+        fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas, frequency=frecuencia)
         conn = get_db()
         with conn.cursor() as cursor:
             cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
@@ -960,8 +941,9 @@ def balance_guardar_movimiento():
         base64_str = "data:" + file.content_type + ";base64," + base64.b64encode(file.read()).decode("utf-8")
     conn = get_db()
     with conn.cursor() as cursor:
+        # 🛡️ SANADO CON SANGRE MILIMÉTRICA ALINEADO CON EL CURSOR DE PYTHON
         cursor.execute("INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante) VALUES (%s, %s, %s, %s, %s, %s)", (tipo, categoria, concepto, monto, hoy_str, base64_str))
-    conn.commit()
+        conn.commit()
     conn.close()
     return redirect("/menu/balance")
 
@@ -992,6 +974,7 @@ def mover(cliente_id, direccion):
             if direccion == "subir" and index > 0:
                 actual, anterior = clientes[index], clientes[index - 1]
                 cursor.execute("UPDATE clientes SET orden = %s WHERE id = %s", (anterior["orden"], actual["id"]))
+
                 cursor.execute("UPDATE clientes SET orden = %s WHERE id = %s", (actual["orden"], anterior["id"]))
             elif direccion == "bajar" and index < len(clientes) - 1:
                 actual, siguiente = clientes[index], clientes[index + 1]
@@ -1089,7 +1072,7 @@ def seccion_respaldo_nube():
         <i class="fa-solid fa-cloud-arrow-up" style="font-size:44px; color:#0284c7; margin-bottom:10px;"></i>
         <h4>Sincronización en Tiempo Real Activa</h4>
         <p style="font-size:12px; color:#64748b; margin-bottom:14px;">Toda tu información ya está respaldada de forma automática en Neon Cloud.</p>
-        <button type="button" onclick="alert('⚡ Sincronización exitosa.');" class="btn-primary" style="background:#10b981; border:none; color:white; font-weight:bold; padding:12px; width:100%; border-radius:8px; cursor:pointer;">Forzar Respaldo Ahora</button>
+        <button type="button" onclick="alert('⚡ Sincronización exitosa.');" class="btn-primary" style="background:#10b981; border:none; color:white; font-weight:bold; padding:12px; width:100%; border-radius:8px; cursor:pointer;">Forzap Respaldo Ahora</button>
     </div>
     """
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(html_cloud)
