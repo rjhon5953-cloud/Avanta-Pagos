@@ -901,11 +901,12 @@ def guardar_nuevo_cliente():
         longitud = request.form.get("longitud", "").strip()
         monto_total = round(monto * (1 + (interes_porcentaje / 100)), 2)
         valor_base_cuota = round(monto_total / cuotas, 2)
+        # 🟢 CORREGIDO: Se cambia 'frequency=frecuencia' por 'frecuencia' a secas
         fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas, frecuencia)
         conn = get_db()
         with conn.cursor() as cursor:
             cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
-            max_orden = cursor.fetchone()
+            max_orden = cursor.fetchone()[0]
             cursor.execute(
                 """
                 INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, estado, saltado_hoy, fecha_gestion, latitud, longitud)
@@ -913,7 +914,7 @@ def guardar_nuevo_cliente():
                 """,
                 (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud)
             )
-            cliente_id = cursor.fetchone()
+            cliente_id = cursor.fetchone()[0]
             acumulado = 0.0
             for num in range(1, cuotas + 1):
                 valor_cuota_real = round(monto_total - acumulado, 2) if num == cuotas else valor_base_cuota
@@ -1091,4 +1092,3 @@ def seccion_configuracion_sistema():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
-    
