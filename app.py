@@ -680,6 +680,7 @@ function confirmarAbono() {
 function ejecutarPago(clienteId, numCuota, pendiente) {
     procesarPagoAPI(clienteId, numCuota, pendiente);
 }
+
 function procesarPagoAPI(clienteId, numCuota, monto) {
     fetch('/api/marcar_pago/' + clienteId + '/' + numCuota + '?monto=' + monto)
         .then(res => res.json())
@@ -692,14 +693,23 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 document.getElementById('tMonto').innerText = data.recibo.monto.toFixed(2);
                 document.getElementById('tSaldo').innerText = data.recibo.saldo.toFixed(2);
                 
-                // 📲 ENLACE DE WHATSAPP REPARADO: ABRE EL PROTOCOLO NATIVO DE LA APLICACIÓN ORIGINAL
+                // 📲 ENLACE DE WHATSAPP CON APERTURA BLINDADA CONTRA BLOQUEOS DE CHROME
                 const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
-                document.getElementById('modalWsBtn').href = 'https://whatsapp.com' + numPuro + '&text=' + encodeURIComponent(data.recibo.mensaje_ws);
+                const urlCompleta = 'https://whatsapp.com' + numPuro + '&text=' + encodeURIComponent(data.recibo.mensaje_ws);
+                
+                // Asignamos una función al hacer clic para saltarse de forma segura el bloqueo 'about:blank#blocked'
+                const btnWs = document.getElementById('modalWsBtn');
+                btnWs.href = '#';
+                btnWs.onclick = function(e) {
+                    e.preventDefault();
+                    window.open(urlCompleta, '_blank', 'noopener,noreferrer');
+                };
                 
                 document.getElementById('modalWs').style.display = 'flex';
             }
         });
 }
+
 function ejecutarNoPago(clienteId) {
     fetch('/api/marcar_no_pago/' + clienteId).then(res => res.json()).then(data => {
         if (data.status === 'ok') window.location.reload();
