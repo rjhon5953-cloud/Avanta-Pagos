@@ -925,7 +925,7 @@ def guardar_nuevo_cliente():
                 )
                 
                 res_id = cursor.fetchone()
-                cliente_id = res_id["id"] if res_id else None
+                cliente_id = res_id[0] if res_id else None
                 
                 if cliente_id:
                     acumulado = 0.0
