@@ -514,8 +514,6 @@ HTML_TEMPLATE = """
             <li><a href="#" onclick="navegarRuta('/menu/listados')"><i class="fa-solid fa-list-check"></i> Listados Históricos</a></li>
             <li><a href="#" onclick="navegarRuta('/menu/balance')"><i class="fa-solid fa-wallet"></i> Balance de Caja</a></li>
             <li><a href="#" onclick="navegarRuta('/menu/agregar_lista')"><i class="fa-solid fa-user-plus"></i> Agregar a Lista</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/balance')"><i class="fa-solid fa-wallet"></i> Balance de Caja</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/agregar_lista')"><i class="fa-solid fa-user-plus"></i> Agregar a Lista</a></li>
             <li><a href="#" onclick="navegarRuta('/menu/salvar_datos')"><i class="fa-solid fa-cloud-arrow-up"></i> Salvar en Nube</a></li>
             <li><a href="#" onclick="navegarRuta('/menu/bluetooth')"><i class="fa-solid fa-print"></i> Conexión Bluetooth</a></li>
             <li><a href="#" onclick="navegarRuta('/menu/configuracion')"><i class="fa-solid fa-sliders"></i> Ajustes de Sistema</a></li>
@@ -534,7 +532,7 @@ HTML_TEMPLATE += """
             <div class="modal-grid-data">
                 <div class="data-box"><div class="data-lbl">Teléfono</div><div class="data-val" id="inf_tel"></div></div>
                 <div class="data-box"><div class="data-lbl">Identificación</div><div class="data-val" id="inf_id"></div></div>
-                <div class="data-box" style="grid-column:span 2;"><div class="data-lbl">Dirección</div><div class="data-val" id="inf_dir"></div></div>
+                <div class="data-box" style="grid-column:span 2;"><div class="data-lbl">Dirección Domiciliaria</div><div class="data-val" id="inf_dir"></div></div>
                 <div class="data-box" style="grid-column:span 2;"><div class="data-lbl">Referencia</div><div class="data-val" id="inf_ref"></div></div>
                 <div class="data-box"><div class="data-lbl">Fecha Crédito</div><div class="data-val" id="inf_f_ini"></div></div>
                 <div class="data-box"><div class="data-lbl">Vencimiento</div><div class="data-val" id="inf_f_venc"></div></div>
@@ -891,6 +889,7 @@ def seccion_nuevo_credito(cliente_id=None):
 
 @app.route("/guardar", methods=["POST"])
 def guardar_nuevo_cliente():
+    if not session.get("autenticado"): return redirect("/login")
     try:
         nombre = request.form.get("nombre", "").strip()
         telefono = request.form.get("telefono", "").strip()
@@ -911,9 +910,12 @@ def guardar_nuevo_cliente():
         
         with get_db() as conn:
             with conn.cursor() as cursor:
+                # 🏢 Obtención segura del orden máximo desestructurando la fila
                 cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
-                max_orden = cursor.fetchone()
+                res_orden = cursor.fetchone()
+                max_orden = res_orden[0] if res_orden else 0
                 
+                # Inserción parametrizada del cliente principal
                 cursor.execute(
                     """
                     INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, estado, saltado_hoy, fecha_gestion, latitud, longitud)
@@ -921,17 +923,26 @@ def guardar_nuevo_cliente():
                     """,
                     (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud)
                 )
-                cliente_id = cursor.fetchone()
+                # 🔑 CORRECCIÓN CRÍTICA: Desestructurar el ID real extraído de la base de datos
+                res_id = cursor.fetchone()
+                cliente_id = res_id[0] if res_id else None
                 
-                acumulado = 0.0
-                for num in range(1, cuotas + 1):
-                    valor_cuota_real = round(monto_total - acumulado, 2) if num == cuotas else valor_base_cuota
-                    acumulado += valor_cuota_real
-                    f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
-                    cursor.execute("INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real) VALUES (%s, %s, %s, %s, 0, 0, '')", (cliente_id, num, f_cuota.isoformat(), valor_cuota_real))
+                if cliente_id:
+                    acumulado = 0.0
+                    for num in range(1, cuotas + 1):
+                        valor_cuota_real = round(monto_total - acumulado, 2) if num == cuotas else valor_base_cuota
+                        acumulado += valor_cuota_real
+                        f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
+                        cursor.execute(
+                            """
+                            INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real) 
+                            VALUES (%s, %s, %s, %s, 0, 0, '')
+                            """, 
+                            (cliente_id, num, f_cuota.isoformat(), valor_cuota_real)
+                        )
             conn.commit()
     except Exception as e: 
-        print(f"Error en guardar cliente: {e}")
+        print(f"Error crítico en guardar cliente: {e}")
     return redirect("/")
 
 @app.route("/api/balance/guardar_movimiento", methods=["POST"])
