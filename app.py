@@ -910,22 +910,22 @@ def guardar_nuevo_cliente():
         
         with get_db() as conn:
             with conn.cursor() as cursor:
-                # 🏢 Obtención segura del orden máximo desestructurando la fila
-                cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
+                # 🏢 Obtención segura del orden máximo con DictCursor
+                cursor.execute("SELECT COALESCE(MAX(orden), 0) AS max_o FROM clientes")
                 res_orden = cursor.fetchone()
-                max_orden = res_orden[0] if res_orden else 0
+                max_orden = res_orden["max_o"] if res_orden else 0
                 
-                # Inserción parametrizada del cliente principal
+                # Inserción parametrizada convirtiendo fechas a cadenas de texto ISO
                 cursor.execute(
                     """
                     INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, estado, saltado_hoy, fecha_gestion, latitud, longitud)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Activo', 0, '', %s, %s) RETURNING id
                     """,
-                    (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud)
+                    (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, str(fecha_inicio_dt.isoformat()), str(fecha_vencimiento_dt.isoformat()), latitud, longitud)
                 )
-                # 🔑 CORRECCIÓN CRÍTICA: Desestructurar el ID real extraído de la base de datos
+                
                 res_id = cursor.fetchone()
-                cliente_id = res_id[0] if res_id else None
+                cliente_id = res_id["id"] if res_id else None
                 
                 if cliente_id:
                     acumulado = 0.0
@@ -933,12 +933,16 @@ def guardar_nuevo_cliente():
                         valor_cuota_real = round(monto_total - acumulado, 2) if num == cuotas else valor_base_cuota
                         acumulado += valor_cuota_real
                         f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
+                        
+                        # 🔑 CORRECCIÓN CRÍTICA: Convertir f_cuota de forma explícita a un string ISO plano
+                        fecha_cuota_str = str(f_cuota.isoformat())
+                        
                         cursor.execute(
                             """
                             INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real) 
                             VALUES (%s, %s, %s, %s, 0, 0, '')
                             """, 
-                            (cliente_id, num, f_cuota.isoformat(), valor_cuota_real)
+                            (cliente_id, num, fecha_cuota_str, valor_cuota_real)
                         )
             conn.commit()
     except Exception as e: 
