@@ -202,7 +202,7 @@ LOGIN_HTML = """
     <div class="login-card">
         <div class="logo-container">
             <div class="logo-icon">🌐 AVANTA</div>
-            <div class="logo-subtitle">PAGOS v1.3</div>
+            <div class="logo-subtitle">PAGOS SISTEMA v1.3</div>
         </div>
         <h2>Control de Acceso</h2>
         {% if error %} <div class="error-msg">⚠️ {{ error }}</div> {% endif %}
@@ -394,19 +394,19 @@ CONTENIDO_HTML += """
             <label>Categoría del Movimiento</label>
             <select name="categoria_mov">
                 <option value="Inversión">💰 Inversión de Capital</option>
-                <option value="Combustible">⛽ Combustible / Gasolina</option>
-                <option value="Alimentación">🍔 Alimentación / Almuerzo</option>
+                <option value="Gasolina">⛽ Gasolina</option>
+                <option value="Almuerzo">🍔 Almuerzo</option>
                 <option value="Mantenimiento">🛠️ Mantenimiento Vehículo</option>
                 <option value="Viáticos">🎒 Viáticos de Ruta</option>
-                <option value="Sueldos">💵 Sueldos / Pagos</option>
+                <option value="Sueldo">💵 Comision</option>
                 <option value="Otros" selected>📦 Otros</option>
             </select>
             
             <label>Descripción / Detalle</label>
-            <input type="text" name="concepto_mov" placeholder="Ej: Compra de repuestos de moto" required>
+            <input type="text" name="concepto_mov" placeholder="Ej: Compra de repuestos de moto" optional>
             
             <label>Monto ($)</label>
-            <input type="number" step="any" name="monto_mov" placeholder="Valor en dinero" required>
+            <input type="number" step="any" name="monto_mov" placeholder="Valor en dinero" optional>
             
             <label>📸 Foto Factura / Comprobante</label>
             <input type="file" name="foto_mov" accept="image/*" capture="environment" style="border:none; padding:4px 0;">
@@ -430,7 +430,7 @@ CONTENIDO_HTML += """
                         {% if g.comprobante %}
                             <button type="button" onclick="verFoto('{{ g.comprobante }}')" style="padding:4px 8px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer;">📷 Ver</button>
                         {% endif %}
-                        <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Borrar este flujo contable hoy?')" style="color:#ef4444; text-decoration:none; font-weight:bold; font-size:14px; margin-left:4px;">🗑️</a>
+                        <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Eliminar Gasto?')" style="color:#ef4444; text-decoration:none; font-weight:bold; font-size:14px; margin-left:4px;">🗑️</a>
                     </div>
                 </div>
             {% endfor %}
