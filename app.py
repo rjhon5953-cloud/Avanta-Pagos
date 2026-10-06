@@ -855,10 +855,15 @@ def seccion_balance_maestro():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
+            # 🏢 FIJADO: Extracción mediante índice posicional [0] para evitar errores de clave con DictCursor
             cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_base'")
-            caja_base = float(cursor.fetchone()["valor"])
+            res_caja = cursor.fetchone()
+            caja_base = float(res_caja[0]) if res_caja else 100.00
+            
             cursor.execute("SELECT valor FROM configuracion WHERE llave = 'balance_estado'")
-            balance_estado = cursor.fetchone()["valor"]
+            res_estado = cursor.fetchone()
+            balance_estado = res_estado[0] if res_estado else "Sin cerrar"
+            
             cursor.execute("SELECT * FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
             movimientos = cursor.fetchall()
             
@@ -870,9 +875,8 @@ def seccion_balance_maestro():
     for m in movimientos:
         m_dict = dict(m)
         if m_dict["comprobante"]:
-            # 🧼 Saneamiento crítico: elimina saltos de línea o comillas corruptas que rompen el JavaScript
+            # Saneamiento de cadenas de texto para evitar roturas en el JavaScript
             comprobante_limpio = m_dict["comprobante"].replace("\n", "").replace("\r", "").strip()
-            # Asegura el prefijo correcto de imagen data URI
             if not comprobante_limpio.startswith("data:image"):
                 comprobante_limpio = f"data:image/jpeg;base64,{comprobante_limpio}"
             m_dict["comprobante"] = comprobante_limpio
