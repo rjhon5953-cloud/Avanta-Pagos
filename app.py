@@ -882,20 +882,20 @@ def seccion_balance_maestro():
         m_dict = dict(m)
         if m_dict["comprobante"]:
             try:
-                # 🖼️ FIJADO: Si el dato viene como 'memoryview' o bytes binarios de Neon, se extrae el búfer crudo
-                if isinstance(m_dict["comprobante"], (memoryview, bytes)):
-                    raw_bytes = m_dict["comprobante"].tobytes() if isinstance(m_dict["comprobante"], memoryview) else m_dict["comprobante"]
-                    # Convertir los bytes puros a formato Base64 para el navegador web
-                    b64_str = base64.b64encode(raw_bytes).decode("utf-8")
-                    m_dict["comprobante"] = f"data:image/jpeg;base64,{b64_str}"
-                else:
-                    # Si ya viene guardado como una cadena de texto (string)
-                    comprobante_puro = str(m_dict["comprobante"]).replace("\n", "").replace("\r", "").strip()
-                    if "base64," in comprobante_puro:
-                        comprobante_puro = comprobante_puro.split("base64,")[-1]
-                    m_dict["comprobante"] = f"data:image/jpeg;base64,{comprobante_puro}"
+                # 🧼 Saneamiento crítico en DictCursor: extrae el texto puro eliminando envolturas de buffers
+                comprobante_puro = str(m_dict["comprobante"]).replace("\n", "").replace("\r", "").strip()
+                
+                # Si por el cursor anterior venía como objeto memoryview, lo limpiamos de forma explícita
+                if "memory at" in comprobante_puro or "memoryview" in comprobante_puro:
+                    comprobante_puro = ""
+                
+                # Si no trae el encabezado Data URI, se lo inyectamos de forma limpia
+                if comprobante_puro and not comprobante_puro.startswith("data:image"):
+                    comprobante_puro = f"data:image/jpeg;base64,{comprobante_puro}"
+                    
+                m_dict["comprobante"] = comprobante_puro
             except Exception as b64_err:
-                print(f"Error decodificando comprobante: {b64_err}")
+                print(f"Error procesando imagen: {b64_err}")
                 m_dict["comprobante"] = ""
         movimientos_limpios.append(m_dict)
             
@@ -995,8 +995,9 @@ def balance_guardar_movimiento():
     file = request.files.get("foto_mov")
     base64_str = ""
     if file and file.filename != "":
-        # 📸 FIJADO: Guarda únicamente la cadena Base64 pura y limpia en Neon, sin encabezados duplicados
-        base64_str = base64.b64encode(file.read()).decode("utf-8")
+        # 📸 FIJADO: Se limpia el base64 eliminando saltos de línea al guardar para que no se corrompa en Neon
+        raw_b64 = base64.b64encode(file.read()).decode("utf-8")
+        base64_str = raw_b64.replace("\n", "").replace("\r", "").strip()
         
     with get_db() as conn:
         with conn.cursor() as cursor:
