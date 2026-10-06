@@ -12,10 +12,10 @@ app = Flask(__name__)
 # Configuración blindada de llave secreta
 app.secret_key = os.environ.get("SECRET_KEY", "avanta_secret_key_1.3_2026")
 
-# URL de Neon protegida vía variables de entorno con fallback seguro
+# 🔑 Conexión blindada: Busca la URL en el sistema operativo; si no existe, usa la tuya de respaldo.
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", 
-    "postgresql://neondb_owner:npg_R4oN0OiVIQcB@ep-weathered-night-b4hv7m66.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+    "postgresql://neondb_owner:npg_9qQIcnHCpT3O@ep-weathered-night-b4hv7m66.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 )
 
 def get_db():
@@ -910,7 +910,7 @@ def guardar_nuevo_cliente():
         
         with get_db() as conn:
             with conn.cursor() as cursor:
-                # 🏢 Obtención segura del orden máximo con DictCursor
+                # 🏢 Obtención limpia forzando nombres de columnas
                 cursor.execute("SELECT COALESCE(MAX(orden), 0) AS max_o FROM clientes")
                 res_orden = cursor.fetchone()
                 max_orden = res_orden["max_o"] if res_orden else 0
@@ -924,8 +924,9 @@ def guardar_nuevo_cliente():
                     (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, str(fecha_inicio_dt.isoformat()), str(fecha_vencimiento_dt.isoformat()), latitud, longitud)
                 )
                 
+                # 🔑 EXTRACCIÓN MEDIANTE NOMBRE DE COLUMNA DE DICTCURSOR
                 res_id = cursor.fetchone()
-                cliente_id = res_id[0] if res_id else None
+                cliente_id = res_id["id"] if res_id else None
                 
                 if cliente_id:
                     acumulado = 0.0
@@ -934,7 +935,6 @@ def guardar_nuevo_cliente():
                         acumulado += valor_cuota_real
                         f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
                         
-                        # 🔑 CORRECCIÓN CRÍTICA: Convertir f_cuota de forma explícita a un string ISO plano
                         fecha_cuota_str = str(f_cuota.isoformat())
                         
                         cursor.execute(
