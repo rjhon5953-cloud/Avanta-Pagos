@@ -912,10 +912,12 @@ def guardar_nuevo_cliente():
         
         with get_db() as conn:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
+                # 🏢 Obtención limpia usando la clave de DictCursor
+                cursor.execute("SELECT COALESCE(MAX(orden), 0) AS max_o FROM clientes")
                 res_orden = cursor.fetchone()
-                max_orden = res_orden[0] if res_orden else 0
+                max_orden = res_orden["max_o"] if res_orden else 0
                 
+                # Inserción parametrizada convirtiendo fechas a cadenas de texto ISO
                 cursor.execute(
                     """
                     INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, estado, saltado_hoy, fecha_gestion, latitud, longitud)
@@ -924,9 +926,9 @@ def guardar_nuevo_cliente():
                     (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, str(fecha_inicio_dt.isoformat()), str(fecha_vencimiento_dt.isoformat()), latitud, longitud)
                 )
                 
+                # 🔑 EXTRACCIÓN CLAVE DE DICTCURSOR: se lee mediante la clave de texto obligatoria 'id'
                 res_id = cursor.fetchone()
-                # 🔑 EXTRACCIÓN POSICIONAL SEGURA PARA EVITAR CONFLICTOS DE RETURNING EN DICTCURSOR
-                cliente_id = res_id[0] if res_id else None
+                cliente_id = res_id["id"] if res_id else None
                 
                 if cliente_id:
                     acumulado = 0.0
