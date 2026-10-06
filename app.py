@@ -7,18 +7,20 @@ from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 from flask import Flask, jsonify, redirect, render_template_string, request, session, send_file
+from dotenv import load_dotenv  # type: ignore
+
+# Forzar la lectura del archivo .env de tu directorio raíz
+load_dotenv()
 
 app = Flask(__name__)
-# Configuración blindada de llave secreta
 app.secret_key = os.environ.get("SECRET_KEY", "avanta_secret_key_1.3_2026")
 
-# 🔑 Conexión blindada: Busca la URL en el sistema operativo; si no existe, usa la tuya de respaldo.
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL", 
-    "postgresql://neondb_owner:npg_9qQIcnHCpT3O@ep-weathered-night-b4hv7m66.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-)
+# Lee la URL limpia y viva directo desde tu archivo .env
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db():
+    if not DATABASE_URL:
+        raise ValueError("Error crítico: DATABASE_URL no se está cargando desde el archivo .env")
     return psycopg2.connect(DATABASE_URL, cursor_factory=DictCursor)
 
 def init_db():
@@ -628,7 +630,7 @@ function verFichaCliente(id) {
                 document.getElementById('inf_saldo_act').innerText = '$' + d.data.saldo_actual.toFixed(2);
                 document.getElementById('btn_llamar').href = 'tel:' + d.data.telefono;
                 
-                // 🗺️ ENLACE DE MAPAS REPARADO: API DE DEEP LINKING UNIVERSAL PARA CELULARES
+                // 🗺️ ENLACE DE MAPAS REPARADO: API DE DEEP LINKING UNIVERSAL PARA DISPOSITIVOS MÓVILES
                 document.getElementById('btn_mapa').href = 'https://google.com' + d.data.latitud + ',' + d.data.longitud;
                 
                 document.getElementById('modalInfoCliente').style.display = 'flex';
@@ -691,11 +693,10 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 document.getElementById('tMonto').innerText = data.recibo.monto.toFixed(2);
                 document.getElementById('tSaldo').innerText = data.recibo.saldo.toFixed(2);
                 
-                // 📲 ENLACE DE WHATSAPP CON APERTURA BLINDADA CONTRA BLOQUEOS DE CHROME
+                // 📲 ENLACE DE WHATSAPP REPARADO CON PROTOCOLO NATIVO ANTI-BLOQUEOS DE CHROME
                 const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
-                const urlCompleta = 'https://whatsapp.com' + numPuro + '&text=' + encodeURIComponent(data.recibo.mensaje_ws);
+                const urlCompleta = 'https://wa.me' + numPuro + '?text=' + encodeURIComponent(data.recibo.mensaje_ws);
                 
-                // Asignamos una función al hacer clic para saltarse de forma segura el bloqueo 'about:blank#blocked'
                 const btnWs = document.getElementById('modalWsBtn');
                 btnWs.href = '#';
                 btnWs.onclick = function(e) {
@@ -729,7 +730,6 @@ def login_route():
         usuario_ingresado = request.form.get("usuario")
         clave_ingresada = request.form.get("clave")
         
-        # El uso de context managers (with) garantiza el cierre automático de las conexiones
         with get_db() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT valor FROM configuracion WHERE llave = 'usuario'")
@@ -737,8 +737,9 @@ def login_route():
                 cursor.execute("SELECT valor FROM configuracion WHERE llave = 'clave'")
                 clv_row = cursor.fetchone()
                 
+        # Validación segura desempaquetando diccionarios para DictCursor
         if usr_row and clv_row:
-            if usuario_ingresado == usr_row[0] and clave_ingresada == clv_row[0]:
+            if usuario_ingresado == usr_row["valor"] and clave_ingresada == clv_row["valor"]:
                 session["autenticado"] = True
                 session["usuario"] = usuario_ingresado
                 return redirect("/")
@@ -1167,7 +1168,6 @@ def api_marcar_pago(cliente_id, num_cuota):
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # Registrar el pago de la cuota seleccionada
             cursor.execute(
                 """
                 UPDATE pagos 
@@ -1175,14 +1175,12 @@ def api_marcar_pago(cliente_id, num_cuota):
                 WHERE cliente_id = %s AND numero = %s
                 """, (monto_pagado, hoy_str, cliente_id, num_cuota)
             )
-            # Apagar el enrutado forzado temporal y reiniciar la alerta de salto diario
             cursor.execute("UPDATE clientes SET enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
             
-            # Obtener datos para construir el recibo virtual
             cursor.execute("SELECT nombre, telefono, monto_total FROM clientes WHERE id = %s", (cliente_id,))
             c = cursor.fetchone()
-            cursor.execute("SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = %s", (cliente_id,))
-            total_pagado = float(cursor.fetchone()[0] or 0)
+            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE cliente_id = %s", (cliente_id,))
+            total_pagado = float(cursor.fetchone()["total"])
             
         conn.commit()
         
