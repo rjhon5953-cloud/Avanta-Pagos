@@ -78,7 +78,7 @@ def init_db_contable():
                 )
                 """
             )
-            # Estructura de auditoría de movimientos de balance, inversiones y gastos
+            # 📸 FIJADO: Tipo BYTEA para guardar imágenes binarias de forma eficiente sin saturar Neon
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS balance_movimientos (
@@ -88,7 +88,7 @@ def init_db_contable():
                     concepto TEXT NOT NULL,
                     monto REAL NOT NULL,
                     fecha TEXT NOT NULL,
-                    comprobante TEXT DEFAULT ''
+                    comprobante BYTEA
                 )
                 """
             )
@@ -102,7 +102,6 @@ def init_db_contable():
                 )
                 """
             )
-            # Inyección de parámetros iniciales obligatorios si no existen
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('usuario', 'admin') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('clave', '1234') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('empresa_nombre', 'AVANTA PAGOS') ON CONFLICT DO NOTHING")
@@ -867,7 +866,17 @@ def seccion_balance_maestro():
     salidas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Salida")
     efectivo_neto = caja_base + entradas_totales - salidas_totales
     
-    contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
+    # Process binarios a base64 para renderizado correcto en el HTML
+    movimientos_procesados = []
+    for m in movimientos:
+        m_dict = dict(m)
+        if m_dict["comprobante"]:
+            # 🖼️ FIJADO: Transforma el binario BYTEA a un string Base64 limpio para la etiqueta <img>
+            b64_img = base64.b64encode(m_dict["comprobante"]).decode("utf-8")
+            m_dict["comprobante"] = f"data:image/jpeg;base64,{b64_img}"
+        movimientos_procesados.append(m_dict)
+            
+    contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos_procesados, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
@@ -952,20 +961,28 @@ def guardar_nuevo_cliente():
 
 @app.route("/api/balance/guardar_movimiento", methods=["POST"])
 def balance_guardar_movimiento():
+    if not session.get("autenticado"): return redirect("/login")
     tipo = request.form.get("tipo_mov")
     categoria = request.form.get("categoria_mov", "Otros")
     concepto = request.form.get("concepto_mov", "").strip()
     monto = float(request.form.get("monto_mov", "0"))
     hoy_str = date.today().isoformat()
     if not concepto: concepto = "Flujo de " + categoria
+    
     file = request.files.get("foto_mov")
-    base64_str = ""
+    blob_data = None
     if file and file.filename != "":
-        base64_str = "data:" + file.content_type + ";base64," + base64.b64encode(file.read()).decode("utf-8")
+        # 🔩 FIJADO: Se lee el archivo como binario directo (BLOB) para compatibilidad con BYTEA
+        blob_data = psycopg2.Binary(file.read())
         
     with get_db() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante) VALUES (%s, %s, %s, %s, %s, %s)", (tipo, categoria, concepto, monto, hoy_str, base64_str))
+            cursor.execute(
+                """
+                INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante) 
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """, (tipo, categoria, concepto, monto, hoy_str, blob_data)
+            )
         conn.commit()
     return redirect("/menu/balance")
 
