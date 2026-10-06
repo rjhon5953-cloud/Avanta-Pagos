@@ -855,16 +855,16 @@ def seccion_balance_maestro():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 🏢 FIJADO: Extracción mediante índice posicional [0] para evitar errores de clave con DictCursor
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_base'")
+            # 🏢 FIJADO: Uso de alias explícitos 'AS ...' para asegurar compatibilidad total con DictCursor
+            cursor.execute("SELECT valor AS val_caja FROM configuracion WHERE llave = 'caja_base'")
             res_caja = cursor.fetchone()
-            caja_base = float(res_caja[0]) if res_caja else 100.00
+            caja_base = float(res_caja["val_caja"]) if res_caja else 100.00
             
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'balance_estado'")
+            cursor.execute("SELECT valor AS val_estado FROM configuracion WHERE llave = 'balance_estado'")
             res_estado = cursor.fetchone()
-            balance_estado = res_estado[0] if res_estado else "Sin cerrar"
+            balance_estado = res_estado["val_estado"] if res_estado else "Sin cerrar"
             
-            cursor.execute("SELECT * FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
+            cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
             movimientos = cursor.fetchall()
             
     entradas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Entrada")
@@ -875,7 +875,7 @@ def seccion_balance_maestro():
     for m in movimientos:
         m_dict = dict(m)
         if m_dict["comprobante"]:
-            # Saneamiento de cadenas de texto para evitar roturas en el JavaScript
+            # Saneamiento explícito de strings Base64
             comprobante_limpio = m_dict["comprobante"].replace("\n", "").replace("\r", "").strip()
             if not comprobante_limpio.startswith("data:image"):
                 comprobante_limpio = f"data:image/jpeg;base64,{comprobante_limpio}"
