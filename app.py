@@ -860,7 +860,6 @@ def seccion_balance_maestro():
     if not session.get("autenticado"): return "Sesión expirada"
     hoy_str = date.today().isoformat()
     
-    # 🔌 FIJADO: Uso de context managers integrales (with) para prevenir fugas de conexión a Neon
     with get_db() as conn:
         with conn.cursor() as cursor:
             cursor.execute("SELECT valor AS val FROM configuracion WHERE llave = 'caja_base'")
@@ -882,10 +881,22 @@ def seccion_balance_maestro():
     for m in movimientos:
         m_dict = dict(m)
         if m_dict["comprobante"]:
-            comprobante_puro = m_dict["comprobante"].replace("\n", "").replace("\r", "").strip()
-            if "base64," in comprobante_puro:
-                comprobante_puro = comprobante_puro.split("base64,")[-1]
-            m_dict["comprobante"] = f"data:image/jpeg;base64,{comprobante_puro}"
+            try:
+                # 🖼️ FIJADO: Si el dato viene como 'memoryview' o bytes binarios de Neon, se extrae el búfer crudo
+                if isinstance(m_dict["comprobante"], (memoryview, bytes)):
+                    raw_bytes = m_dict["comprobante"].tobytes() if isinstance(m_dict["comprobante"], memoryview) else m_dict["comprobante"]
+                    # Convertir los bytes puros a formato Base64 para el navegador web
+                    b64_str = base64.b64encode(raw_bytes).decode("utf-8")
+                    m_dict["comprobante"] = f"data:image/jpeg;base64,{b64_str}"
+                else:
+                    # Si ya viene guardado como una cadena de texto (string)
+                    comprobante_puro = str(m_dict["comprobante"]).replace("\n", "").replace("\r", "").strip()
+                    if "base64," in comprobante_puro:
+                        comprobante_puro = comprobante_puro.split("base64,")[-1]
+                    m_dict["comprobante"] = f"data:image/jpeg;base64,{comprobante_puro}"
+            except Exception as b64_err:
+                print(f"Error decodificando comprobante: {b64_err}")
+                m_dict["comprobante"] = ""
         movimientos_limpios.append(m_dict)
             
     contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos_limpios, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
