@@ -856,9 +856,9 @@ def seccion_balance_maestro():
     with get_db() as conn:
         with conn.cursor() as cursor:
             cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_base'")
-            caja_base = float(cursor.fetchone()[0])
+            caja_base = float(cursor.fetchone()["valor"])
             cursor.execute("SELECT valor FROM configuracion WHERE llave = 'balance_estado'")
-            balance_estado = cursor.fetchone()[0]
+            balance_estado = cursor.fetchone()["valor"]
             cursor.execute("SELECT * FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
             movimientos = cursor.fetchall()
             
@@ -866,17 +866,7 @@ def seccion_balance_maestro():
     salidas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Salida")
     efectivo_neto = caja_base + entradas_totales - salidas_totales
     
-    # Process binarios a base64 para renderizado correcto en el HTML
-    movimientos_procesados = []
-    for m in movimientos:
-        m_dict = dict(m)
-        if m_dict["comprobante"]:
-            # 🖼️ FIJADO: Transforma el binario BYTEA a un string Base64 limpio para la etiqueta <img>
-            b64_img = base64.b64encode(m_dict["comprobante"]).decode("utf-8")
-            m_dict["comprobante"] = f"data:image/jpeg;base64,{b64_img}"
-        movimientos_procesados.append(m_dict)
-            
-    contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos_procesados, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
+    contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
@@ -970,10 +960,10 @@ def balance_guardar_movimiento():
     if not concepto: concepto = "Flujo de " + categoria
     
     file = request.files.get("foto_mov")
-    blob_data = None
+    base64_str = ""
     if file and file.filename != "":
-        # 🔩 FIJADO: Se lee el archivo como binario directo (BLOB) para compatibilidad con BYTEA
-        blob_data = psycopg2.Binary(file.read())
+        # 📸 FIJADO: Convierte la imagen a texto Base64 compatible con la columna TEXT sin romper Neon
+        base64_str = "data:" + file.content_type + ";base64," + base64.b64encode(file.read()).decode("utf-8")
         
     with get_db() as conn:
         with conn.cursor() as cursor:
@@ -981,7 +971,7 @@ def balance_guardar_movimiento():
                 """
                 INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante) 
                 VALUES (%s, %s, %s, %s, %s, %s)
-                """, (tipo, categoria, concepto, monto, hoy_str, blob_data)
+                """, (tipo, categoria, concepto, monto, hoy_str, base64_str)
             )
         conn.commit()
     return redirect("/menu/balance")
