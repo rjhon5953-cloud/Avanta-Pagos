@@ -697,7 +697,7 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 // 📲 ENLACE DE WHATSAPP REPARADO CON PROTOCOLO NATIVO ANTI-BLOQUEOS DE CHROME
                 const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
                 const urlCompleta = 'https://wa.me' + numPuro + '?text=' + encodeURIComponent(data.recibo.mensaje_ws);
-                
+
                 const btnWs = document.getElementById('modalWsBtn');
                 btnWs.href = '#';
                 btnWs.onclick = function(e) {
@@ -912,10 +912,12 @@ def guardar_nuevo_cliente():
         
         with get_db() as conn:
             with conn.cursor() as cursor:
+                # 🏢 Obtención limpia forzando nombres de columnas
                 cursor.execute("SELECT COALESCE(MAX(orden), 0) AS max_o FROM clientes")
                 res_orden = cursor.fetchone()
                 max_orden = res_orden["max_o"] if res_orden else 0
                 
+                # Inserción parametrizada convirtiendo fechas a cadenas de texto ISO
                 cursor.execute(
                     """
                     INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, estado, saltado_hoy, fecha_gestion, latitud, longitud)
@@ -924,13 +926,13 @@ def guardar_nuevo_cliente():
                     (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, str(fecha_inicio_dt.isoformat()), str(fecha_vencimiento_dt.isoformat()), latitud, longitud)
                 )
                 
+                # 🔑 FIJADO: Desestructuración posicional por índice para asegurar la captura del ID real en Neon
                 res_id = cursor.fetchone()
-                cliente_id = res_id["id"] if res_id else None
+                cliente_id = res_id[0] if res_id else None
                 
                 if cliente_id:
                     acumulado = 0.0
                     for num in range(1, cuotas + 1):
-                        # 🔑 CORRECCIÓN CRÍTICA: Forzar el valor de la cuota a un flotante nativo compatible con el tipo REAL de Postgres
                         valor_cuota_real = float(round(monto_total - acumulado, 2)) if num == cuotas else valor_base_cuota
                         acumulado += valor_cuota_real
                         f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
