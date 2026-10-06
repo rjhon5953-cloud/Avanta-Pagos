@@ -626,13 +626,14 @@ function verFichaCliente(id) {
                 document.getElementById('inf_saldo_act').innerText = '$' + d.data.saldo_actual.toFixed(2);
                 document.getElementById('btn_llamar').href = 'tel:' + d.data.telefono;
                 
-                // 🗺️ ENLACE DE MAPAS REPARADO: API DE DEEP LINKING UNIVERSAL PARA DISPOSITIVOS MÓVILES
+                // 🗺️ FIJADO: Enlace universal deep-linking correcto para Google Maps en celulares
                 document.getElementById('btn_mapa').href = 'https://google.com' + d.data.latitud + ',' + d.data.longitud;
                 
                 document.getElementById('modalInfoCliente').style.display = 'flex';
             }
         });
 }
+
 function filtrarClientes() {
     const query = document.getElementById('searchInput').value.toLowerCase();
     document.querySelectorAll('.cliente-card').forEach(card => {
@@ -689,39 +690,29 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 document.getElementById('tMonto').innerText = data.recibo.monto.toFixed(2);
                 document.getElementById('tSaldo').innerText = data.recibo.saldo.toFixed(2);
                 
-                // 🧼 Limpieza estricta del número telefónico (Elimina espacios, guiones o símbolos como +)
                 const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
                 const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
                 
-                // 📲 PROTOCOLO DOBLE: 'whatsapp://' fuerza la app en celulares y '://whatsapp.com' sirve de respaldo para PC
+                // 📲 FIJADO: Protocolos nativos de comunicación celular y web sin dobles diagonales
                 const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
-                const urlWeb = 'https://://whatsapp.com/send?phone=' + numPuro + '&text=' + textoMensaje;
+                const urlWeb = 'https://whatsapp.com' + numPuro + '&text=' + textoMensaje;
                 
                 const btnWs = document.getElementById('modalWsBtn');
                 btnWs.href = '#';
-                
-                // 🔥 Inyección del disparador blindado contra bloqueos de ventanas emergentes (about:blank)
                 btnWs.onclick = function(e) {
                     e.preventDefault();
-                    
-                    // Crea un elemento de anclaje invisible temporal en memoria
                     const dropper = document.createElement('a');
                     dropper.target = '_blank';
                     dropper.rel = 'noopener noreferrer';
-                    
-                    // Intenta primero abrir la aplicación nativa en el teléfono
                     dropper.href = urlCelular;
                     document.body.appendChild(dropper);
                     dropper.click();
-                    
-                    // Si se ejecuta en una computadora, redirige de forma segura a WhatsApp Web/Escritorio
                     setTimeout(function() {
                         dropper.href = urlWeb;
                         dropper.click();
                         document.body.removeChild(dropper);
                     }, 300);
                 };
-                
                 document.getElementById('modalWs').style.display = 'flex';
             }
         });
@@ -779,15 +770,15 @@ def dashboard_principal():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # Cálculos financieros limpios delegados directamente a la base de datos
-            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) FROM pagos WHERE fecha_pago_real = %s", (hoy_str,))
-            total_cobrado_hoy = float(cursor.fetchone()[0])
+            # 📊 FIJADO: Desempaquetado correcto usando alias de columnas explícitos para DictCursor
+            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s", (hoy_str,))
+            total_cobrado_hoy = float(cursor.fetchone()["total"])
             
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) FROM balance_movimientos WHERE tipo = 'Salida' AND fecha = %s", (hoy_str,))
-            total_gastos_hoy = float(cursor.fetchone()[0])
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Salida' AND fecha = %s", (hoy_str,))
+            total_gastos_hoy = float(cursor.fetchone()["total"])
             
-            cursor.execute("SELECT COUNT(*) FROM clientes WHERE fecha_inicio = %s", (hoy_str,))
-            creditos_nuevos_hoy = int(cursor.fetchone()[0])
+            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE fecha_inicio = %s", (hoy_str,))
+            creditos_nuevos_hoy = int(cursor.fetchone()["total"])
 
     clientes_ruta = obtener_clientes_ruta_hoy()
     debido_minimo_dia = sum(cl["valor_cuota"] for cl in clientes_ruta)
@@ -842,8 +833,6 @@ def dashboard_principal():
         </div>
         """
     contexto_dash += "</div>"
-    
-    # Manejo de peticiones asíncronas desde javascript para no recargar la página completa
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(contexto_dash)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(contexto_dash))
@@ -858,8 +847,8 @@ def seccion_clientes_maestro():
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM clientes WHERE estado = %s ORDER BY nombre ASC", (filtro_estado,))
             todos = cursor.fetchall()
-            cursor.execute("SELECT COUNT(*) FROM clientes WHERE estado = 'Activo'")
-            total_activos = int(cursor.fetchone()[0])
+            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE estado = 'Activo'")
+            total_activos = int(cursor.fetchone()["total"])
             
     contexto = dict(vista="clientes", todos=todos, total_activos=total_activos, filtro_estado=filtro_estado)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
@@ -871,9 +860,9 @@ def seccion_balance_maestro():
     if not session.get("autenticado"): return "Sesión expirada"
     hoy_str = date.today().isoformat()
     
+    # 🔌 FIJADO: Uso de context managers integrales (with) para prevenir fugas de conexión a Neon
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 🏢 FIJADO: Uso de alias explícitos 'AS val' para asegurar compatibilidad total con DictCursor
             cursor.execute("SELECT valor AS val FROM configuracion WHERE llave = 'caja_base'")
             res_caja = cursor.fetchone()
             caja_base = float(res_caja["val"]) if res_caja else 100.00
@@ -893,7 +882,6 @@ def seccion_balance_maestro():
     for m in movimientos:
         m_dict = dict(m)
         if m_dict["comprobante"]:
-            # Saneamiento de cadenas de texto Base64
             comprobante_puro = m_dict["comprobante"].replace("\n", "").replace("\r", "").strip()
             if "base64," in comprobante_puro:
                 comprobante_puro = comprobante_puro.split("base64,")[-1]
