@@ -852,20 +852,35 @@ def seccion_clientes_maestro():
 def seccion_balance_maestro():
     if not session.get("autenticado"): return "Sesión expirada"
     hoy_str = date.today().isoformat()
-    conn = get_db()
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_base'")
-        caja_base = float(cursor.fetchone()[0])
-        cursor.execute("SELECT valor FROM configuracion WHERE llave = 'balance_estado'")
-        balance_estado = cursor.fetchone()[0]
-        cursor.execute("SELECT * FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
-        movimientos = cursor.fetchall()
-    conn.close()
+    
+    with get_db() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_base'")
+            caja_base = float(cursor.fetchone()["valor"])
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'balance_estado'")
+            balance_estado = cursor.fetchone()["valor"]
+            cursor.execute("SELECT * FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
+            movimientos = cursor.fetchall()
+            
     entradas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Entrada")
     salidas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Salida")
     efectivo_neto = caja_base + entradas_totales - salidas_totales
-    contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(CONTENIDO_HTML, **contexto)
+    
+    movimientos_limpios = []
+    for m in movimientos:
+        m_dict = dict(m)
+        if m_dict["comprobante"]:
+            # 🧼 Saneamiento crítico: elimina saltos de línea o comillas corruptas que rompen el JavaScript
+            comprobante_limpio = m_dict["comprobante"].replace("\n", "").replace("\r", "").strip()
+            # Asegura el prefijo correcto de imagen data URI
+            if not comprobante_limpio.startswith("data:image"):
+                comprobante_limpio = f"data:image/jpeg;base64,{comprobante_limpio}"
+            m_dict["comprobante"] = comprobante_limpio
+        movimientos_limpios.append(m_dict)
+            
+    contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos_limpios, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
+        return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
 
 @app.route("/nuevo")
