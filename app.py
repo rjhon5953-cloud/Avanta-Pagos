@@ -906,18 +906,16 @@ def guardar_nuevo_cliente():
         latitud = request.form.get("latitud", "").strip()
         longitud = request.form.get("longitud", "").strip()
         
-        monto_total = round(monto * (1 + (interes_porcentaje / 100)), 2)
-        valor_base_cuota = round(monto_total / cuotas, 2)
+        monto_total = float(round(monto * (1 + (interes_porcentaje / 100)), 2))
+        valor_base_cuota = float(round(monto_total / cuotas, 2))
         fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas, frecuencia)
         
         with get_db() as conn:
             with conn.cursor() as cursor:
-                # 🏢 Obtención limpia usando la clave de DictCursor
                 cursor.execute("SELECT COALESCE(MAX(orden), 0) AS max_o FROM clientes")
                 res_orden = cursor.fetchone()
                 max_orden = res_orden["max_o"] if res_orden else 0
                 
-                # Inserción parametrizada convirtiendo fechas a cadenas de texto ISO
                 cursor.execute(
                     """
                     INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, estado, saltado_hoy, fecha_gestion, latitud, longitud)
@@ -926,14 +924,14 @@ def guardar_nuevo_cliente():
                     (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, str(fecha_inicio_dt.isoformat()), str(fecha_vencimiento_dt.isoformat()), latitud, longitud)
                 )
                 
-                # 🔑 EXTRACCIÓN CLAVE DE DICTCURSOR: se lee mediante la clave de texto obligatoria 'id'
                 res_id = cursor.fetchone()
                 cliente_id = res_id["id"] if res_id else None
                 
                 if cliente_id:
                     acumulado = 0.0
                     for num in range(1, cuotas + 1):
-                        valor_cuota_real = round(monto_total - acumulado, 2) if num == cuotas else valor_base_cuota
+                        # 🔑 CORRECCIÓN CRÍTICA: Forzar el valor de la cuota a un flotante nativo compatible con el tipo REAL de Postgres
+                        valor_cuota_real = float(round(monto_total - acumulado, 2)) if num == cuotas else valor_base_cuota
                         acumulado += valor_cuota_real
                         f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
                         fecha_cuota_str = str(f_cuota.isoformat())
