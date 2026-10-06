@@ -381,7 +381,7 @@ CONTENIDO_HTML += """
         <div class="kpi-val" style="color:white; font-size:20px; margin-top:2px;">${{ "%.2f"|format(efectivo_neto) }}</div>
     </div>
 
-    <div class="card" style="padding:16px;">
+        <div class="card" style="padding:16px;">
         <div class="kpi-title" style="margin-bottom:8px;">Registrar Movimiento de Flujo</div>
         <form action="/api/balance/guardar_movimiento" method="POST" enctype="multipart/form-data">
             <label>Tipo de Flujo</label>
@@ -401,15 +401,16 @@ CONTENIDO_HTML += """
             </select>
             
             <label>Descripción / Detalle</label>
-            <input type="text" name="concepto_mov" placeholder="Ej: Compra de repuestos de moto" optional>
+            <!-- 🧼 FIJADO: Se elimina el atributo inválido 'optional' para que el navegador móvil no corrompa el envío -->
+            <input type="text" name="concepto_mov" placeholder="Ej: Compra de repuestos de moto">
             
             <label>Monto ($)</label>
-            <input type="number" step="any" name="monto_mov" placeholder="Valor en dinero" optional>
+            <input type="number" step="any" name="monto_mov" placeholder="Valor en dinero">
             
             <label>📸 Foto Factura / Comprobante</label>
             <input type="file" name="foto_mov" accept="image/*" capture="environment" style="border:none; padding:4px 0;">
             
-            <button type="submit" class="btn-primary" style="background:#0f2b5c; color:white; border:none; font-weight:bold; padding:12px; margin-top:10px; width:100%; border-radius:8px;">Guardar Registro</button>
+            <button type="submit" class="btn-primary" style="background:#0f2b5c; color:white; border:none; font-weight:bold; padding:12px; margin-top:10px; width:100%; border-radius:8px; cursor:pointer;">Guardar Registro</button>
         </form>
     </div>
 
