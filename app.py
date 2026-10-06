@@ -24,10 +24,8 @@ def get_db():
     return psycopg2.connect(DATABASE_URL, cursor_factory=DictCursor)
 
 def init_db():
-    # El uso de context managers (with) asegura el cierre automático de conexiones
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # Estructura base unificada y optimizada de clientes
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS clientes (
@@ -62,7 +60,6 @@ init_db()
 def init_db_contable():
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # Estructura contable de pagos por cuotas
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS pagos (
@@ -78,7 +75,7 @@ def init_db_contable():
                 )
                 """
             )
-            # 📸 FIJADO: Tipo BYTEA para guardar imágenes binarias de forma eficiente sin saturar Neon
+            # 📸 FIJADO: Columna de tipo TEXT para guardar Base64 plano de forma nativa sin romper Neon
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS balance_movimientos (
@@ -88,11 +85,10 @@ def init_db_contable():
                     concepto TEXT NOT NULL,
                     monto REAL NOT NULL,
                     fecha TEXT NOT NULL,
-                    comprobante BYTEA
+                    comprobante TEXT DEFAULT ''
                 )
                 """
             )
-            # Estructura para credenciales de acceso y datos de la empresa
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS configuracion (
@@ -693,15 +689,37 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 document.getElementById('tMonto').innerText = data.recibo.monto.toFixed(2);
                 document.getElementById('tSaldo').innerText = data.recibo.saldo.toFixed(2);
                 
-                // 📲 ENLACE DE WHATSAPP REPARADO CON PROTOCOLO NATIVO ANTI-BLOQUEOS DE CHROME
+                // 🧼 Limpieza estricta del número telefónico (Elimina espacios, guiones o símbolos como +)
                 const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
-                const urlCompleta = 'https://wa.me' + numPuro + '?text=' + encodeURIComponent(data.recibo.mensaje_ws);
-
+                const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
+                
+                // 📲 PROTOCOLO DOBLE: 'whatsapp://' fuerza la app en celulares y '://whatsapp.com' sirve de respaldo para PC
+                const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
+                const urlWeb = 'https://://whatsapp.com/send?phone=' + numPuro + '&text=' + textoMensaje;
+                
                 const btnWs = document.getElementById('modalWsBtn');
                 btnWs.href = '#';
+                
+                // 🔥 Inyección del disparador blindado contra bloqueos de ventanas emergentes (about:blank)
                 btnWs.onclick = function(e) {
                     e.preventDefault();
-                    window.open(urlCompleta, '_blank', 'noopener,noreferrer');
+                    
+                    // Crea un elemento de anclaje invisible temporal en memoria
+                    const dropper = document.createElement('a');
+                    dropper.target = '_blank';
+                    dropper.rel = 'noopener noreferrer';
+                    
+                    // Intenta primero abrir la aplicación nativa en el teléfono
+                    dropper.href = urlCelular;
+                    document.body.appendChild(dropper);
+                    dropper.click();
+                    
+                    // Si se ejecuta en una computadora, redirige de forma segura a WhatsApp Web/Escritorio
+                    setTimeout(function() {
+                        dropper.href = urlWeb;
+                        dropper.click();
+                        document.body.removeChild(dropper);
+                    }, 300);
                 };
                 
                 document.getElementById('modalWs').style.display = 'flex';
@@ -852,20 +870,39 @@ def seccion_clientes_maestro():
 def seccion_balance_maestro():
     if not session.get("autenticado"): return "Sesión expirada"
     hoy_str = date.today().isoformat()
-    conn = get_db()
-    with conn.cursor() as cursor:
-        cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_base'")
-        caja_base = float(cursor.fetchone()[0])
-        cursor.execute("SELECT valor FROM configuracion WHERE llave = 'balance_estado'")
-        balance_estado = cursor.fetchone()[0]
-        cursor.execute("SELECT * FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
-        movimientos = cursor.fetchall()
-    conn.close()
+    
+    with get_db() as conn:
+        with conn.cursor() as cursor:
+            # 🏢 FIJADO: Uso de alias explícitos 'AS val' para asegurar compatibilidad total con DictCursor
+            cursor.execute("SELECT valor AS val FROM configuracion WHERE llave = 'caja_base'")
+            res_caja = cursor.fetchone()
+            caja_base = float(res_caja["val"]) if res_caja else 100.00
+            
+            cursor.execute("SELECT valor AS val FROM configuracion WHERE llave = 'balance_estado'")
+            res_estado = cursor.fetchone()
+            balance_estado = res_estado["val"] if res_estado else "Sin cerrar"
+            
+            cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
+            movimientos = cursor.fetchall()
+            
     entradas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Entrada")
     salidas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Salida")
     efectivo_neto = caja_base + entradas_totales - salidas_totales
-    contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(CONTENIDO_HTML, **contexto)
+    
+    movimientos_limpios = []
+    for m in movimientos:
+        m_dict = dict(m)
+        if m_dict["comprobante"]:
+            # Saneamiento de cadenas de texto Base64
+            comprobante_puro = m_dict["comprobante"].replace("\n", "").replace("\r", "").strip()
+            if "base64," in comprobante_puro:
+                comprobante_puro = comprobante_puro.split("base64,")[-1]
+            m_dict["comprobante"] = f"data:image/jpeg;base64,{comprobante_puro}"
+        movimientos_limpios.append(m_dict)
+            
+    contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos_limpios, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
+        return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
 
 @app.route("/nuevo")
@@ -959,8 +996,8 @@ def balance_guardar_movimiento():
     file = request.files.get("foto_mov")
     base64_str = ""
     if file and file.filename != "":
-        # 📸 FIJADO: Convierte la imagen a texto Base64 compatible con la columna TEXT sin romper Neon
-        base64_str = "data:" + file.content_type + ";base64," + base64.b64encode(file.read()).decode("utf-8")
+        # 📸 FIJADO: Guarda únicamente la cadena Base64 pura y limpia en Neon, sin encabezados duplicados
+        base64_str = base64.b64encode(file.read()).decode("utf-8")
         
     with get_db() as conn:
         with conn.cursor() as cursor:
