@@ -734,13 +734,15 @@ function cargarYVerFoto(gastoId) {
                 const img = document.getElementById('imgComprobante');
                 img.src = ""; // Limpiar búfer
                 
-                // Si la cadena no tiene el prefijo de imagen correcto, se lo ponemos de forma garantizada
-                let b64 = data.comprobante.trim();
-                if (!b64.startsWith('data:image')) {
-                    b64 = 'data:image/jpeg;base64,' + b64;
+                // 🧼 FIJADO: Saneamiento estricto y forzado de encabezado Data URI en el navegador
+                let textoB64 = data.comprobante.replace(/\\n/g, '').replace(/\\r/g, '').trim();
+                
+                // Si la respuesta de Neon no trae el formato Data URI, se lo inyectamos de forma obligatoria
+                if (!textoB64.startsWith('data:image')) {
+                    textoB64 = 'data:image/jpeg;base64,' + textoB64;
                 }
                 
-                img.src = b64;
+                img.src = textoB64;
                 document.getElementById('modalFoto').style.display = 'flex';
             } else {
                 alert("⚠️ No se pudo cargar la imagen o el registro no tiene comprobante.");
