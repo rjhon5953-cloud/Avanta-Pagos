@@ -765,14 +765,24 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
 }
 
 function ejecutarNoPago(clienteId) {
-    fetch('/api/marcar_no_pago/' + clienteId).then(res => res.json()).then(data => {
-        if (data.status === 'ok') window.location.reload();
-    });
+    if (confirm('¿Desea saltar el cobro de este cliente por el día de hoy?')) {
+        fetch('/api/marcar_no_pago/' + clienteId)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    // ❌ FIJADO: Fuerza la recarga inmediata del DOM para remover al cliente de la ruta
+                    window.location.reload();
+                }
+            }).catch(err => alert("Error al procesar el salto: " + err));
+    }
 }
 
 function procesarYComprimirImagen() {
-    const file = document.getElementById('foto_mov').files[0];
-    if (!file) return;
+    const fileInput = document.getElementById('foto_mov');
+    if (!fileInput.files || fileInput.files.length === 0) return;
+    
+    // 📸 FIJADO: Extracción explícita del archivo binario indexado en la posición 0 de la cámara Android
+    const archivoCrudo = fileInput.files[0];
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -790,7 +800,6 @@ function procesarYComprimirImagen() {
             canvas.width = width;
             canvas.height = height;
 
-            // 🖌️ FIJADO: Contexto 2D reparado para habilitar la compresión en Android
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
 
@@ -799,7 +808,8 @@ function procesarYComprimirImagen() {
         };
         img.src = e.target.result;
     };
-    reader.readAsDataURL(file);
+    // 🔩 FIJADO: El lector ahora procesa la variable limpia del archivo crudo seleccionado
+    reader.readAsDataURL(archivoCrudo);
 }
 
 function cargarYVerFoto(gastoId) {
