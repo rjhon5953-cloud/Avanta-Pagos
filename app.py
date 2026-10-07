@@ -774,8 +774,9 @@ function ejecutarNoPago(clienteId) {
 
 function procesarYComprimirImagen() {
     const fileInput = document.getElementById('foto_mov');
+    // 📸 FIJADO: Verificación y extracción estricta del primer archivo [0] capturado por la cámara
     if (!fileInput.files || fileInput.files.length === 0) return;
-    const file = fileInput.files[0];
+    const file = fileInput.files[0]; 
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -785,6 +786,7 @@ function procesarYComprimirImagen() {
             let width = img.width;
             let height = img.height;
 
+            // Redimensionar la foto del móvil de forma proporcional (máximo 800px)
             const MAX_WIDTH = 800;
             if (width > MAX_WIDTH) {
                 height *= MAX_WIDTH / width;
@@ -793,12 +795,16 @@ function procesarYComprimirImagen() {
             canvas.width = width;
             canvas.height = height;
 
-            // 🖌️ FIJADO: Contexto de lienzo '2d' recuperado e inmunizado de textos corruptos
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
 
+            // Compresión optimizada al 60% para que no sature la memoria de Neon
             imagenComprimidaB64 = canvas.toDataURL('image/jpeg', 0.6);
             document.getElementById('foto_comprimida_b64').value = imagenComprimidaB64;
+            console.log("⚡ Imagen comprimida e inyectada con éxito al formulario.");
+        };
+        img.onerror = function() {
+            alert("⚠️ Error al procesar el archivo de imagen en el dispositivo.");
         };
         img.src = e.target.result;
     };
