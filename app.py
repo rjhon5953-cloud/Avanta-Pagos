@@ -1312,14 +1312,22 @@ def api_gasto_foto(gasto_id):
         
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # Selecciona de forma explícita la columna del string Base64
             cursor.execute("SELECT comprobante FROM balance_movimientos WHERE id = %s", (gasto_id,))
-            # 🧼 FIJADO: La asignación ahora está dentro del bloque del cursor con la indentación correcta
             res = cursor.fetchone()
             
-    # Extraemos el string plano usando la clave de DictCursor
     if res and res["comprobante"]:
-        return jsonify({"status": "ok", "comprobante": str(res["comprobante"])})
+        comprobante_puro = str(res["comprobante"]).replace("\n", "").replace("\r", "").strip()
+        
+        # 🧼 Limpieza absoluta de residuos anteriores del cursor
+        if "base64," in comprobante_puro:
+            comprobante_puro = comprobante_puro.split("base64,")[-1]
+            
+        # 🛡️ FIJADO: Retornamos la respuesta forzando cabeceras de origen seguro para romper el bloqueo de Chrome
+        respuesta = jsonify({"status": "ok", "comprobante": comprobante_puro})
+        respuesta.headers.add("Access-Control-Allow-Origin", "*")
+        respuesta.headers.add("Content-Type", "application/json")
+        return respuesta
+        
     return jsonify({"status": "error", "message": "No encontrado"})
 
 if __name__ == "__main__":
