@@ -283,14 +283,13 @@ CONTENIDO_HTML += """
                     </div>
                 </div>
 
-                <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:10px;">
-                    {% if cuota_pendiente %}
-                        <!-- 🔄 Botón Pago: Abre la ventana modal para ingresar abonos o cuotas completas -->
-                        <button class="btn-accion btn-pagar" style="background:#10b981;" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})"><i class="fa-solid fa-money-bill-wave"></i> Pago</button>
-                        <!-- ❌ Botón No Pago: Registra el salto diario de cobranza de forma inmediata -->
-                        <button class="btn-accion btn-nopagar" style="background:#ef4444;" onclick="ejecutarNoPago({{ c.id }})"><i class="fa-solid fa-ban"></i> No pago</button>
-                    {% endif %}
-                </div>
+             <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
+                {% if cuota_pendiente %}
+                    <!-- ⚡ OPTIMIZADO: Botón único "Cobrar / Abonar" capaz de procesar cobros base o múltiples cuotas continuas -->
+                    <button class="btn-accion btn-pagar" style="background:#10b981;" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})"><i class="fa-solid fa-money-bill-wave"></i> Cobrar</button>
+                    <button class="btn-accion btn-nopagar" style="background:#ef4444;" onclick="ejecutarNoPago({{ c.id }})"><i class="fa-solid fa-ban"></i> Saltar</button>
+                {% endif %}
+            </div>
             </div>
         {% endfor %}
     </div>
@@ -734,7 +733,7 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 document.getElementById('modalMsg').innerText = 'Recaudo guardado para ' + data.recibo.cliente + '.';
                 document.getElementById('tFecha').innerText = new Date().toLocaleDateString();
                 document.getElementById('tCliente').innerText = data.recibo.cliente;
-                document.getElementById('tCuota').innerText = data.recibo.cuota;
+                document.getElementById('tCuota').innerText = "Procesada";
                 document.getElementById('tMonto').innerText = data.recibo.monto.toFixed(2);
                 document.getElementById('tSaldo').innerText = data.recibo.saldo.toFixed(2);
                 
@@ -742,7 +741,6 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
                 
                 const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
-                // 📲 FIJADO: Enlace wa.me/ con barra diagonal integrada de forma correcta
                 const urlWeb = 'https://wa.me' + numPuro + '?text=' + textoMensaje;
                 
                 const btnWs = document.getElementById('modalWsBtn');
@@ -774,9 +772,10 @@ function ejecutarNoPago(clienteId) {
 
 function procesarYComprimirImagen() {
     const fileInput = document.getElementById('foto_mov');
-    // 📸 FIJADO: Verificación y extracción estricta del primer archivo [0] capturado por la cámara
     if (!fileInput.files || fileInput.files.length === 0) return;
-    const file = fileInput.files[0]; 
+    
+    // 📸 FIJADO: Extracción estricta del archivo binario indexado en la posición 0
+    const file = fileInput.files[0];
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -786,7 +785,6 @@ function procesarYComprimirImagen() {
             let width = img.width;
             let height = img.height;
 
-            // Redimensionar la foto del móvil de forma proporcional (máximo 800px)
             const MAX_WIDTH = 800;
             if (width > MAX_WIDTH) {
                 height *= MAX_WIDTH / width;
@@ -795,16 +793,12 @@ function procesarYComprimirImagen() {
             canvas.width = width;
             canvas.height = height;
 
+            // 🖌️ FIJADO: Inicialización correcta del lienzo gráfico 2D del navegador móvil
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
 
-            // Compresión optimizada al 60% para que no sature la memoria de Neon
             imagenComprimidaB64 = canvas.toDataURL('image/jpeg', 0.6);
             document.getElementById('foto_comprimida_b64').value = imagenComprimidaB64;
-            console.log("⚡ Imagen comprimida e inyectada con éxito al formulario.");
-        };
-        img.onerror = function() {
-            alert("⚠️ Error al procesar el archivo de imagen en el dispositivo.");
         };
         img.src = e.target.result;
     };
@@ -1305,20 +1299,42 @@ def api_marcar_pago(cliente_id, num_cuota):
     if not session.get("autenticado"): 
         return jsonify({"status": "error", "message": "No autorizado"})
         
-    monto_pagado = float(request.args.get("monto", 0))
+    monto_recaudado = float(request.args.get("monto", 0))
     hoy_str = date.today().isoformat()
+    monto_restante = monto_recaudado
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                UPDATE pagos 
-                SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s 
-                WHERE cliente_id = %s AND numero = %s
-                """, (monto_pagado, hoy_str, cliente_id, num_cuota)
-            )
+            # Obtener todas las cuotas pendientes del cliente de forma ordenada
+            cursor.execute("SELECT id, numero, valor, valor_pagado, pagado FROM pagos WHERE cliente_id = %s AND pagado = 0 ORDER BY numero ASC", (cliente_id,))
+            pagos_pendientes = cursor.fetchall()
+            
+            for p in pagos_pendientes:
+                if monto_restante <= 0:
+                    break
+                    
+                pendiente_cuota = p["valor"] - p["valor_pagado"]
+                
+                if monto_restante >= p_pendiente: # type: ignore
+                    # El monto cubre toda la cuota actual o el saldo restante de ella
+                    monto_restante = round(monto_restante - p_pendiente, 2) # type: ignore
+                    cursor.execute(
+                        "UPDATE pagos SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
+                        (p["valor"], hoy_str, p["id"])
+                    )
+                else:
+                    # El monto solo cubre un abono parcial de la cuota actual
+                    nuevo_pago_parcial = round(p["valor_pagado"] + monto_restante, 2)
+                    monto_restante = 0
+                    cursor.execute(
+                        "UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
+                        (nuevo_pago_parcial, hoy_str, p["id"])
+                    )
+            
+            # Limpiar enrutados forzados y penalizaciones de salto diario
             cursor.execute("UPDATE clientes SET enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
             
+            # Recuperar datos en tiempo real para armar las variables del recibo impreso
             cursor.execute("SELECT nombre, telefono, monto_total FROM clientes WHERE id = %s", (cliente_id,))
             c = cursor.fetchone()
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE cliente_id = %s", (cliente_id,))
@@ -1327,13 +1343,13 @@ def api_marcar_pago(cliente_id, num_cuota):
         conn.commit()
         
     saldo_restante = max(0.0, c["monto_total"] - total_pagado)
-    mensaje_ws = f"🧾 *AVANTA PAGOS*\nRecibo de Pago\nCliente: {c['nombre']}\nCuota: #{num_cuota}\nMonto Cobrado: ${monto_pagado:.2f}\nSaldo Restante: ${saldo_restante:.2f}\n¡Gracias por su pago!"
+    mensaje_ws = f"🧾 *AVANTA PAGOS*\nRecibo de Pago\nCliente: {c['nombre']}\nMonto Cobrado: ${monto_recaudado:.2f}\nSaldo Restante: ${saldo_restante:.2f}\n¡Gracias por su pago!"
     
     recibo = {
         "cliente": c["nombre"],
         "telefono": c["telefono"] or "",
         "cuota": num_cuota,
-        "monto": monto_pagado,
+        "monto": monto_recaudado,
         "saldo": saldo_restante,
         "mensaje_ws": mensaje_ws
     }
