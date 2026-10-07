@@ -423,8 +423,8 @@ CONTENIDO_HTML += """
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         {% if g.comprobante %}
-                            <!-- 🧼 FIJADO: El filtro '| safe' evita que Jinja2 corrompa los caracteres del Base64 -->
-                            <button type="button" onclick="verFoto('{{ g.comprobante | safe }}')" style="padding:4px 8px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer;">📷 Ver</button>
+                            <!-- ⚡ FIJADO: Pasamos el ID del movimiento en vez de la imagen completa para evitar que el navegador la corte -->
+                            <button type="button" onclick="cargarYVerFoto({{ g.id }})" style="padding:4px 8px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer;">📷 Ver</button>
                         {% endif %}
                         <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Eliminar Gasto?')" style="color:#ef4444; text-decoration:none; font-weight:bold; font-size:14px; margin-left:4px;">🗑️</a>
                     </div>
@@ -726,19 +726,26 @@ function ejecutarNoPago(clienteId) {
         if (data.status === 'ok') window.location.reload();
     });
 }
-// ⚡ JAVASCRIPT REPARADO: Limpieza de búfer y asignación instantánea inmune a bloqueos
-function verFoto(srcBase64) {
-    if (srcBase64 && srcBase64.trim() !== "" && srcBase64 !== "None") {
-        const img = document.getElementById('imgComprobante');
-        
-        // Forzar reset de propiedades antes de inyectar la nueva imagen
-        img.src = "";
-        img.src = srcBase64;
-        
-        document.getElementById('modalFoto').style.display = 'flex';
-    } else {
-        alert("⚠️ Este registro contable no cuenta con una captura de foto válida.");
-    }
+function cargarYVerFoto(gastoId) {
+    fetch('/api/gasto_foto/' + gastoId)
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'ok' && data.comprobante) {
+                const img = document.getElementById('imgComprobante');
+                img.src = ""; // Limpiar búfer
+                
+                // Si la cadena no tiene el prefijo de imagen correcto, se lo ponemos de forma garantizada
+                let b64 = data.comprobante.trim();
+                if (!b64.startsWith('data:image')) {
+                    b64 = 'data:image/jpeg;base64,' + b64;
+                }
+                
+                img.src = b64;
+                document.getElementById('modalFoto').style.display = 'flex';
+            } else {
+                alert("⚠️ No se pudo cargar la imagen o el registro no tiene comprobante.");
+            }
+        }).catch(err => alert("Error al conectar con el servidor: " + err));
 }
 
 function imprimirTicket() { window.print(); }
@@ -1297,6 +1304,21 @@ def api_lista_negra(id):
             cursor.execute("UPDATE clientes SET estado = 'Lista Negra' WHERE id = %s", (id,))
         conn.commit()
     return redirect("/menu/clientes")
+
+@app.route("/api/gasto_foto/<int:gasto_id>")
+def api_gasto_foto(gasto_id):
+    if not session.get("autenticado"): 
+        return jsonify({"status": "error", "message": "No autorizado"})
+        
+    with get_db() as conn:
+        with conn.cursor() as cursor:
+            # Selecciona directamente el texto de la foto usando el ID del gasto
+            cursor.execute("SELECT comprobante FROM balance_movimientos WHERE id = %s", (gasto_id,))
+            res = cursor.fetchone()
+            
+    if res and res["comprobante"]:
+        return jsonify({"status": "ok", "comprobante": str(res["comprobante"])})
+    return jsonify({"status": "error", "message": "No encontrado"})
 
 if __name__ == "__main__":
     # Servidor local configurado para ejecutarse en el puerto estricto 8080
