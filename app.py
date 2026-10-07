@@ -1312,10 +1312,12 @@ def api_gasto_foto(gasto_id):
         
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # Selecciona directamente el texto de la foto usando el ID del gasto
+            # Selecciona de forma explícita la columna del string Base64
             cursor.execute("SELECT comprobante FROM balance_movimientos WHERE id = %s", (gasto_id,))
+            # 🧼 FIJADO: La asignación ahora está dentro del bloque del cursor con la indentación correcta
             res = cursor.fetchone()
             
+    # Extraemos el string plano usando la clave de DictCursor
     if res and res["comprobante"]:
         return jsonify({"status": "ok", "comprobante": str(res["comprobante"])})
     return jsonify({"status": "error", "message": "No encontrado"})
@@ -1324,3 +1326,4 @@ if __name__ == "__main__":
     # Servidor local configurado para ejecutarse en el puerto estricto 8080
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+    
