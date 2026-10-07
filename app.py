@@ -562,11 +562,16 @@ HTML_TEMPLATE += """
         </div>
     </div>
 
-    <div class="modal" id="modalFoto">
-        <div class="modal-content" style="max-width:90%;">
-            <h3 style="margin-top:0; font-size:14px;">📸 Comprobante Contable</h3>
-            <img id="imgComprobante" src="" style="width:100%; max-height:60vh; object-fit:contain; border-radius:8px; border:1px solid #cbd5e1;">
-            <button onclick="cerrarModal('modalFoto')" class="btn-modal-close">Cerrar Imagen</button>
+        <!-- 🖼️ MODAL DE FOTO CORREGIDA: Estilos explícitos inline para matar la herencia circular de 28px -->
+    <div class="modal" id="modalFoto" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.75); z-index:500; justify-content:center; align-items:center; padding:16px;">
+        <div class="modal-content" style="background:white; border-radius:20px; padding:20px; width:100%; max-width:480px; text-align:center; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
+            <h3 style="margin-top:0; font-size:15px; color:#0f2b5c; margin-bottom:12px;"><i class="fa-solid fa-receipt"></i> Comprobante Contable</h3>
+            
+            <div style="background:#f8fafc; border-radius:12px; padding:8px; border:1px solid #e2e8f0; margin-bottom:12px; display:flex; justify-content:center; align-items:center; min-height:200px;">
+                <img id="imgComprobante" src="" style="width:100% !important; height:auto !important; max-height:60vh !important; object-fit:contain !important; border-radius:12px !important; display:block !important; margin:0 auto !important;">
+            </div>
+            
+            <button onclick="cerrarModal('modalFoto')" class="btn-modal-close" style="width:100%; background:#e2e8f0; color:#334155; border:none; padding:12px; border-radius:10px; font-weight:700; cursor:pointer;">Cerrar Imagen</button>
         </div>
     </div>
 
@@ -720,10 +725,21 @@ function ejecutarNoPago(clienteId) {
         if (data.status === 'ok') window.location.reload();
     });
 }
+// ⚡ JAVASCRIPT REPARADO: Limpieza de búfer y asignación instantánea inmune a bloqueos
 function verFoto(srcBase64) {
-    document.getElementById('imgComprobante').src = srcBase64;
-    document.getElementById('modalFoto').style.display = 'flex';
+    if (srcBase64 && srcBase64.trim() !== "" && srcBase64 !== "None") {
+        const img = document.getElementById('imgComprobante');
+        
+        // Forzar reset de propiedades antes de inyectar la nueva imagen
+        img.src = "";
+        img.src = srcBase64;
+        
+        document.getElementById('modalFoto').style.display = 'flex';
+    } else {
+        alert("⚠️ Este registro contable no cuenta con una captura de foto válida.");
+    }
 }
+
 function imprimirTicket() { window.print(); }
 function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
 </script>
