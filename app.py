@@ -7,20 +7,16 @@ from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 from flask import Flask, jsonify, redirect, render_template_string, request, session, send_file
-from dotenv import load_dotenv  # type: ignore
-
-# Forzar la lectura del archivo .env de tu directorio raíz
-load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "avanta_secret_key_1.3_2026")
 
-# Lee la URL limpia y viva directo desde tu archivo .env
+# 🔌 FIJADO: Extracción limpia directo de la memoria nativa de Render (Evita usar python-dotenv)
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db():
     if not DATABASE_URL:
-        raise ValueError("Error crítico: DATABASE_URL no se está cargando desde el archivo .env")
+        raise ValueError("Error crítico: DATABASE_URL no está configurada en las variables de entorno.")
     return psycopg2.connect(DATABASE_URL, cursor_factory=DictCursor)
 
 def init_db():
@@ -996,9 +992,12 @@ def balance_guardar_movimiento():
     file = request.files.get("foto_mov")
     base64_str = ""
     if file and file.filename != "":
-        # 📸 FIJADO: Se limpia el base64 eliminando saltos de línea al guardar para que no se corrompa en Neon
-        raw_b64 = base64.b64encode(file.read()).decode("utf-8")
-        base64_str = raw_b64.replace("\n", "").replace("\r", "").strip()
+        try:
+            # 📸 FIJADO: Codificación blindada compatible con la columna TEXT de Neon
+            base64_str = base64.b64encode(file.read()).decode("utf-8")
+        except Exception as img_err:
+            print(f"Error procesando archivo de imagen: {img_err}")
+            base64_str = ""
         
     with get_db() as conn:
         with conn.cursor() as cursor:
