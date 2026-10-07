@@ -423,7 +423,8 @@ CONTENIDO_HTML += """
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         {% if g.comprobante %}
-                            <button type="button" onclick="verFoto('{{ g.comprobante }}')" style="padding:4px 8px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer;">📷 Ver</button>
+                            <!-- 🧼 FIJADO: El filtro '| safe' evita que Jinja2 corrompa los caracteres del Base64 -->
+                            <button type="button" onclick="verFoto('{{ g.comprobante | safe }}')" style="padding:4px 8px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer;">📷 Ver</button>
                         {% endif %}
                         <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Eliminar Gasto?')" style="color:#ef4444; text-decoration:none; font-weight:bold; font-size:14px; margin-left:4px;">🗑️</a>
                     </div>
@@ -563,15 +564,15 @@ HTML_TEMPLATE += """
     </div>
 
         <!-- 🖼️ MODAL DE FOTO CORREGIDA: Estilos explícitos inline para matar la herencia circular de 28px -->
-    <div class="modal" id="modalFoto" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.75); z-index:500; justify-content:center; align-items:center; padding:16px;">
-        <div class="modal-content" style="background:white; border-radius:20px; padding:20px; width:100%; max-width:480px; text-align:center; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
-            <h3 style="margin-top:0; font-size:15px; color:#0f2b5c; margin-bottom:12px;"><i class="fa-solid fa-receipt"></i> Comprobante Contable</h3>
+    <div class="modal" id="modalFoto" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:500; justify-content:center; align-items:center; padding:16px;">
+        <div class="modal-content" style="background:white; border-radius:16px; padding:16px; width:100%; max-width:440px; text-align:center; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
+            <h3 style="margin-top:0; font-size:14px; color:#0f2b5c; margin-bottom:12px;"><i class="fa-solid fa-receipt"></i> Comprobante Contable</h3>
             
-            <div style="background:#f8fafc; border-radius:12px; padding:8px; border:1px solid #e2e8f0; margin-bottom:12px; display:flex; justify-content:center; align-items:center; min-height:200px;">
-                <img id="imgComprobante" src="" style="width:100% !important; height:auto !important; max-height:60vh !important; object-fit:contain !important; border-radius:12px !important; display:block !important; margin:0 auto !important;">
+            <div style="background:#f8fafc; border-radius:10px; padding:6px; border:1px solid #e2e8f0; margin-bottom:12px; display:flex; justify-content:center; align-items:center; min-height:180px;">
+                <img id="imgComprobante" src="" style="width:100% !important; max-height:55vh !important; object-fit:contain !important; border-radius:8px !important; display:block !important;">
             </div>
             
-            <button onclick="cerrarModal('modalFoto')" class="btn-modal-close" style="width:100%; background:#e2e8f0; color:#334155; border:none; padding:12px; border-radius:10px; font-weight:700; cursor:pointer;">Cerrar Imagen</button>
+            <button onclick="cerrarModal('modalFoto')" class="btn-modal-close" style="width:100%; background:#e2e8f0; color:#334155; border:none; padding:10px; border-radius:8px; font-weight:700; cursor:pointer;">Cerrar Imagen</button>
         </div>
     </div>
 
