@@ -771,11 +771,8 @@ function ejecutarNoPago(clienteId) {
 }
 
 function procesarYComprimirImagen() {
-    const fileInput = document.getElementById('foto_mov');
-    if (!fileInput.files || fileInput.files.length === 0) return;
-    
-    // 📸 FIJADO: Extracción estricta del archivo binario indexado en la posición 0
-    const file = fileInput.files[0];
+    const file = document.getElementById('foto_mov').files[0];
+    if (!file) return;
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -793,7 +790,7 @@ function procesarYComprimirImagen() {
             canvas.width = width;
             canvas.height = height;
 
-            // 🖌️ FIJADO: Inicialización correcta del lienzo gráfico 2D del navegador móvil
+            // 🖌️ FIJADO: Contexto 2D reparado para habilitar la compresión en Android
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
 
@@ -869,7 +866,6 @@ def dashboard_principal():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 📊 FIJADO: Desempaquetado correcto usando alias de columnas explícitos para DictCursor
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s", (hoy_str,))
             total_cobrado_hoy = float(cursor.fetchone()["total"])
             
@@ -906,7 +902,7 @@ def dashboard_principal():
         <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
         <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo: <b>${debido_minimo_dia:.2f}</b> | Acumulado Mora: <b>${debido_total_acumulado:.2f}</b></div>
     </div>
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente o referencia..." onkeyup="filtrarClientes()">
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()">
     <div id="clientesContainer">
     """
     for c in clientes_ruta:
@@ -925,9 +921,9 @@ def dashboard_principal():
                 </div>
             </div>
             <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
-                <button class="btn-accion btn-pagar" onclick="ejecutarPago({c['id']}, {cuota_p['numero'] if cuota_p else 1}, {cuota_p['valor'] - cuota_p['valor_pagado'] if cuota_p else 0})">Cobrar</button>
-                <button class="btn-accion btn-abono" onclick="abrirModalAbono({c['id']}, {cuota_p['numero'] if cuota_p else 1}, {cuota_p['valor'] - cuota_p['valor_pagado'] if cuota_p else 0}, {c['valor_cuota']})">Abono</button>
-                <button class="btn-accion btn-nopagar" onclick="ejecutarNoPago({c['id']})">Saltar</button>
+                <!-- ⚡ OPTIMIZADO: Botón único unificado "Cobrar" y botón de acción de salto diario corregido -->
+                <button class="btn-accion btn-pagar" style="background:#10b981;" onclick="abrirModalAbono({c['id']}, {cuota_p['numero'] if cuota_p else 1}, {cuota_p['valor'] - cuota_p['valor_pagado'] if cuota_p else 0}, {c['valor_cuota']})">Cobrar</button>
+                <button class="btn-accion btn-nopagar" style="background:#ef4444;" onclick="ejecutarNoPago({c['id']})">Saltar</button>
             </div>
         </div>
         """
@@ -1305,7 +1301,6 @@ def api_marcar_pago(cliente_id, num_cuota):
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # Obtener todas las cuotas pendientes del cliente de forma ordenada
             cursor.execute("SELECT id, numero, valor, valor_pagado, pagado FROM pagos WHERE cliente_id = %s AND pagado = 0 ORDER BY numero ASC", (cliente_id,))
             pagos_pendientes = cursor.fetchall()
             
@@ -1315,15 +1310,14 @@ def api_marcar_pago(cliente_id, num_cuota):
                     
                 pendiente_cuota = p["valor"] - p["valor_pagado"]
                 
-                if monto_restante >= p_pendiente: # type: ignore
-                    # El monto cubre toda la cuota actual o el saldo restante de ella
-                    monto_restante = round(monto_restante - p_pendiente, 2) # type: ignore
+                # 🛠️ FIJADO: Corrección de variable tipográfica de 'p_pendiente' a 'pendiente_cuota'
+                if monto_restante >= pendiente_cuota:
+                    monto_restante = round(monto_restante - pendiente_cuota, 2)
                     cursor.execute(
                         "UPDATE pagos SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
                         (p["valor"], hoy_str, p["id"])
                     )
                 else:
-                    # El monto solo cubre un abono parcial de la cuota actual
                     nuevo_pago_parcial = round(p["valor_pagado"] + monto_restante, 2)
                     monto_restante = 0
                     cursor.execute(
@@ -1331,10 +1325,7 @@ def api_marcar_pago(cliente_id, num_cuota):
                         (nuevo_pago_parcial, hoy_str, p["id"])
                     )
             
-            # Limpiar enrutados forzados y penalizaciones de salto diario
             cursor.execute("UPDATE clientes SET enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
-            
-            # Recuperar datos en tiempo real para armar las variables del recibo impreso
             cursor.execute("SELECT nombre, telefono, monto_total FROM clientes WHERE id = %s", (cliente_id,))
             c = cursor.fetchone()
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE cliente_id = %s", (cliente_id,))
