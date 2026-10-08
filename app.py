@@ -297,33 +297,75 @@ CONTENIDO_HTML += """
     </div>
 """
 CONTENIDO_HTML += """
-{% elif vista == 'clientes' %}
-    <div class="section-header-title"><i class="fa-solid fa-users"></i> CONTROL MAESTRO DE CLIENTES</div>
+{% elif vista == 'clientes_financieros' %}
+    <div class="section-header-title"><i class="fa-solid fa-users"></i> HISTORIAL GENERAL DE CLIENTES</div>
+    <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Listado contable de todas las personas ingresadas en el sistema. Puedes auditar el capital en calle y los saldos reales generales.</p>
     
-    <!-- 📊 FIJADO: Los botones superiores ahora indican la cantidad exacta de cada listado -->
-    <div style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
-        <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/clientes?filtro=Activo')">🟢 Activos ({{ total_activos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/clientes?filtro=Inactivo')">⚪ Inactivos ({{ total_inactivos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/clientes?filtro=Lista Negra')">⚫ Bloqueados ({{ total_negra }})</button>
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente en el historial..." onkeyup="filtrarClientes()">
+    <div id="clientesContainer">
+        {% if lista_creditos %}
+            {% for c in lista_creditos %}
+                <div class="card" style="padding:14px; border-left:4px solid {% if c.estado == 'Activo' %}#10b981{% elif c.estado == 'Inactivo' %}#94a3b8{% else %}#475569{% endif %}; text-align:left; margin-bottom:10px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                    <div class="flex-between" style="border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:8px;">
+                        <div>
+                            <span style="font-weight:800; font-size:14px; color:#0f2b5c; display:inline-block;">{{ c.nombre }}</span>
+                            {% if c.estado == 'Inactivo' %}
+                                <span class="badge-al-dia" style="background:#e2e8f0; color:#475569; margin-left:4px;">LIQUIDADO</span>
+                            {% elif c.estado == 'Lista Negra' %}
+                                <span class="badge-mora" style="background:#475569; color:white; margin-left:4px;">BLOQUEADO</span>
+                            {% endif %}
+                            <span style="font-size:10px; color:#64748b; display:block; margin-top:2px;">Modalidad: <b>{{ c.frecuencia }}</b> | Cuota: <b>${{ "%.2f"|format(c.valor_cuota) }}</b></span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; display:block;">Saldo Real</span>
+                            <span style="font-size:15px; font-weight:800; color:{% if c.saldo_pendiente > 0 %}#ef4444{% else %}#10b981{% endif %}; display:block;">${{ "%.2f"|format(c.saldo_pendiente) }}</span>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:11px; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid #e2e8f0;">
+                        <div>
+                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Base</span>
+                            <span style="font-weight:700; color:#334155;">${{ "%.2f"|format(c.monto) }}</span>
+                        </div>
+                        <div>
+                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Cartera Total</span>
+                            <span style="font-weight:700; color:#0f2b5c;">${{ "%.2f"|format(c.monto_total) }}</span>
+                        </div>
+                        <div>
+                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Recaudado</span>
+                            <span style="font-weight:700; color:#10b981;">${{ "%.2f"|format(c.total_recaudado) }}</span>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p style="font-size:11px; color:#64748b; text-align:center; padding:20px;">No se registran clientes en la base de datos.</p>
+        {% endif %}
     </div>
 
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente específico..." onkeyup="filtrarClientes()">
+{% elif vista == 'embed_creditos_maestros' or vista == 'creditos_maestros' %}
+    <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
+    
+    <div style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
+        <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Activo')">🟢 Activos ({{ total_activos }})</button>
+        <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Inactivo')">⚪ Inactivos ({{ total_inactivos }})</button>
+        <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Lista Negra')">⚫ Bloqueados ({{ total_negra }})</button>
+    </div>
+
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar registro..." onkeyup="filtrarClientes()">
     <div id="clientesContainer">
         {% for cl in todos %}
             <div class="card cliente-card" data-nombre="{{ cl.nombre | lower }}">
                 <div class="flex-between">
                     <div>
                         <span style="font-weight:800; color:#0f2b5c; font-size:14px;">{{ cl.nombre }}</span>
-                        <div style="font-size:11px; color:#64748b; margin-top:2px;">Saldo Cartera: ${{ "%.2f"|format(cl.monto_total) }} | Frecuencia: {{ cl.frecuencia }}</div>
+                        <div style="font-size:11px; color:#64748b; margin-top:2px;">Monto Total: ${{ "%.2f"|format(cl.monto_total) }} | Modalidad: {{ cl.frecuencia }}</div>
                     </div>
                     <div style="display:flex; gap:6px; align-items:center;">
-                        <!-- 🔄 FIJADO: El botón renovar ahora es universal y visible en cualquier pestaña -->
                         <button class="btn-accion btn-abono" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="border:none; padding:8px 12px;"><i class="fa-solid fa-rotate"></i> Renovar</button>
-                        
                         {% if cl.estado == 'Activo' %}
                             <button class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/clientes/lista_negra/{{ cl.id }}'" style="background:#475569; padding:8px 12px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
                         {% endif %}
-                        <a href="/api/eliminar_cliente/{{ cl.id }}" onclick="return confirm('¿Eliminar cliente permanentemente de la ruta?')" class="btn-accion btn-nopagar" style="text-decoration:none; padding:8px 12px; background:#dc2626;"><i class="fa-solid fa-trash-can"></i> 🗑️ Borrar</a>
+                        <a href="/api/eliminar_cliente/{{ cl.id }}" onclick="return confirm('¿Eliminar de forma permanente?')" class="btn-accion btn-nopagar" style="text-decoration:none; padding:8px 12px; background:#dc2626;"><i class="fa-solid fa-trash-can"></i> 🗑️ Borrar</a>
                     </div>
                 </div>
             </div>
@@ -1094,15 +1136,44 @@ def dashboard_principal():
 @app.route("/menu/clientes")
 def seccion_clientes_maestro():
     if not session.get("autenticado"): return "Sesión expirada"
+    
+    with get_db() as conn:
+        with conn.cursor() as cursor:
+            # 📊 SECCIÓN CLIENTES INTERCAMBIADA: Recupera TODOS los clientes del sistema para el desglose contable general
+            cursor.execute(
+                """
+                SELECT c.id, c.nombre, c.monto, c.interes_porcentaje, c.monto_total, c.valor_cuota, c.frecuencia, c.estado,
+                       COALESCE(SUM(p.valor_pagado), 0) AS total_recaudado
+                FROM clientes c
+                LEFT JOIN pagos p ON c.id = p.cliente_id
+                GROUP BY c.id
+                ORDER BY c.nombre ASC
+                """
+            )
+            todos_clientes = cursor.fetchall()
+            
+    creditos_procesados = []
+    for cr in todos_clientes:
+        c_dict = dict(cr)
+        c_dict["saldo_pendiente"] = max(0.0, float(c_dict["monto_total"]) - float(c_dict["total_recaudado"]))
+        creditos_procesados.append(c_dict)
+        
+    contexto = dict(vista="clientes_financieros", lista_creditos=creditos_procesados)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
+        return render_template_string(CONTENIDO_HTML, **contexto)
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
+
+@app.route("/menu/creditos")
+def seccion_creditos_activos():
+    if not session.get("autenticado"): return "Sesión expirada"
     filtro_estado = request.args.get("filtro", "Activo")
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # Trae los clientes filtrados para la pestaña actual
+            # 🛡️ SECCIÓN CRÉDITOS INTERCAMBIADA: Control maestro de estados mapeado por pestañas de Neon
             cursor.execute("SELECT id, nombre, frecuencia, monto_total, estado FROM clientes WHERE estado = %s ORDER BY nombre ASC", (filtro_estado,))
             todos = cursor.fetchall()
             
-            # 📊 FIJADO: Conteos exactos por cada estado para los botones del menú
             cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE estado = 'Activo'")
             total_activos = int(cursor.fetchone()["total"])
             
@@ -1113,45 +1184,13 @@ def seccion_clientes_maestro():
             total_negra = int(cursor.fetchone()["total"])
             
     contexto = dict(
-        vista="clientes", 
+        vista="creditos_maestros", 
         todos=todos, 
         total_activos=total_activos, 
         total_inactivos=total_inactivos, 
         total_negra=total_negra, 
         filtro_estado=filtro_estado
     )
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
-        return render_template_string(CONTENIDO_HTML, **contexto)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
-
-@app.route("/menu/creditos")
-def seccion_creditos_activos():
-    if not session.get("autenticado"): return "Sesión expirada"
-    
-    with get_db() as conn:
-        with conn.cursor() as cursor:
-            # 📊 NUEVA CONSULTA: Recupera los clientes activos junto con la suma de todos sus abonos asentados
-            cursor.execute(
-                """
-                SELECT c.id, c.nombre, c.monto, c.interes_porcentaje, c.monto_total, c.valor_cuota, c.frecuencia,
-                       COALESCE(SUM(p.valor_pagado), 0) AS total_recaudado
-                FROM clientes c
-                LEFT JOIN pagos p ON c.id = p.cliente_id
-                WHERE c.estado = 'Activo'
-                GROUP BY c.id
-                ORDER BY c.nombre ASC
-                """
-            )
-            creditos = cursor.fetchall()
-            
-    # Saneamiento de datos matemáticos float compatibles con el cursor de Neon
-    creditos_procesados = []
-    for cr in creditos:
-        c_dict = dict(cr)
-        c_dict["saldo_pendiente"] = max(0.0, float(c_dict["monto_total"]) - float(c_dict["total_recaudado"]))
-        creditos_procesados.append(c_dict)
-        
-    contexto = dict(vista="creditos_financieros", lista_creditos=creditos_procesados)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
