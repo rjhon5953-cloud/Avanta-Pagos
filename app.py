@@ -373,6 +373,90 @@ CONTENIDO_HTML += """
         {% endif %}
     </div>
 
+{% elif vista == 'creditos_financieros' %}
+    <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL FINANCIERO DE CRÉDITOS</div>
+    <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Monitorea el rendimiento de tu cartera activa en tiempo real. Aquí puedes ver el desglose exacto de lo invertido frente a lo recaudado por cliente.</p>
+    
+    <div id="creditosContainer">
+        {% if lista_creditos %}
+            {% for c in lista_creditos %}
+                <div class="card" style="padding:14px; border-left:4px solid #10b981; text-align:left; margin-bottom:10px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                    <div class="flex-between" style="border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:8px;">
+                        <div>
+                            <span style="font-weight:800; font-size:14px; color:#0f2b5c; display:block;">{{ c.nombre }}</span>
+                            <span style="font-size:10px; color:#64748b; display:block; margin-top:2px;">Modalidad: <b>{{ c.frecuencia }}</b> | Cuota: <b>${{ "%.2f"|format(c.valor_cuota) }}</b></span>
+                        </div>
+                        <div style="text-align:right;">
+                            <!-- 💰 Badge de Saldo Neto Pendiente Real -->
+                            <span style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; display:block;">Saldo Real</span>
+                            <span style="font-size:15px; font-weight:800; color:#ef4444; display:block;">${{ "%.2f"|format(c.saldo_pendiente) }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 📊 Desglose de Métricas Contables individuales sin repetir líneas -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:11px; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid #e2e8f0;">
+                        <div>
+                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Préstamo</span>
+                            <span style="font-weight:700; color:#334155;">${{ "%.2f"|format(c.monto) }}</span>
+                        </div>
+                        <div>
+                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Con Interés ({{ c.interes_porcentaje }}%)</span>
+                            <span style="font-weight:700; color:#0f2b5c;">${{ "%.2f"|format(c.monto_total) }}</span>
+                        </div>
+                        <div>
+                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Cobrado</span>
+                            <span style="font-weight:700; color:#10b981;">${{ "%.2f"|format(c.total_recaudado) }}</span>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p style="font-size:11px; color:#64748b; text-align:center; padding:20px;">No se registran créditos financieros activos en este momento.</p>
+        {% endif %}
+    </div>
+
+{% elif vista == 'creditos_financieros' %}
+    <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL FINANCIERO DE CRÉDITOS</div>
+    <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Monitorea el rendimiento de tu cartera activa en tiempo real. Aquí puedes ver el desglose exacto de lo invertido frente a lo recaudado por cliente.</p>
+    
+    <div id="creditosContainer">
+        {% if lista_creditos %}
+            {% for c in lista_creditos %}
+                <div class="card" style="padding:14px; border-left:4px solid #10b981; text-align:left; margin-bottom:10px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                    <div class="flex-between" style="border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:8px;">
+                        <div>
+                            <span style="font-weight:800; font-size:14px; color:#0f2b5c; display:block;">{{ c.nombre }}</span>
+                            <span style="font-size:10px; color:#64748b; display:block; margin-top:2px;">Modalidad: <b>{{ c.frecuencia }}</b> | Cuota: <b>${{ "%.2f"|format(c.valor_cuota) }}</b></span>
+                        </div>
+                        <div style="text-align:right;">
+                            <!-- 💰 Badge de Saldo Neto Pendiente Real -->
+                            <span style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; display:block;">Saldo Real</span>
+                            <span style="font-size:15px; font-weight:800; color:#ef4444; display:block;">${{ "%.2f"|format(c.saldo_pendiente) }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 📊 Desglose de Métricas Contables individuales sin repetir líneas -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:11px; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid #e2e8f0;">
+                        <div>
+                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Préstamo</span>
+                            <span style="font-weight:700; color:#334155;">${{ "%.2f"|format(c.monto) }}</span>
+                        </div>
+                        <div>
+                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Con Interés ({{ c.interes_porcentaje }}%)</span>
+                            <span style="font-weight:700; color:#0f2b5c;">${{ "%.2f"|format(c.monto_total) }}</span>
+                        </div>
+                        <div>
+                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Cobrado</span>
+                            <span style="font-weight:700; color:#10b981;">${{ "%.2f"|format(c.total_recaudado) }}</span>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p style="font-size:11px; color:#64748b; text-align:center; padding:20px;">No se registran créditos financieros activos en este momento.</p>
+        {% endif %}
+    </div>
+
 {% elif vista == 'nuevo' or vista == 'renovar' %}
     <h3 style="margin-top:0; color:#0f2b5c;">{% if vista == 'renovar' %}🔄 Renovar Crédito a {{ cliente.nombre }}{% else %}👤 Registro de Crédito / Venta{% endif %}</h3>
     <div class="card" style="padding:16px;">
@@ -1009,19 +1093,51 @@ def dashboard_principal():
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(contexto_dash))
 
 @app.route("/menu/clientes")
-@app.route("/menu/creditos")
 def seccion_clientes_maestro():
     if not session.get("autenticado"): return "Sesión expirada"
     filtro_estado = request.args.get("filtro", "Activo")
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT * FROM clientes WHERE estado = %s ORDER BY nombre ASC", (filtro_estado,))
+            # Control Maestro: lista plana para gestionar estados o eliminar registros de la base de datos
+            cursor.execute("SELECT id, nombre, frecuencia, monto_total, estado FROM clientes WHERE estado = %s ORDER BY nombre ASC", (filtro_estado,))
             todos = cursor.fetchall()
             cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE estado = 'Activo'")
             total_activos = int(cursor.fetchone()["total"])
             
     contexto = dict(vista="clientes", todos=todos, total_activos=total_activos, filtro_estado=filtro_estado)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
+        return render_template_string(CONTENIDO_HTML, **contexto)
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
+
+@app.route("/menu/creditos")
+def seccion_creditos_activos():
+    if not session.get("autenticado"): return "Sesión expirada"
+    
+    with get_db() as conn:
+        with conn.cursor() as cursor:
+            # 📊 NUEVA CONSULTA: Recupera los clientes activos junto con la suma de todos sus abonos asentados
+            cursor.execute(
+                """
+                SELECT c.id, c.nombre, c.monto, c.interes_porcentaje, c.monto_total, c.valor_cuota, c.frecuencia,
+                       COALESCE(SUM(p.valor_pagado), 0) AS total_recaudado
+                FROM clientes c
+                LEFT JOIN pagos p ON c.id = p.cliente_id
+                WHERE c.estado = 'Activo'
+                GROUP BY c.id
+                ORDER BY c.nombre ASC
+                """
+            )
+            creditos = cursor.fetchall()
+            
+    # Saneamiento de datos matemáticos float compatibles con el cursor de Neon
+    creditos_procesados = []
+    for cr in creditos:
+        c_dict = dict(cr)
+        c_dict["saldo_pendiente"] = max(0.0, float(c_dict["monto_total"]) - float(c_dict["total_recaudado"]))
+        creditos_procesados.append(c_dict)
+        
+    contexto = dict(vista="creditos_financieros", lista_creditos=creditos_procesados)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
@@ -1383,7 +1499,6 @@ def api_marcar_pago(cliente_id, num_cuota):
                     
                 pendiente_cuota = p["valor"] - p["valor_pagado"]
                 
-                # 🛠️ FIJADO: Corrección de variable tipográfica de 'p_pendiente' a 'pendiente_cuota'
                 if monto_restante >= pendiente_cuota:
                     monto_restante = round(monto_restante - pendiente_cuota, 2)
                     cursor.execute(
@@ -1398,16 +1513,27 @@ def api_marcar_pago(cliente_id, num_cuota):
                         (nuevo_pago_parcial, hoy_str, p["id"])
                     )
             
-            cursor.execute("UPDATE clientes SET enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
+            # Recalcular saldos para validar si ya liquidó la deuda completa
             cursor.execute("SELECT nombre, telefono, monto_total FROM clientes WHERE id = %s", (cliente_id,))
             c = cursor.fetchone()
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE cliente_id = %s", (cliente_id,))
             total_pagado = float(cursor.fetchone()["total"])
             
-        conn.commit()
+            saldo_restante = max(0.0, c["monto_total"] - total_pagado)
+            
+            # 🛡️ FIJADO: Si el saldo llegó a $0.00, el cliente se da por liquidado y pasa a 'Inactivo' de inmediato
+            if saldo_restante <= 0:
+                cursor.execute("UPDATE clientes SET estado = 'Inactivo', enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
+            else:
+                cursor.execute("UPDATE clientes SET enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
+                
+            conn.commit()
         
-    saldo_restante = max(0.0, c["monto_total"] - total_pagado)
-    mensaje_ws = f"🧾 *AVANTA PAGOS*\nRecibo de Pago\nCliente: {c['nombre']}\nMonto Cobrado: ${monto_recaudado:.2f}\nSaldo Restante: ${saldo_restante:.2f}\n¡Gracias por su pago!"
+    mensaje_ws = f"🧾 *AVANTA PAGOS*\nRecibo de Pago\nCliente: {c['nombre']}\nMonto Cobrado: ${monto_recaudado:.2f}\nSaldo Restante: ${saldo_restante:.2f}\n"
+    if saldo_restante <= 0:
+        mensaje_ws += "🎉 *¡FELICIDADES! CRÉDITO LIQUIDADO AL 100%*"
+    else:
+        mensaje_ws += "¡Gracias por su pago!"
     
     recibo = {
         "cliente": c["nombre"],
