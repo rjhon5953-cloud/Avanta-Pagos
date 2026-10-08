@@ -336,17 +336,18 @@ CONTENIDO_HTML += """
     <div class="section-header-title"><i class="fa-solid fa-receipt"></i> Panel de Control - Pagos del Día</div>
     <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Audita los movimientos ejecutados hoy. Si el cobrador cometió un error o saltó a alguien por accidente, usa el botón de deshacer para regresarlo a la ruta activa.</p>
     
-    <!-- Tab 1: Clientes que SÍ pagaron hoy -->
+    <!-- Tab 1: Clientes que SÍ pagaron hoy con empaquetamiento limpio -->
     <div class="card" style="text-align:left; padding:16px;">
         <h4 style="font-size:13px; color:#10b981; margin-bottom:10px;"><i class="fa-solid fa-circle-check"></i> Clientes que SÍ Pagaron Hoy</h4>
         {% if pagados_list %}
             {% for p in pagados_list %}
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding:10px 0; font-size:12px;">
                     <div>
-                        <b>{{ p.nombre }}</b> <span style="color:#64748b; font-size:11px; margin-left:4px;">(Cuota #{{ p.numero }})</span>
-                        <div style="color:#10b981; font-weight:800; margin-top:2px;">Abonado: ${{ "%.2f"|format(p.valor_pagado) }}</div>
+                        <!-- 🔥 FIJADO: Muestra el nombre y el rango de cuotas agrupadas de forma elegante sin repetir líneas -->
+                        <b>{{ p.nombre }}</b> <span style="color:#64748b; font-size:11px; margin-left:4px;">(Cuotas {{ p.rango_cuotas }})</span>
+                        <div style="color:#10b981; font-weight:800; margin-top:2px;">Total Recaudado: ${{ "%.2f"|format(p.total_abonado) }}</div>
                     </div>
-                    <button type="button" onclick="revertirGestionDia('pago', {{ p.pago_id }})" class="btn-accion btn-nopagar" style="background:#ef4444; padding:6px 10px;"><i class="fa-solid fa-arrow-rotate-left"></i> Deshacer</button>
+                    <button type="button" onclick="revertirGestionDia('pago', '{{ p.pago_ids_str }}')" class="btn-accion btn-nopagar" style="background:#ef4444; padding:6px 10px;"><i class="fa-solid fa-arrow-rotate-left"></i> Deshacer</button>
                 </div>
             {% endfor %}
         {% else %}
@@ -1492,16 +1493,17 @@ def seccion_pagos_hoy():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 💵 Obtener todos los clientes que SÍ realizaron abonos o pagos hoy
+            # 💵 Traemos los recaudos individuales de hoy
             cursor.execute(
                 """
                 SELECT p.id AS pago_id, c.id AS cliente_id, c.nombre, p.numero, p.valor_pagado 
                 FROM pagos p 
                 JOIN clientes c ON p.cliente_id = c.id 
                 WHERE p.fecha_pago_real = %s AND p.pagado = 1
+                ORDER BY c.nombre ASC, p.numero ASC
                 """, (hoy_str,)
             )
-            pagados = cursor.fetchall()
+            pagos_individuales = cursor.fetchall()
             
             # ❌ Obtener todos los clientes que fueron SALTADOS hoy por el cobrador
             cursor.execute(
@@ -1515,27 +1517,61 @@ def seccion_pagos_hoy():
             )
             saltados = cursor.fetchall()
             
-    contexto = dict(vista="pagos_hoy", pagados_list=pagados, saltados_list=saltados)
+    # 🔄 AGRUPACIÓN CRÍTICA CONTRA DUPLICADOS: Consolida las cuotas continuas del mismo cliente
+    pagados_agrupados = []
+    mapa_agrupacion = {}
+    
+    for p in pagos_individuales:
+        c_id = p["cliente_id"]
+        if c_id not in mapa_agrupacion:
+            mapa_agrupacion[c_id] = {
+                "nombre": p["nombre"],
+                "cuotas": [p["numero"]],
+                "total_abonado": float(p["valor_pagado"]),
+                "pago_ids": [p["pago_id"]]
+            }
+        else:
+            mapa_agrupacion[c_id]["cuotas"].append(p["numero"])
+            mapa_agrupacion[c_id]["total_abonado"] += float(p["valor_pagado"])
+            mapa_agrupacion[c_id]["pago_ids"].append(p["pago_id"])
+
+    for c_id, info in mapa_agrupacion.items():
+        min_c = min(info["cuotas"])
+        max_c = max(info["cuotas"])
+        # Formatea el texto de las cuotas: si es una sola muestra "#1", si son varias muestra "#1 al #3"
+        rango_cuotas = f"#{min_c}" if min_c == max_c else f"#{min_c} a la #{max_c}"
+        
+        pagados_agrupados.append({
+            "nombre": info["nombre"],
+            "rango_cuotas": rango_cuotas,
+            "total_abonado": info["total_abonado"],
+            # Serializamos los IDs separados por guiones para que el botón de deshacer liquide todo el bloque junto
+            "pago_ids_str": "-".join(map(str, info["pago_ids"]))
+        })
+            
+    contexto = dict(vista="pagos_hoy", pagados_list=pagados_agrupados, saltados_list=saltados)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
 
-@app.route("/api/revertir_gestion/<string:tipo>/<int:id>")
-def api_revertir_gestion(tipo, id):
+@app.route("/api/revertir_gestion/<string:tipo>/<string:id_str>")
+def api_revertir_gestion(tipo, id_str):
     if not session.get("autenticado"): 
         return jsonify({"status": "error", "message": "No autorizado"})
         
+    hoy_str = date.today().isoformat()
     with get_db() as conn:
         with conn.cursor() as cursor:
             if tipo == "pago":
-                # Si fue un cobro errado: borramos la fecha, devolvemos el valor a 0 y abrimos la cuota
-                cursor.execute("UPDATE pagos SET pagado = 0, valor_pagado = 0, fecha_pago_real = '' WHERE id = %s RETURNING cliente_id", (id,))
-                res = cursor.fetchone()
-                if res:
-                    cursor.execute("UPDATE clientes SET fecha_gestion = '' WHERE id = %s", (res[0],))
+                # Desestructuramos los IDs del bloque agrupado (ej: "12-13-14") para revertirlos juntos
+                pago_ids = [int(x) for x in id_str.split("-") if x.strip()]
+                for p_id in pago_ids:
+                    cursor.execute("UPDATE pagos SET pagado = 0, valor_pagado = 0, fecha_pago_real = '' WHERE id = %s RETURNING cliente_id", (p_id,))
+                    res = cursor.fetchone()
+                    if res:
+                        cursor.execute("UPDATE clientes SET fecha_gestion = '' WHERE id = %s", (res[0],))
             elif tipo == "salto":
-                # Si fue un salto errado: descontamos el contador de atrasos y limpiamos la fecha de gestión
-                cursor.execute("UPDATE clientes SET saltado_hoy = GREATEST(0, saltado_hoy - 1), fecha_gestion = '' WHERE id = %s", (id,))
+                cursor.execute("UPDATE clientes SET saltado_hoy = GREATEST(0, saltado_hoy - 1), fecha_gestion = '' WHERE id = %s", (int(id_str),))
         conn.commit()
     return jsonify({"status": "ok"})
 
