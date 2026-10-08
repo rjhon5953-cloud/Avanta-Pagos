@@ -126,7 +126,7 @@ def obtener_clientes_ruta_hoy():
     for c in clientes:
         c_dict = dict(c)
         
-        # 🛡️ FIJADO: Si el cliente ya fue gestionado o saltado el día de hoy, desaparece al instante de la ruta
+        # 🛡️ FIJADO: Si el cliente ya fue saltado o cobrado hoy, se lo excluye para limpiar la lista visual
         if c_dict.get("fecha_gestion") == hoy_str:
             continue
             
@@ -332,6 +332,46 @@ CONTENIDO_HTML += """
     </div>
 """
 CONTENIDO_HTML += """
+{% elif vista == 'pagos_hoy' %}
+    <div class="section-header-title"><i class="fa-solid fa-receipt"></i> Panel de Control - Pagos del Día</div>
+    <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Audita los movimientos ejecutados hoy. Si el cobrador cometió un error o saltó a alguien por accidente, usa el botón de deshacer para regresarlo a la ruta activa.</p>
+    
+    <!-- Tab 1: Clientes que SÍ pagaron hoy -->
+    <div class="card" style="text-align:left; padding:16px;">
+        <h4 style="font-size:13px; color:#10b981; margin-bottom:10px;"><i class="fa-solid fa-circle-check"></i> Clientes que SÍ Pagaron Hoy</h4>
+        {% if pagados_list %}
+            {% for p in pagados_list %}
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding:10px 0; font-size:12px;">
+                    <div>
+                        <b>{{ p.nombre }}</b> <span style="color:#64748b; font-size:11px; margin-left:4px;">(Cuota #{{ p.numero }})</span>
+                        <div style="color:#10b981; font-weight:800; margin-top:2px;">Abonado: ${{ "%.2f"|format(p.valor_pagado) }}</div>
+                    </div>
+                    <button type="button" onclick="revertirGestionDia('pago', {{ p.pago_id }})" class="btn-accion btn-nopagar" style="background:#ef4444; padding:6px 10px;"><i class="fa-solid fa-arrow-rotate-left"></i> Deshacer</button>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p style="font-size:11px; color:#64748b; text-align:center; padding:10px;">Ningún recaudo asentado hoy todavía.</p>
+        {% endif %}
+    </div>
+
+    <!-- Tab 2: Clientes SALTADOS hoy -->
+    <div class="card" style="text-align:left; padding:16px; margin-top:12px;">
+        <h4 style="font-size:13px; color:#f59e0b; margin-bottom:10px;"><i class="fa-solid fa-circle-exclamation"></i> Clientes Saltados / No Pago Hoy</h4>
+        {% if altados_list or saltados_list %}
+            {% for s in saltados_list %}
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding:10px 0; font-size:12px;">
+                    <div>
+                        <b>{{ s.nombre }}</b>
+                        <div style="color:#64748b; font-size:11px; margin-top:2px;">Total días saltado: {{ s.saltado_hoy }}</div>
+                    </div>
+                    <button type="button" onclick="revertirGestionDia('salto', {{ s.cliente_id }})" class="btn-accion btn-nopagar" style="background:#ef4444; padding:6px 10px;"><i class="fa-solid fa-arrow-rotate-left"></i> Deshacer</button>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p style="font-size:11px; color:#64748b; text-align:center; padding:10px;">Ningún cliente saltado hoy.</p>
+        {% endif %}
+    </div>
+
 {% elif vista == 'nuevo' or vista == 'renovar' %}
     <h3 style="margin-top:0; color:#0f2b5c;">{% if vista == 'renovar' %}🔄 Renovar Crédito a {{ cliente.nombre }}{% else %}👤 Registro de Crédito / Venta{% endif %}</h3>
     <div class="card" style="padding:16px;">
@@ -551,6 +591,7 @@ HTML_TEMPLATE = """
         </div>
         <ul class="drawer-menu">
             <li><a href="#" onclick="navegarRuta('/')"><i class="fa-solid fa-map-location-dot"></i> Ruta Principal</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/pagos_hoy')"><i class="fa-solid fa-receipt"></i> Pagos del Día</a></li>
             <li><a href="#" onclick="navegarRuta('/menu/clientes')"><i class="fa-solid fa-address-book"></i> Clientes</a></li>
             <li><a href="#" onclick="navegarRuta('/menu/creditos')"><i class="fa-solid fa-hand-holding-dollar"></i> Créditos Activos</a></li>
             <li><a href="#" onclick="navegarRuta('/menu/ruta_orden')"><i class="fa-solid fa-arrow-down-up-lock"></i> Reordenar Ruta</a></li>
@@ -747,7 +788,7 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
                 
                 const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
-                // 📲 FIJADO: Protocolo de redirección nativa con barra diagonal integrada sin roturas
+                // 📲 FIJADO: Enlace wa.me/ con barra diagonal integrada correctamente para teléfonos
                 const urlWeb = 'https://wa.me' + numPuro + '?text=' + textoMensaje;
                 
                 const btnWs = document.getElementById('modalWsBtn');
@@ -776,11 +817,8 @@ function ejecutarNoPago(clienteId) {
         fetch('/api/marcar_no_pago/' + clienteId)
             .then(res => res.json())
             .then(data => {
-                if (data.status === 'ok') {
-                    // ❌ FIJADO: Fuerza la recarga inmediata del DOM para remover al cliente de la ruta
-                    window.location.reload();
-                }
-            }).catch(err => alert("Error al procesar el salto: " + err));
+                if (data.status === 'ok') window.location.reload();
+            }).catch(err => alert("Error al procesar: " + err));
     }
 }
 
@@ -842,6 +880,19 @@ function cargarYVerFoto(gastoId) {
             }
         }).catch(err => alert("Error al conectar con el servidor: " + err));
 }
+// 🔄 NUEVA ACCIÓN: Permite al administrador revertir un cobro o salto mal asentado en el acto
+function revertirGestionDia(tipo, id) {
+    if (confirm('¿Está seguro de que desea deshacer esta gestión y regresar al cliente a la Ruta del Día?')) {
+        fetch('/api/revertir_gestion/' + tipo + '/' + id)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    alert("✅ Gestión revertida. El cliente ha regresado a la lista por cobrar.");
+                    window.location.reload();
+                }
+            }).catch(err => alert("Error al conectar: " + err));
+    }
+}
 
 function imprimirTicket() { window.print(); }
 function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -884,6 +935,12 @@ def dashboard_principal():
         
     hoy_str = date.today().isoformat()
     
+    # 📅 FECHA EN TIEMPO REAL: Formateo en español para el badge superior
+    meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    ahora = datetime.now()
+    fecha_legible = f"{dias_semana[ahora.weekday()]}, {ahora.day:02d} de {meses[ahora.month - 1]} de {ahora.year}"
+    
     with get_db() as conn:
         with conn.cursor() as cursor:
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s", (hoy_str,))
@@ -907,7 +964,8 @@ def dashboard_principal():
     capital_en_calle = sum(max(0.0, c["monto_total"] - sum(p["valor_pagado"] for p in c["pagos"])) for c in clientes_ruta)
 
     contexto_dash = f"""
-    <div class="date-badge"><i class="fa-solid fa-calendar-day"></i> Ruta del Día</div>
+    <!-- 📅 FIJADO: Badge de fecha dinámica sincronizada -->
+    <div class="date-badge"><i class="fa-solid fa-calendar-day"></i> {fecha_legible}</div>
     <div class="grid-kpis">
         <div class="kpi-card">
             <div class="kpi-title">Recaudo Hoy / Créditos Hoy</div>
@@ -920,9 +978,9 @@ def dashboard_principal():
     </div>
     <div class="expected-card">
         <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
-        <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo: <b>${debido_minimo_dia:.2f}</b> | Acumulado Mora: <b>${debido_total_acumulado:.2f}</b></div>
+        <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo de Ruta: <b>${debido_minimo_dia:.2f}</b> | Acumulado Mora: <b>${debido_total_acumulado:.2f}</b></div>
     </div>
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()">
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente en ruta..." onkeyup="filtrarClientes()">
     <div id="clientesContainer">
     """
     for c in clientes_ruta:
@@ -941,9 +999,8 @@ def dashboard_principal():
                 </div>
             </div>
             <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
-                <!-- ⚡ OPTIMIZADO: Botón único unificado "Cobrar" y botón de acción de salto diario corregido -->
-                <button class="btn-accion btn-pagar" style="background:#10b981;" onclick="abrirModalAbono({c['id']}, {cuota_p['numero'] if cuota_p else 1}, {cuota_p['valor'] - cuota_p['valor_pagado'] if cuota_p else 0}, {c['valor_cuota']})">Cobrar</button>
-                <button class="btn-accion btn-nopagar" style="background:#ef4444;" onclick="ejecutarNoPago({c['id']})">Saltar</button>
+                <button class="btn-accion btn-pagar" onclick="abrirModalAbono({c['id']}, {cuota_p['numero'] if cuota_p else 1}, {cuota_p['valor'] - cuota_p['valor_pagado'] if cuota_p else 0}, {c['valor_cuota']})">Cobrar</button>
+                <button class="btn-accion btn-nopagar" onclick="ejecutarNoPago({c['id']})">Saltar</button>
             </div>
         </div>
         """
@@ -1432,6 +1489,60 @@ def api_gasto_foto(gasto_id):
         return respuesta
         
     return jsonify({"status": "error", "message": "No encontrado"})
+
+@app.route("/menu/pagos_hoy")
+def seccion_pagos_hoy():
+    if not session.get("autenticado"): return "Sesión expirada"
+    hoy_str = date.today().isoformat()
+    
+    with get_db() as conn:
+        with conn.cursor() as cursor:
+            # 💵 Obtener todos los clientes que SÍ realizaron abonos o pagos hoy
+            cursor.execute(
+                """
+                SELECT p.id AS pago_id, c.id AS cliente_id, c.nombre, p.numero, p.valor_pagado 
+                FROM pagos p 
+                JOIN clientes c ON p.cliente_id = c.id 
+                WHERE p.fecha_pago_real = %s AND p.pagado = 1
+                """, (hoy_str,)
+            )
+            pagados = cursor.fetchall()
+            
+            # ❌ Obtener todos los clientes que fueron SALTADOS hoy por el cobrador
+            cursor.execute(
+                """
+                SELECT id AS cliente_id, nombre, saltado_hoy 
+                FROM clientes 
+                WHERE fecha_gestion = %s AND estado = 'Activo' AND id NOT IN (
+                    SELECT DISTINCT cliente_id FROM pagos WHERE fecha_pago_real = %s
+                )
+                """, (hoy_str, hoy_str)
+            )
+            saltados = cursor.fetchall()
+            
+    contexto = dict(vista="pagos_hoy", pagados_list=pagados, saltados_list=saltados)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
+        return render_template_string(CONTENIDO_HTML, **contexto)
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
+
+@app.route("/api/revertir_gestion/<string:tipo>/<int:id>")
+def api_revertir_gestion(tipo, id):
+    if not session.get("autenticado"): 
+        return jsonify({"status": "error", "message": "No autorizado"})
+        
+    with get_db() as conn:
+        with conn.cursor() as cursor:
+            if tipo == "pago":
+                # Si fue un cobro errado: borramos la fecha, devolvemos el valor a 0 y abrimos la cuota
+                cursor.execute("UPDATE pagos SET pagado = 0, valor_pagado = 0, fecha_pago_real = '' WHERE id = %s RETURNING cliente_id", (id,))
+                res = cursor.fetchone()
+                if res:
+                    cursor.execute("UPDATE clientes SET fecha_gestion = '' WHERE id = %s", (res[0],))
+            elif tipo == "salto":
+                # Si fue un salto errado: descontamos el contador de atrasos y limpiamos la fecha de gestión
+                cursor.execute("UPDATE clientes SET saltado_hoy = GREATEST(0, saltado_hoy - 1), fecha_gestion = '' WHERE id = %s", (id,))
+        conn.commit()
+    return jsonify({"status": "ok"})
 
 if __name__ == "__main__":
     # Servidor local configurado para ejecutarse en el puerto estricto 8080
