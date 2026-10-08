@@ -297,17 +297,14 @@ CONTENIDO_HTML += """
     </div>
 """
 CONTENIDO_HTML += """
-{% elif vista == 'clientes' or vista == 'creditos' %}
+{% elif vista == 'clientes' %}
     <div class="section-header-title"><i class="fa-solid fa-users"></i> CONTROL MAESTRO DE CLIENTES</div>
-    <div class="card" style="background:#0f2b5c; color:white; text-align:center; padding:10px; margin-bottom:12px;">
-        <div class="kpi-title" style="color:white; opacity:0.8;">Total Activos</div>
-        <div class="kpi-val" style="color:white; font-size:18px;">{{ total_activos }} Clientes con Crédito Activo</div>
-    </div>
     
+    <!-- 📊 FIJADO: Los botones superiores ahora indican la cantidad exacta de cada listado -->
     <div style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
-        <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/clientes?filtro=Activo')">🟢 Activos</button>
-        <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/clientes?filtro=Inactivo')">⚪ Inactivos</button>
-        <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/clientes?filtro=Lista Negra')">⚫ Lista Negra</button>
+        <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/clientes?filtro=Activo')">🟢 Activos ({{ total_activos }})</button>
+        <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/clientes?filtro=Inactivo')">⚪ Inactivos ({{ total_inactivos }})</button>
+        <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/clientes?filtro=Lista Negra')">⚫ Bloqueados ({{ total_negra }})</button>
     </div>
 
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente específico..." onkeyup="filtrarClientes()">
@@ -317,11 +314,13 @@ CONTENIDO_HTML += """
                 <div class="flex-between">
                     <div>
                         <span style="font-weight:800; color:#0f2b5c; font-size:14px;">{{ cl.nombre }}</span>
-                        <div style="font-size:11px; color:#64748b; margin-top:2px;">Saldo: ${{ "%.2f"|format(cl.monto_total) }} | Frecuencia: {{ cl.frecuencia }}</div>
+                        <div style="font-size:11px; color:#64748b; margin-top:2px;">Saldo Cartera: ${{ "%.2f"|format(cl.monto_total) }} | Frecuencia: {{ cl.frecuencia }}</div>
                     </div>
                     <div style="display:flex; gap:6px; align-items:center;">
+                        <!-- 🔄 FIJADO: El botón renovar ahora es universal y visible en cualquier pestaña -->
                         <button class="btn-accion btn-abono" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="border:none; padding:8px 12px;"><i class="fa-solid fa-rotate"></i> Renovar</button>
-                        {% if cl.estado != 'Lista Negra' %}
+                        
+                        {% if cl.estado == 'Activo' %}
                             <button class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/clientes/lista_negra/{{ cl.id }}'" style="background:#475569; padding:8px 12px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
                         {% endif %}
                         <a href="/api/eliminar_cliente/{{ cl.id }}" onclick="return confirm('¿Eliminar cliente permanentemente de la ruta?')" class="btn-accion btn-nopagar" style="text-decoration:none; padding:8px 12px; background:#dc2626;"><i class="fa-solid fa-trash-can"></i> 🗑️ Borrar</a>
@@ -1099,13 +1098,28 @@ def seccion_clientes_maestro():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # Control Maestro: lista plana para gestionar estados o eliminar registros de la base de datos
+            # Trae los clientes filtrados para la pestaña actual
             cursor.execute("SELECT id, nombre, frecuencia, monto_total, estado FROM clientes WHERE estado = %s ORDER BY nombre ASC", (filtro_estado,))
             todos = cursor.fetchall()
+            
+            # 📊 FIJADO: Conteos exactos por cada estado para los botones del menú
             cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE estado = 'Activo'")
             total_activos = int(cursor.fetchone()["total"])
             
-    contexto = dict(vista="clientes", todos=todos, total_activos=total_activos, filtro_estado=filtro_estado)
+            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE estado = 'Inactivo'")
+            total_inactivos = int(cursor.fetchone()["total"])
+            
+            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE estado = 'Lista Negra'")
+            total_negra = int(cursor.fetchone()["total"])
+            
+    contexto = dict(
+        vista="clientes", 
+        todos=todos, 
+        total_activos=total_activos, 
+        total_inactivos=total_inactivos, 
+        total_negra=total_negra, 
+        filtro_estado=filtro_estado
+    )
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
