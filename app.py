@@ -107,7 +107,6 @@ init_db_contable()
 
 def obtener_clientes_ruta_hoy():
     hoy_str = date.today().isoformat()
-    # Uso de context manager para garantizar que la conexión se cierre bajo cualquier error
     with get_db() as conn:
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM clientes WHERE estado = 'Activo' ORDER BY orden ASC, id DESC")
@@ -116,7 +115,6 @@ def obtener_clientes_ruta_hoy():
                 return []
             
             cliente_ids = [c["id"] for c in clientes]
-            # Optimización crítica usando ANY(%s) en lugar de formateo directo de strings inyectables
             cursor.execute("SELECT * FROM pagos WHERE cliente_id = ANY(%s) ORDER BY numero ASC", (cliente_ids,))
             pagos = cursor.fetchall()
 
@@ -128,13 +126,12 @@ def obtener_clientes_ruta_hoy():
     for c in clientes:
         c_dict = dict(c)
         
-        # 🛡️ FIJADO: Si el cliente ya fue gestionado o saltado hoy, desaparece de inmediato de la Ruta del Día
+        # 🛡️ FIJADO: Si el cliente ya fue gestionado o saltado el día de hoy, desaparece al instante de la ruta
         if c_dict.get("fecha_gestion") == hoy_str:
             continue
             
         c_dict["pagos"] = pagos_por_cliente.get(c["id"], [])
         
-        # Filtro estricto de control de la Ruta del Día o Enrutado Forzado Anticipado
         debe_cobrar_hoy = False
         if c_dict["enrutado_forzado"] == 1:
             debe_cobrar_hoy = True
@@ -790,7 +787,9 @@ function ejecutarNoPago(clienteId) {
 function procesarYComprimirImagen() {
     const fileInput = document.getElementById('foto_mov');
     if (!fileInput.files || fileInput.files.length === 0) return;
-    const file = fileInput.files[0];
+    
+    // 📸 FIJADO: Captura el primer archivo multimedia real de la cámara Android
+    const archivoCrudo = fileInput.files[0];
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -808,30 +807,40 @@ function procesarYComprimirImagen() {
             canvas.width = width;
             canvas.height = height;
 
-            // 🖌️ FIJADO: Contexto 2D limpio reparado y blindado contra inyecciones de texto extraño
+            // 🖌️ FIJADO: Contexto gráfico 2D nativo reparado y libre de textos colados
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
 
             imagenComprimidaB64 = canvas.toDataURL('image/jpeg', 0.6);
             document.getElementById('foto_comprimida_b64').value = imagenComprimidaB64;
-            
-            // 📸 FIJADO: Activa el semáforo para permitir el envío físico seguro de los datos comprimidos
-            fotoListaParaEnviar = true;
+            console.log("⚡ Foto comprimida con éxito.");
         };
         img.src = e.target.result;
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(archivoCrudo);
 }
 
-function prepararEnvioGasto(event) {
-    const fileInput = document.getElementById('foto_mov');
-    // Si se cargó un archivo pero el lector asíncrono no ha terminado, congela el envío para que no viaje en blanco
-    if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
-        event.preventDefault();
-        alert("⏳ Procesando imagen de alta resolución en Android... Espera un segundo y presiona Guardar nuevamente.");
-        return false;
-    }
-    return true;
+// ⚡ FIJADO: Función unificada que descarga la foto de Render usando el ID para que no se corte el string
+function cargarYVerFoto(gastoId) {
+    fetch('/api/gasto_foto/' + gastoId)
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'ok' && data.comprobante) {
+                const img = document.getElementById('imgComprobante');
+                img.src = ""; // Limpiar búfer previo
+                
+                let textoB64 = data.comprobante.replace(/\\n/g, '').replace(/\\r/g, '').trim();
+                // Si la base de datos no trae el prefijo Data URI, se lo inyectamos de forma obligatoria
+                if (!textoB64.startsWith('data:image')) {
+                    textoB64 = 'data:image/jpeg;base64,' + textoB64;
+                }
+                
+                img.src = textoB64;
+                document.getElementById('modalFoto').style.display = 'flex';
+            } else {
+                alert("⚠️ No se pudo cargar la imagen o el registro no tiene comprobante.");
+            }
+        }).catch(err => alert("Error al conectar con el servidor: " + err));
 }
 
 function imprimirTicket() { window.print(); }
