@@ -770,9 +770,10 @@ HTML_TEMPLATE = """
         .info-bloque-texto { display: flex; flex-direction: column; flex: 1; }
         .id-alias { font-size: 15px; font-weight: 800; color: #0f172a; line-height: 1.2; }
         .nombre-real { font-size: 13px; color: #64748b; margin: 2px 0 8px 0; font-weight: 500; }
-        .grid-metricas-premium { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; text-align: left; margin-bottom: 8px; }
-        .metric-lbl { display: block; font-size: 10px; color: #94a3b8; font-weight: 700; margin-bottom: 1px; }
-        .metric-val { display: block; font-size: 12px; font-weight: 800; color: #334155; }
+        .grid-metricas-premium { display: grid; grid-template-columns: repeat(3, 1fr) !important; width: 100% !important; gap: 4px !important; text-align: left !important; margin-bottom: 8px !important; }
+        .metric-col { display: flex; flex-direction: column; justify-content: flex-start; }
+        .metric-lbl { font-size: 11px !important; color: #94a3b8 !important; font-weight: 700 !important; margin-bottom: 2px !important; text-transform: none !important; }
+        .metric-val { font-size: 13px !important; font-weight: 800 !important; color: #334155 !important; }
         .fila-utilidades-premium { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 4px; }
         .btn-utilidad-foto { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; width: 32px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; }
         .circulo-check-cuota { background: #e2e8f0; color: #475569; width: 24px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 1px solid #cbd5e1; }
@@ -1224,13 +1225,13 @@ def dashboard_principal():
         c_saldo_restante = f"{saldo_restante:.2f}"
         c_cuotas_pagadas = str(cuotas_pagadas)
         
-        inicial_frecuencia = 'D' if c['frecuencia'] == 'Diaria' else 'S'
+        # Plasmamos los glifos de control directo como emojis nativos de Android
+        inicial_frecuencia = "D" if c["frecuencia"] == "Diaria" else "S"
         clase_mora = "mora-leve" if es_mora_cl else "al-dia"
         clase_mora_badge = "1" if es_mora_cl else "0"
-        clase_check = "gestionado" if c['saltado_hoy'] > 0 else ("gestionado-ok" if cuotas_pagadas > 0 else "")
-        numero_check = str(c['saltado_hoy'] if c['saltado_hoy'] > 0 else (cuotas_pagadas if cuotas_pagadas > 0 else 1))
+        clase_check = "gestionado" if c["saltado_hoy"] > 0 else ("gestionado-ok" if cuotas_pagadas > 0 else "")
+        numero_check = str(c["saltado_hoy"] if c["saltado_hoy"] > 0 else (cuotas_pagadas if cuotas_pagadas > 0 else 1))
         
-        # Parámetros JS limpios libres de corchetes conflictivos en el renderizador
         js_num_cuota = str(cuota_p["numero"]) if cuota_p else "1"
         js_pendiente = f"{(cuota_p['valor'] - cuota_p['valor_pagado'])}" if cuota_p else "0"
         
@@ -1241,25 +1242,29 @@ def dashboard_principal():
                 <div class="info-bloque-texto" style="width:100%;">
                     <div class="id-alias">{c_id} {c_referencia}</div>
                     <div class="nombre-real">{c_nombre}</div>
+                    
                     <div class="grid-metricas-premium">
-                        <div><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${c_valor_cuota}</span></div>
-                        <div><span class="metric-lbl">Pendiente</span><span class="metric-val">{c_cuotas_pagadas}.0 / {c_cuotas}.0</span></div>
-                        <div><span class="metric-lbl">Pago</span><span class="metric-val">—</span></div>
+                        <div class="metric-col"><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${c_valor_cuota}</span></div>
+                        <div class="metric-col"><span class="metric-lbl">Pendiente</span><span class="metric-val">{c_cuotas_pagadas}.0 / {c_cuotas}.0</span></div>
+                        <div class="metric-col"><span class="metric-lbl">Pago</span><span class="metric-val">—</span></div>
                     </div>
+                    
                     <div class="fila-utilidades-premium">
-                        <button type="button" class="btn-utilidad-foto" onclick="alert('📸 Iniciando captura de comprobante para: {c_nombre}'); navegarRuta('/menu/balance');"><i class="fa-solid fa-camera"></i></button>
+                        <!-- 📸 Abre el panel del balance de forma nativa e inmediata -->
+                        <button type="button" class="btn-utilidad-foto" onclick="navegarRuta('/menu/balance');">📷</button>
                         <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
                     </div>
                 </div>
             </div>
-            <!-- 🎯 BOTONES VERTICALES CORREGIDOS CON ICONOS VECTORIALES DE FONTAWESOME -->
+            
+            <!-- 🎯 FIJADO: Uso de emojis nativos ultra-estables para heredar la mano con dinero y la cruz de tu captura -->
             <div class="card-derecha-acciones">
                 <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
-                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                    🫴💲
                 </button>
                 <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">
-                    <i class="fa-solid fa-ban"></i>
+                    🚷
                 </button>
             </div>
         </div>
