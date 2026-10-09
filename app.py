@@ -1146,7 +1146,7 @@ def dashboard_principal():
     capital_en_calle = sum(max(0.0, c["monto_total"] - sum(p["valor_pagado"] for p in c["pagos"])) for c in clientes_ruta)
 
     contexto_dash = f"""
-    <!-- 📅 FIJADO: Badge de fecha dinámica sincronizada -->
+    <!-- 📅 Badge de fecha dinámica sincronizada -->
     <div class="date-badge"><i class="fa-solid fa-calendar-day"></i> {fecha_legible}</div>
     <div class="grid-kpis">
         <div class="kpi-card">
@@ -1165,27 +1165,53 @@ def dashboard_principal():
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente en ruta..." onkeyup="filtrarClientes()">
     <div id="clientesContainer">
     """
+    
+    # 📱 CONSOLIDACIÓN CONTABLE PREMIUM: Mapeo directo alineado a la captura de pantalla de tu celular
     for c in clientes_ruta:
+        pagado_acumulado = sum(p["valor_pagado"] for p in c["pagos"])
+        saldo_restante = max(0.0, c["monto_total"] - pagado_acumulado)
+        cuotas_pagadas = sum(1 for p in c["pagos"] if p["pagado"] == 1)
         cuota_p = next((p for p in c["pagos"] if p["pagado"] == 0), None)
         es_mora_cl = c.get("cuotas_atrasadas", 0) > 0
+        
+        inicial_frecuencia = 'D' if c['frecuencia'] == 'Diaria' else 'S'
+        clase_mora = "mora-leve" if es_mora_cl else "al-dia"
+        clase_check = "gestionado" if c['saltado_hoy'] > 0 else ("gestionado-ok" if cuotas_pagadas > 0 else "")
+        numero_check = c['saltado_hoy'] if c['saltado_hoy'] > 0 else (cuotas_pagadas if cuotas_pagadas > 0 else 1)
+        
         contexto_dash += f"""
-        <div class="card cliente-card" data-nombre="{c['nombre'].lower()}" data-mora="{"1" if es_mora_cl else "0"}">
-            <div class="flex-between">
-                <div style="cursor:pointer;" onclick="verFichaCliente({c['id']})">
-                    <span style="font-size:14px; font-weight:800; color:#0f2b5c;">{c['nombre']}</span>
-                    {"<span class='badge-mora'>MORA</span>" if es_mora_cl else "<span class='badge-al-dia'>AL DÍA</span>"}
-                    <div style="font-size:11px; color:#64748b; margin-top:2px;">Ref: {c['referencia'] or 'N/A'}</div>
-                </div>
-                <div style="text-align:right;">
-                    <div style="font-size:15px; font-weight:800; color:#0f2b5c;">${c['valor_cuota']:.2f}</div>
+        <div class="cliente-card-premium" id="cliente-card-{c['id']}" data-nombre="{c['nombre'].lower()}" data-mora="{"1" if es_mora_cl else "0"}">
+            <div class="card-izquierda">
+                <!-- Círculo estético dinámico de frecuencia con inicial -->
+                <div class="circulo-frecuencia {clase_mora}">{inicial_frecuencia}</div>
+                <div class="info-bloque-texto" style="width:100%;">
+                    <div class="id-alias">{c['id']} {c['referencia'] or 'Comercio'}</div>
+                    <div class="nombre-real">{c['nombre']}</div>
+                    
+                    <!-- Cuadrícula limpia de métricas de tres columnas -->
+                    <div class="grid-metricas-premium">
+                        <div><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${c['valor_cuota']:.2f}</span></div>
+                        <div><span class="metric-lbl">Pendiente</span><span class="grid-val">{cuotas_pagadas}.0 / {c['cuotas']}.0</span></div>
+                        <div><span class="metric-lbl">Pago</span><span class="metric-val">—</span></div>
+                    </div>
+                    
+                    <!-- Fila inferior de utilidades activas -->
+                    <div class="fila-utilidades-premium">
+                        <button type="button" class="btn-utilidad-foto" onclick="navegarRuta('/menu/balance')"><i class="fa-solid fa-camera"></i></button>
+                        <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
+                        <div class="badge-saldo-premium">Saldo <b>${saldo_restante:.2f}</b></div>
+                    </div>
                 </div>
             </div>
-            <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
-                <button class="btn-accion btn-pagar" onclick="abrirModalAbono({c['id']}, {cuota_p['numero'] if cuota_p else 1}, {cuota_p['valor'] - cuota_p['valor_pagado'] if cuota_p else 0}, {c['valor_cuota']})">Cobrar</button>
-                <button class="btn-accion btn-nopagar" onclick="ejecutarNoPago({c['id']})">Saltar</button>
+            
+            <!-- Bloque de acciones con iconos vectoriales premium a la derecha de la tarjeta -->
+            <div class="card-derecha-acciones">
+                <button type="button" class="btn-accion-premium cobrar" onclick="abrirModalAbono({c['id']}, {cuota_p['numero'] if cuota_p else 1}, {cuota_p['valor'] - cuota_p['valor_pagado'] if cuota_p else 0}, {c['valor_cuota']})"><i class="fa-solid fa-hand-holding-dollar"></i></button>
+                <button type="button" class="btn-accion-premium saltar" onclick="ejecutarNoPago({c['id']})"><i class="fa-solid fa-hand-fist" style="transform: rotate(90deg); font-size: 21px;"></i></button>
             </div>
         </div>
         """
+        
     contexto_dash += "</div>"
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(contexto_dash)
