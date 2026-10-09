@@ -691,6 +691,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AVANTA PAGOS v1.3</title>
+    <!-- 🌐 FIJADO: Fuentes e iconos vectoriales oficiales para pintar las manos con dinero y la tipografía compacta -->
     <link href="https://googleapis.com" rel="stylesheet">
     <link rel="stylesheet" href="https://cloudflare.com">
     <style>
@@ -719,40 +720,31 @@ HTML_TEMPLATE = """
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
         .btn-accion { border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 11px; cursor: pointer; color: white; text-align: center; }
         .btn-pagar { background: #10b981; } .btn-nopagar { background: #ef4444; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); z-index: 400; justify-content: center; align-items: center; padding: 16px; }
-        .modal-content { background: white; border-radius: 16px; padding: 20px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; text-align: center; }
-        .modal-grid-data { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left; margin-bottom: 12px; }
-        .data-box { background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #f1f5f9; }
-        .data-lbl { font-size: 9px; color: #64748b; font-weight: 800; text-transform: uppercase; }
-        .data-val { font-size: 12px; font-weight: 700; color: #1e293b; }
-        .btn-ws { background: #25d366; color: white; text-decoration: none; display: block; padding: 10px; border-radius: 6px; font-weight: bold; margin-top: 8px; }
-        .btn-modal-close { background: #e2e8f0; color: #334155; border: none; padding: 10px; border-radius: 8px; font-weight: 700; width: 100%; margin-top: 6px; cursor: pointer; }
-        label { font-size: 11px; font-weight: bold; color: #475569; display: block; margin: 6px 0 2px 0; text-align: left; }
-        input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; }
-                /* 📱 ESTILOS DE ENRUTAMIENTO PREMIUM (TIPO CAPTURA) */
-        .cliente-card-premium { background: #ffffff; border-radius: 12px; padding: 12px; margin-bottom: 10px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .card-izquierda { display: flex; align-items: flex-start; gap: 10px; flex: 1; text-align: left; }
-        .circulo-frecuencia { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ef4444; color: #ef4444; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; background: #fff1f2; flex-shrink: 0; margin-top: 2px; }
+        /* 📱 ESTILOS PREMIUM UNIFICADOS TIPO CAPTURA CELULAR */
+        .cliente-card-premium { background: #ffffff; border-radius: 10px; padding: 12px; margin-bottom: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: stretch; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .card-izquierda { display: flex; align-items: flex-start; gap: 12px; flex: 1; text-align: left; }
+        .circulo-frecuencia { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #ef4444; color: #ef4444; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; background: #fff1f2; flex-shrink: 0; }
         .circulo-frecuencia.al-dia { border-color: #10b981; color: #10b981; background: #ecfdf5; }
         .circulo-frecuencia.mora-leve { border-color: #f59e0b; color: #f59e0b; background: #fffbeb; }
-        .info-bloque-texto { display: flex; flex-direction: column; gap: 1px; }
-        .info-bloque-texto .id-alias { font-size: 15px; font-weight: 800; color: #1e293b; line-height: 1.2; }
-        .info-bloque-texto .nombre-real { font-size: 13px; color: #64748b; margin-bottom: 6px; }
-        .grid-metricas-premium { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 11px; color: #64748b; line-height: 1.3; }
-        .metric-lbl { display: block; font-size: 10px; color: #94a3b8; font-weight: 600; }
-        .metric-val { display: block; font-weight: 700; color: #334155; font-size: 12px; }
-        .fila-utilidades-premium { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
-        .btn-utilidad-foto { background: #71717a; color: white; border: none; width: 32px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; }
-        .circulo-check-cuota { background: #e2e8f0; color: #475569; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 1px solid #cbd5e1; }
-        .circulo-check-cuota.gestionado { background: #ef4444; color: white; border-color: #dc2626; }
-        .circulo-check-cuota.gestionado-ok { background: #10b981; color: white; border-color: #059669; }
-        .badge-saldo-premium { font-size: 11px; color: #475569; font-weight: 600; }
-        .badge-saldo-premium b { color: #1e293b; font-weight: 800; font-size: 12px; }
-        .card-derecha-acciones { display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; padding-left: 8px; border-left: 1px solid #f1f5f9; min-width: 46px; }
-        .btn-accion-premium { background: none; border: none; cursor: pointer; font-size: 24px; padding: 4px; display: flex; align-items: center; justify-content: center; transition: transform 0.1s ease; }
+        .info-bloque-texto { display: flex; flex-direction: column; flex: 1; }
+        .id-alias { font-size: 15px; font-weight: 800; color: #0f172a; line-height: 1.2; }
+        .nombre-real { font-size: 13px; color: #64748b; margin: 2px 0 8px 0; font-weight: 500; }
+        .grid-metricas-premium { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; text-align: left; margin-bottom: 8px; }
+        .metric-lbl { display: block; font-size: 10px; color: #94a3b8; font-weight: 700; margin-bottom: 1px; }
+        .metric-val { display: block; font-size: 12px; font-weight: 800; color: #334155; }
+        .metric-val.pago-positivo { color: #10b981; }
+        .fila-utilidades-premium { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 4px; }
+        .btn-utilidad-foto { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; width: 32px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; }
+        .circulo-check-cuota { background: #e2e8f0; color: #475569; width: 24px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 1px solid #cbd5e1; }
+        .circulo-check-cuota.gestionado { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
+        .circulo-check-cuota.gestionado-ok { background: #dcfce7; color: #10b981; border-color: #bbf7d0; }
+        .badge-saldo-premium { font-size: 11px; color: #64748b; }
+        .badge-saldo-premium b { color: #1e293b; font-weight: 800; }
+        .card-derecha-acciones { display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding-left: 12px; border-left: 1px solid #e2e8f0; min-width: 50px; gap: 4px; }
+        .btn-accion-premium { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; font-size: 18px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: all 0.1s ease; }
         .btn-accion-premium:active { transform: scale(0.9); }
-        .btn-accion-premium.cobrar { color: #10b981; }
-        .btn-accion-premium.saltar { color: #ef4444; }
+        .btn-accion-premium.cobrar { color: #10b981; background: #ecfdf5; border-color: #bbf7d0; }
+        .btn-accion-premium.saltar { color: #ef4444; background: #fff1f2; border-color: #fca5a5; }
         @media print {
             body * { visibility: hidden; }
             #ticketPrint, #ticketPrint * { visibility: visible; }
