@@ -762,8 +762,9 @@ HTML_TEMPLATE = """
         input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; }
         
         /* 📱 ESTILOS PREMIUM UNIFICADOS COMPATIBLES CON CELULARES */
-        .cliente-card-premium { background: #ffffff; border-radius: 10px; padding: 12px; margin-bottom: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: stretch; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .card-izquierda { display: flex; align-items: flex-start; gap: 12px; flex: 1; text-align: left; }
+        /* 📱 FIJADO: Bloque vertical responsivo rígido para evitar que las tarjetas se monten de lado */
+        .cliente-card-premium { background: #ffffff !important; border-radius: 10px !important; padding: 12px !important; margin-bottom: 12px !important; border: 1px solid #e2e8f0 !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important; width: 100% !important; clear: both !important; }
+        .card-izquierda { display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 12px !important; flex: 1 !important; text-align: left !important; width: calc(100% - 60px) !important; }
         .circulo-frecuencia { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #ef4444; color: #ef4444; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; background: #fff1f2; flex-shrink: 0; }
         .circulo-frecuencia.al-dia { border-color: #10b981; color: #10b981; background: #ecfdf5; }
         .circulo-frecuencia.mora-leve { border-color: #f59e0b; color: #f59e0b; background: #fffbeb; }
@@ -1207,7 +1208,7 @@ def dashboard_principal():
     <div id="clientesContainer">
     """
     
-        # 📱 EXTRAEMOS LAS VARIABLES COMO CADENAS PARA EVITAR CRUCES DE COMILLAS EN PYTHON
+    # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO
     for c in clientes_ruta:
         pagado_acumulado = sum(p["valor_pagado"] for p in c["pagos"])
         saldo_restante = max(0.0, c["monto_total"] - pagado_acumulado)
@@ -1215,7 +1216,6 @@ def dashboard_principal():
         cuota_p = next((p for p in c["pagos"] if p["pagado"] == 0), None)
         es_mora_cl = c.get("cuotas_atrasadas", 0) > 0
         
-        # Strings planos para la inyección limpia del HTML
         c_id = str(c["id"])
         c_nombre = str(c["nombre"])
         c_nombre_lower = str(c["nombre"].lower())
@@ -1225,12 +1225,11 @@ def dashboard_principal():
         c_saldo_restante = f"{saldo_restante:.2f}"
         c_cuotas_pagadas = str(cuotas_pagadas)
         
-        # Plasmamos los glifos de control directo como emojis nativos de Android
-        inicial_frecuencia = "D" if c["frecuencia"] == "Diaria" else "S"
+        inicial_frecuencia = 'D' if c['frecuencia'] == 'Diaria' else 'S'
         clase_mora = "mora-leve" if es_mora_cl else "al-dia"
         clase_mora_badge = "1" if es_mora_cl else "0"
-        clase_check = "gestionado" if c["saltado_hoy"] > 0 else ("gestionado-ok" if cuotas_pagadas > 0 else "")
-        numero_check = str(c["saltado_hoy"] if c["saltado_hoy"] > 0 else (cuotas_pagadas if cuotas_pagadas > 0 else 1))
+        clase_check = "gestionado" if c['saltado_hoy'] > 0 else ("gestionado-ok" if cuotas_pagadas > 0 else "")
+        numero_check = str(c['saltado_hoy'] if c['saltado_hoy'] > 0 else (cuotas_pagadas if cuotas_pagadas > 0 else 1))
         
         js_num_cuota = str(cuota_p["numero"]) if cuota_p else "1"
         js_pendiente = f"{(cuota_p['valor'] - cuota_p['valor_pagado'])}" if cuota_p else "0"
@@ -1250,25 +1249,24 @@ def dashboard_principal():
                     </div>
                     
                     <div class="fila-utilidades-premium">
-                        <!-- 📸 Abre el panel del balance de forma nativa e inmediata -->
-                        <button type="button" class="btn-utilidad-foto" onclick="navegarRuta('/menu/balance');">📷</button>
+                        <!-- 📸 FIJADO: El botón de la cámara ahora abre directamente la modal de abonos para adjuntar comprobante sin desviar el flujo -->
+                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
                         <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
                     </div>
                 </div>
             </div>
             
-            <!-- 🎯 FIJADO: Combinación exacta de glifos nativos de manos con marcas de aprobación/salto -->
+            <!-- 🎯 RECAUDO PREMIUM: Manos con billetes unificadas de cobro y salto de ruta diario -->
             <div class="card-derecha-acciones">
-                <!-- Botón Cobrar Premium (Mano con dinero y marca de verificación verde de pago aprobado) -->
                 <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
                     🫴💵✔️
                 </button>
-                <!-- Botón Saltar Premium (Mano con dinero y marca de cruz roja de salto de ruta) -->
                 <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">
                     🫴💵❌
                 </button>
             </div>
+        </div>
         """
         
     contexto_dash += "</div>"
