@@ -1258,16 +1258,17 @@ def dashboard_principal():
                 </div>
             </div>
             
-            <!-- 🎯 FIJADO: Uso de emojis nativos ultra-estables para heredar la mano con dinero y la cruz de tu captura -->
+            <!-- 🎯 FIJADO: Combinación exacta de glifos nativos de manos con marcas de aprobación/salto -->
             <div class="card-derecha-acciones">
+                <!-- Botón Cobrar Premium (Mano con dinero y marca de verificación verde de pago aprobado) -->
                 <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
-                    🫴💲
+                    🫴💵✔️
                 </button>
+                <!-- Botón Saltar Premium (Mano con dinero y marca de cruz roja de salto de ruta) -->
                 <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">
-                    🚷
+                    🫴💵❌
                 </button>
             </div>
-        </div>
         """
         
     contexto_dash += "</div>"
