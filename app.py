@@ -1033,10 +1033,10 @@ function ejecutarNoPago(clienteId) {
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'ok') {
-                    // ❌ FIJADO: Fuerza la recarga inmediata de la pantalla para remover al cliente saltado de la lista
+                    // ❌ FIJADO: Recarga el listado dinámico dentro de la misma vista sin cambiar de sección
                     window.location.reload();
                 }
-            }).catch(err => alert("Error al procesar: " + err));
+            }).catch(err => alert("Error al procesar el salto: " + err));
     }
 }
 
@@ -1158,7 +1158,7 @@ def dashboard_principal():
         
     hoy_str = date.today().isoformat()
     
-    # 📅 FECHA EN TIEMPO REAL: Sincronizada con tu Dashboard
+    # 📅 FECHA EN TIEMPO REAL: Formateo en español para el badge superior
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     ahora = datetime.now()
@@ -1200,12 +1200,13 @@ def dashboard_principal():
     </div>
     <div class="expected-card">
         <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
-        <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo: <b>${debido_minimo_dia:.2f}</b> | Acumulado Mora: <b>${debido_total_acumulado:.2f}</b></div>
+        <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo de Ruta: <b>${debido_minimo_dia:.2f}</b> | Acumulado Mora: <b>${debido_total_acumulado:.2f}</b></div>
     </div>
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()">
     <div id="clientesContainer">
     """
     
+        # 📱 EXTRAEMOS LAS VARIABLES COMO CADENAS PARA EVITAR CRUCES DE COMILLAS EN PYTHON
     for c in clientes_ruta:
         pagado_acumulado = sum(p["valor_pagado"] for p in c["pagos"])
         saldo_restante = max(0.0, c["monto_total"] - pagado_acumulado)
@@ -1213,40 +1214,55 @@ def dashboard_principal():
         cuota_p = next((p for p in c["pagos"] if p["pagado"] == 0), None)
         es_mora_cl = c.get("cuotas_atrasadas", 0) > 0
         
+        # Strings planos para la inyección limpia del HTML
+        c_id = str(c["id"])
+        c_nombre = str(c["nombre"])
+        c_nombre_lower = str(c["nombre"].lower())
+        c_referencia = str(c["referencia"] or "Comercio")
+        c_valor_cuota = f"{c['valor_cuota']:.2f}"
+        c_cuotas = str(c["cuotas"])
+        c_saldo_restante = f"{saldo_restante:.2f}"
+        c_cuotas_pagadas = str(cuotas_pagadas)
+        
         inicial_frecuencia = 'D' if c['frecuencia'] == 'Diaria' else 'S'
         clase_mora = "mora-leve" if es_mora_cl else "al-dia"
+        clase_mora_badge = "1" if es_mora_cl else "0"
         clase_check = "gestionado" if c['saltado_hoy'] > 0 else ("gestionado-ok" if cuotas_pagadas > 0 else "")
-        numero_check = c['saltado_hoy'] if c['saltado_hoy'] > 0 else (cuotas_pagadas if cuotas_pagadas > 0 else 1)
+        numero_check = str(c['saltado_hoy'] if c['saltado_hoy'] > 0 else (cuotas_pagadas if cuotas_pagadas > 0 else 1))
+        
+        # Parámetros JS limpios libres de corchetes conflictivos en el renderizador
+        js_num_cuota = str(cuota_p["numero"]) if cuota_p else "1"
+        js_pendiente = f"{(cuota_p['valor'] - cuota_p['valor_pagado'])}" if cuota_p else "0"
         
         contexto_dash += f"""
-        <div class="cliente-card-premium" id="cliente-card-{c['id']}">
+        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}">
             <div class="card-izquierda">
                 <div class="circulo-frecuencia {clase_mora}">{inicial_frecuencia}</div>
                 <div class="info-bloque-texto" style="width:100%;">
-                    <div class="id-alias">{c['id']} {c['referencia'] or 'Comercio'}</div>
-                    <div class="nombre-real">{c['nombre']}</div>
+                    <div class="id-alias">{c_id} {c_referencia}</div>
+                    <div class="nombre-real">{c_nombre}</div>
                     <div class="grid-metricas-premium">
-                        <div><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${c['valor_cuota']:.2f}</span></div>
-                        <div><span class="metric-lbl">Pendiente</span><span class="metric-val">{cuotas_pagadas}.0 / {c['cuotas']}.0</span></div>
+                        <div><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${c_valor_cuota}</span></div>
+                        <div><span class="metric-lbl">Pendiente</span><span class="metric-val">{c_cuotas_pagadas}.0 / {c_cuotas}.0</span></div>
                         <div><span class="metric-lbl">Pago</span><span class="metric-val">—</span></div>
                     </div>
                     <div class="fila-utilidades-premium">
-                        <!-- 📸 FIJADO: El botón gris de la cámara ahora abre directamente el cargador nativo de archivos del balance sin redireccionar -->
-                        <button type="button" class="btn-utilidad-foto" onclick="document.getElementById('foto_mov').click(); alert('📸 Cámara activada para el comprobante de {c['nombre']}');"><i class="fa-solid fa-camera"></i></button>
+                        <button type="button" class="btn-utilidad-foto" onclick="alert('📸 Iniciando captura de comprobante para: {c_nombre}'); navegarRuta('/menu/balance');"><i class="fa-solid fa-camera"></i></button>
                         <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
-                        <div class="badge-saldo-premium">Saldo <b>${saldo_restante:.2f}</b></div>
+                        <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
                     </div>
                 </div>
             </div>
-            <!-- 🎯 Bloque de Acciones Verticales del Lado Derecho (Cobrar y Saltar) -->
+            <!-- 🎯 BOTONES VERTICALES CORREGIDOS CON ICONOS VECTORIALES DE FONTAWESOME -->
             <div class="card-derecha-acciones">
-                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c['id']}, {cuota_p['numero'] if cuota_p else 1}, {cuota_p['valor'] - cuota_p['valor_pagado'] if cuota_p else 0}, {c['valor_cuota']})">
+                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
                     <i class="fa-solid fa-hand-holding-dollar"></i>
                 </button>
-                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c['id']})">
+                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">
                     <i class="fa-solid fa-ban"></i>
                 </button>
             </div>
+        </div>
         """
         
     contexto_dash += "</div>"
