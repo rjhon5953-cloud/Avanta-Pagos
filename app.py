@@ -352,6 +352,36 @@ CONTENIDO_HTML += """
     </div>
 
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar registro..." onkeyup="filtrarClientes()">
+    <div id="clientesContainer">
+        {% for cl in todos %}
+            <div class="card cliente-card" data-nombre="{{ cl.nombre | lower }}">
+                <div class="flex-between">
+                    <div>
+                        <span style="font-weight:800; color:#0f2b5c; font-size:14px;">{{ cl.nombre }}</span>
+                        <div style="font-size:11px; color:#64748b; margin-top:2px;">Monto Total: ${{ "%.2f"|format(cl.monto_total) }} | Modalidad: {{ cl.frecuencia }}</div>
+                    </div>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <button class="btn-accion btn-abono" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="border:none; padding:8px 12px;"><i class="fa-solid fa-rotate"></i> Renovar</button>
+                        {% if cl.estado == 'Activo' %}
+                            <button class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/clientes/lista_negra/{{ cl.id }}'" style="background:#475569; padding:8px 12px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
+                        {% endif %}
+                        <a href="/api/eliminar_cliente/{{ cl.id }}" onclick="return confirm('¿Eliminar de forma permanente?')" class="btn-accion btn-nopagar" style="text-decoration:none; padding:8px 12px; background:#dc2626;"><i class="fa-solid fa-trash-can"></i> Borrar</a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+{% elif vista == 'embed_creditos_maestros' or vista == 'creditos_maestros' %}
+    <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
+    
+    <div style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
+        <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Activo')">🟢 Activos ({{ total_activos }})</button>
+        <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Inactivo')">⚪ Inactivos ({{ total_inactivos }})</button>
+        <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Lista Negra')">⚫ Bloqueados ({{ total_negra }})</button>
+    </div>
+
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar registro..." onkeyup="filtrarClientes()">
         <div id="clientesContainer">
         {% for c in clientes %}
             {% set pagado_acumulado = c.pagos | map(attribute='valor_pagado') | sum %}
@@ -690,8 +720,8 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AVANTA PAGOS v1.3</title>
-    <!-- 🌐 FIJADO: Fuentes e iconos vectoriales oficiales para pintar las manos con dinero y la tipografía compacta -->
+        <title>AVANTA PAGOS v1.3</title>
+    <!-- 🌐 FIJADO: Enlaces CDN oficiales para renderizar la tipografía y los iconos vectoriales de la captura -->
     <link href="https://googleapis.com" rel="stylesheet">
     <link rel="stylesheet" href="https://cloudflare.com">
     <style>
@@ -720,7 +750,18 @@ HTML_TEMPLATE = """
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
         .btn-accion { border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 11px; cursor: pointer; color: white; text-align: center; }
         .btn-pagar { background: #10b981; } .btn-nopagar { background: #ef4444; }
-        /* 📱 ESTILOS PREMIUM UNIFICADOS TIPO CAPTURA CELULAR */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); z-index: 400; justify-content: center; align-items: center; padding: 16px; }
+        .modal-content { background: white; border-radius: 16px; padding: 20px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; text-align: center; }
+        .modal-grid-data { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left; margin-bottom: 12px; }
+        .data-box { background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #f1f5f9; }
+        .data-lbl { font-size: 9px; color: #64748b; font-weight: 800; text-transform: uppercase; }
+        .data-val { font-size: 12px; font-weight: 700; color: #1e293b; }
+        .btn-ws { background: #25d366; color: white; text-decoration: none; display: block; padding: 10px; border-radius: 6px; font-weight: bold; margin-top: 8px; }
+        .btn-modal-close { background: #e2e8f0; color: #334155; border: none; padding: 10px; border-radius: 8px; font-weight: 700; width: 100%; margin-top: 6px; cursor: pointer; }
+        label { font-size: 11px; font-weight: bold; color: #475569; display: block; margin: 6px 0 2px 0; text-align: left; }
+        input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; }
+        
+        /* 📱 ESTILOS PREMIUM UNIFICADOS COMPATIBLES CON CELULARES */
         .cliente-card-premium { background: #ffffff; border-radius: 10px; padding: 12px; margin-bottom: 12px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: stretch; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .card-izquierda { display: flex; align-items: flex-start; gap: 12px; flex: 1; text-align: left; }
         .circulo-frecuencia { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #ef4444; color: #ef4444; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; background: #fff1f2; flex-shrink: 0; }
@@ -732,7 +773,6 @@ HTML_TEMPLATE = """
         .grid-metricas-premium { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; text-align: left; margin-bottom: 8px; }
         .metric-lbl { display: block; font-size: 10px; color: #94a3b8; font-weight: 700; margin-bottom: 1px; }
         .metric-val { display: block; font-size: 12px; font-weight: 800; color: #334155; }
-        .metric-val.pago-positivo { color: #10b981; }
         .fila-utilidades-premium { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 4px; }
         .btn-utilidad-foto { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; width: 32px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; }
         .circulo-check-cuota { background: #e2e8f0; color: #475569; width: 24px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 1px solid #cbd5e1; }
@@ -992,17 +1032,18 @@ function ejecutarNoPago(clienteId) {
         fetch('/api/marcar_no_pago/' + clienteId)
             .then(res => res.json())
             .then(data => {
-                if (data.status === 'ok') window.location.reload();
+                if (data.status === 'ok') {
+                    // ❌ FIJADO: Fuerza la recarga inmediata de la pantalla para remover al cliente saltado de la lista
+                    window.location.reload();
+                }
             }).catch(err => alert("Error al procesar: " + err));
     }
 }
 
-function procesarYComprimirImagen() {
+function procesarImagenEnCaliente() {
     const fileInput = document.getElementById('foto_mov');
     if (!fileInput.files || fileInput.files.length === 0) return;
-    
-    // 📸 FIJADO: Captura el primer archivo multimedia real de la cámara Android
-    const archivoCrudo = fileInput.files[0];
+    const file = fileInput.files[0];
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -1020,7 +1061,6 @@ function procesarYComprimirImagen() {
             canvas.width = width;
             canvas.height = height;
 
-            // 🖌 *FIJADO:* Contexto gráfico 2D nativo reparado y libre de textos colados
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
 
@@ -1031,7 +1071,18 @@ function procesarYComprimirImagen() {
         };
         img.src = e.target.result;
     };
-    reader.readAsDataURL(archivoCrudo);
+    reader.readAsDataURL(file);
+}
+
+function procesarYEnviarGasto(event) {
+    const fileInput = document.getElementById('foto_mov');
+    const form = document.getElementById('formBalance');
+    
+    if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
+        alert("⏳ Procesando imagen de alta definición... Espera un segundo y vuelve a presionar Guardar.");
+        return false;
+    }
+    form.submit();
 }
 
 function cargarYVerFoto(gastoId) {
@@ -1040,13 +1091,11 @@ function cargarYVerFoto(gastoId) {
         .then(data => {
             if (data.status === 'ok' && data.comprobante) {
                 const img = document.getElementById('imgComprobante');
-                img.src = ""; // Limpiar búfer previo
-                
+                img.src = ""; 
                 let textoB64 = data.comprobante.replace(/\\n/g, '').replace(/\\r/g, '').trim();
                 if (!textoB64.startsWith('data:image')) {
                     textoB64 = 'data:image/jpeg;base64,' + textoB64;
                 }
-                
                 img.src = textoB64;
                 document.getElementById('modalFoto').style.display = 'flex';
             } else {
