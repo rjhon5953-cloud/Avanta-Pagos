@@ -371,114 +371,6 @@ CONTENIDO_HTML += """
             </div>
         {% endfor %}
     </div>
-
-{% elif vista == 'embed_creditos_maestros' or vista == 'creditos_maestros' %}
-    <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
-    
-    <div style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
-        <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Activo')">🟢 Activos ({{ total_activos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Inactivo')">⚪ Inactivos ({{ total_inactivos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Lista Negra')">⚫ Bloqueados ({{ total_negra }})</button>
-    </div>
-
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar registro..." onkeyup="filtrarClientes()">
-        <div id="clientesContainer">
-        {% for c in clientes %}
-            {% set pagado_acumulado = c.pagos | map(attribute='valor_pagado') | sum %}
-            {% set saldo_restante = c.monto_total - pagado_acumulado %}
-            {% set cuota_pendiente = c.pagos | selectattr('pagado', 'equalto', 0) | list | first %}
-            {% set cuotas_pagadas = c.pagos | selectattr('pagado', 'equalto', 1) | list | length %}
-            {% set total_cuotas = c.cuotas %}
-            {% set es_mora = c.saltado_hoy > 0 or c.cuotas_atrasadas > 0 %}
-            
-            <!-- 📱 TEXTURA PREMIUM CONSOLIDADA IDENTICA A LA CAPTURA -->
-            <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}">
-                <div class="card-izquierda">
-                    <!-- 🟢 Icono circular de Frecuencia con Inicial (D o S) y Color de Estado -->
-                    <div class="circulo-frecuencia {% if not es_mora %}al-dia{% elif c.saltado_hoy == 0 %}mora_leve{% endif %}">
-                        {{ 'D' if c.frecuencia == 'Diaria' else 'S' }}
-                    </div>
-                    
-                    <div class="info-bloque-texto" style="width:100%;">
-                        <!-- ID y Detalle del Negocio / Alias -->
-                        <div class="id-alias">{{ c.id }} {{ c.referencia or 'Comercio' }}</div>
-                        <div class="nombre-real">{{ c.nombre }}</div>
-                        
-                        <!-- 📊 Cuadrícula de Métricas Contables de 3 Columnas -->
-                        <div class="grid-metricas-premium">
-                            <div>
-                                <span class="metric-lbl">Vr. Cuota</span>
-                                <span class="metric-val">${{ "%.0f"|format(c.valor_cuota) if c.valor_cuota % 1 == 0 else "%.2f"|format(c.valor_cuota) }}</span>
-                            </div>
-                            <div>
-                                <span class="metric-lbl">Pendiente</span>
-                                <span class="metric-val">{{ "%.1f"|format(cuotas_pagadas) if cuotas_pagadas is float else cuotas_pagadas }} / {{ total_cuotas }}.0</span>
-                            </div>
-                            <div>
-                                <span class="metric-lbl">Pago</span>
-                                <span class="metric-val">—</span>
-                            </div>
-                        </div>
-                        
-                        <!-- 🛠️ Fila Inferior de Utilidades (Foto, Check de Cuota y Saldo) -->
-                        <div class="fila-utilidades-premium">
-                            <button type="button" class="btn-utilidad-foto" onclick="navegarRuta('/menu/balance')">
-                                <i class="fa-solid fa-camera"></i>
-                            </button>
-                            <div class="circulo-check-cuota {% if c.saltado_hoy > 0 %}gestionado{% elif cuotas_pagadas > 0 %}gestionado-ok{% endif %}">
-                                {% if c.saltado_hoy > 0 %}{{ c.saltado_hoy }}{% else %}{{ cuotas_pagadas if cuotas_pagadas > 0 else 1 }}{% endif %}
-                            </div>
-                            <div class="badge-saldo-premium">Saldo <b>${{ "%.0f"|format(saldo_restante) }}</b></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 🎯 Bloque de Acciones Verticales del Lado Derecho (Cobrar y Saltar) -->
-                <div class="card-derecha-acciones">
-                    {% if cuota_pendiente %}
-                        <!-- Botón Cobrar Premium (Icono de mano recibiendo dinero con check de aprobación) -->
-                        <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})">
-                            <i class="fa-solid fa-hand-holding-dollar"></i>
-                        </button>
-                        <!-- Botón Saltar Premium (Icono de mano rechazando dinero con cruz de salto diario) -->
-                        <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({{ c.id }})">
-                            <i class="fa-solid fa-hand-fist" style="transform: rotate(90deg); font-size: 21px;"></i>
-                        </button>
-                    {% endif %}
-                </div>
-            </div>
-        {% endfor %}
-    </div>
-
-{% elif vista == 'clientes' or vista == 'creditos' or vista == 'creditos_maestros' %}
-    <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
-    
-    <div style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
-        <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Activo')">🟢 Activos ({{ total_activos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Inactivo')">⚪ Inactivos ({{ total_inactivos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Lista Negra')">⚫ Bloqueados ({{ total_negra }})</button>
-    </div>
-
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar registro..." onkeyup="filtrarClientes()">
-    <div id="clientesContainer">
-        {% for cl in todos %}
-            <div class="card cliente-card" data-nombre="{{ cl.nombre | lower }}">
-                <div class="flex-between">
-                    <div>
-                        <span style="font-weight:800; color:#0f2b5c; font-size:14px;">{{ cl.nombre }}</span>
-                        <div style="font-size:11px; color:#64748b; margin-top:2px;">Monto Total: ${{ "%.2f"|format(cl.monto_total) }} | Modalidad: {{ cl.frecuencia }}</div>
-                    </div>
-                    <div style="display:flex; gap:6px; align-items:center;">
-                        <button class="btn-accion btn-abono" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="border:none; padding:8px 12px;"><i class="fa-solid fa-rotate"></i> Renovar</button>
-                        {% if cl.estado == 'Activo' %}
-                            <button class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/clientes/lista_negra/{{ cl.id }}'" style="background:#475569; padding:8px 12px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
-                        {% endif %}
-                        <a href="/api/eliminar_cliente/{{ cl.id }}" onclick="return confirm('¿Eliminar de forma permanente?')" class="btn-accion btn-nopagar" style="text-decoration:none; padding:8px 12px; background:#dc2626;"><i class="fa-solid fa-trash-can"></i> Borrar</a>
-                    </div>
-                </div>
-            </div>
-        {% endfor %}
-    </div>
 """
 CONTENIDO_HTML += """
 {% elif vista == 'pagos_hoy' %}
@@ -726,67 +618,65 @@ HTML_TEMPLATE = """
     <link rel="stylesheet" href="https://cloudflare.com" crossorigin="anonymous">
     <style>
         * { box-sizing: border-box; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
-        body { background: #f8fafc; color: #0f172a; padding-bottom: 60px; }
-        .navbar { background: #0f2b5c; color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; }
-        .btn-nav-icon { background: rgba(255,255,255,0.12); color: white; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; text-decoration: none; }
-        .nav-title { font-size: 15px; font-weight: 800; color: white; }
-        .drawer-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.5); z-index: 300; }
-        .drawer-overlay.active { display: block; }
-        .drawer { position: fixed; top: 0; left: -290px; width: 290px; height: 100%; background: #ffffff; z-index: 301; transition: left 0.3s ease; display: flex; flex-direction: column; }
-        .drawer.active { left: 0; }
-        .drawer-header { background: #0f2b5c; color: white; padding: 20px 16px; border-bottom: 4px solid #00a8cc; }
-        .drawer-logo { font-size: 18px; font-weight: 800; }
-        .drawer-menu { list-style: none; padding: 10px 0; overflow-y: auto; flex: 1; }
-        .drawer-menu li a { display: flex; align-items: center; gap: 12px; padding: 13px 20px; color: #334155; text-decoration: none; font-weight: 700; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
-        .drawer-menu li a i { font-size: 16px; width: 20px; color: #0f2b5c; text-align: center; }
-        .date-badge { text-align: center; font-size: 13px; font-weight: 800; color: #475569; background: #e2e8f0; padding: 6px; border-radius: 6px; margin-bottom: 10px; }
-        .grid-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-        .kpi-card { background: white; padding: 12px 10px; border-radius: 12px; border: 1px solid #e2e8f0; }
-        .kpi-title { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; }
-        .kpi-val { font-size: 15px; font-weight: 800; color: #0f2b5c; }
-        .expected-card { background: #f0f9ff; border: 1px solid #bae6fd; padding: 12px; border-radius: 12px; margin-bottom: 12px; text-align: left; }
-        .search-box { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; margin-bottom: 12px; font-size: 13px; outline: none; }
-        .card { background: white; padding: 14px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
-        .flex-between { display: flex; justify-content: space-between; align-items: center; }
-        .btn-accion { border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 11px; cursor: pointer; color: white; text-align: center; }
-        .btn-pagar { background: #10b981; } .btn-nopagar { background: #ef4444; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); z-index: 400; justify-content: center; align-items: center; padding: 16px; }
-        .modal-content { background: white; border-radius: 16px; padding: 20px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; text-align: center; }
-        .modal-grid-data { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left; margin-bottom: 12px; }
-        .data-box { background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #f1f5f9; }
-        .data-lbl { font-size: 9px; color: #64748b; font-weight: 800; text-transform: uppercase; }
-        .data-val { font-size: 12px; font-weight: 700; color: #1e293b; }
-        .btn-ws { background: #25d366; color: white; text-decoration: none; display: block; padding: 10px; border-radius: 6px; font-weight: bold; margin-top: 8px; }
-        .btn-modal-close { background: #e2e8f0; color: #334155; border: none; padding: 10px; border-radius: 8px; font-weight: 700; width: 100%; margin-top: 6px; cursor: pointer; }
-        label { font-size: 11px; font-weight: bold; color: #475569; display: block; margin: 6px 0 2px 0; text-align: left; }
-        input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; }
+        body { background: #f1f5f9; color: #1e293b; padding-bottom: 70px; }
+        /* 📱 EFECTO DE PROFUNDIDAD: Gradiente sofisticado y sombras nativas para la barra superior */
+        .navbar { background: linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 100%); color: white; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; box-shadow: 0 4px 12px rgba(15, 43, 92, 0.15); }
+        .btn-nav-icon { background: rgba(255, 255, 255, 0.15); color: white; border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; text-decoration: none; backdrop-filter: blur(4px); transition: all 0.2s; }
+        .btn-nav-icon:active { background: rgba(255, 255, 255, 0.25); transform: scale(0.95); }
+        .nav-title { font-size: 16px; font-weight: 800; color: white; letter-spacing: 0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         
-        /* 📱 ESTILOS PREMIUM UNIFICADOS COMPATIBLES CON CELULARES */
-        /* 📱 FIJADO: Bloque vertical responsivo rígido para evitar que las tarjetas se monten de lado */
-        .cliente-card-premium { background: #ffffff !important; border-radius: 10px !important; padding: 12px !important; margin-bottom: 12px !important; border: 1px solid #e2e8f0 !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important; width: 100% !important; clear: both !important; }
-        .card-izquierda { display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 12px !important; flex: 1 !important; text-align: left !important; width: calc(100% - 60px) !important; }
-        .circulo-frecuencia { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #ef4444; color: #ef4444; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; background: #fff1f2; flex-shrink: 0; }
-        .circulo-frecuencia.al-dia { border-color: #10b981; color: #10b981; background: #ecfdf5; }
-        .circulo-frecuencia.mora-leve { border-color: #f59e0b; color: #f59e0b; background: #fffbeb; }
+        /* Menú Lateral Desplegable Premium */
+        .drawer-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 300; transition: opacity 0.3s ease; }
+        .drawer-overlay.active { display: block; }
+        .drawer { position: fixed; top: 0; left: -290px; width: 290px; height: 100%; background: #ffffff; z-index: 301; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; box-shadow: 5px 0 25px rgba(0,0,0,0.15); }
+        .drawer.active { left: 0; }
+        .drawer-header { background: linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 100%); color: white; padding: 24px 16px; border-bottom: 4px solid #10b981; }
+        .drawer-logo { font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }
+        .drawer-menu { list-style: none; padding: 12px 0; overflow-y: auto; flex: 1; }
+        .drawer-menu li a { display: flex; align-items: center; gap: 12px; padding: 14px 20px; color: #475569; text-decoration: none; font-weight: 600; font-size: 13px; border-bottom: 1px solid #f1f5f9; transition: background 0.2s; }
+        .drawer-menu li a:active { background: #f8fafc; color: #0f2b5c; }
+        .drawer-menu li a i { font-size: 16px; width: 22px; color: #3b82f6; text-align: center; }
+
+        .date-badge { text-align: center; font-size: 13px; font-weight: 800; color: #1e3a8a; background: #dbeafe; padding: 8px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #bfdbfe; box-shadow: inset 0 1px 2px rgba(255,255,255,0.6); }
+        .grid-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+        .kpi-card { background: white; padding: 14px 12px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03), 0 2px 4px -1px rgba(0,0,0,0.02); }
+        .kpi-title { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi-val { font-size: 15px; font-weight: 800; color: #0f2b5c; margin-top: 2px; }
+        .expected-card { background: linear-gradient(to bottom, #f0f9ff, #e0f2fe); border: 1px solid #bae6fd; padding: 14px; border-radius: 12px; margin-bottom: 14px; text-align: left; box-shadow: 0 4px 10px rgba(3, 105, 161, 0.05); }
+        .search-box { width: 100%; padding: 14px; border: 1px solid #cbd5e1; border-radius: 12px; margin-bottom: 14px; font-size: 13px; outline: none; background: white; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); transition: border-color 0.2s; }
+        .search-box:focus { border-color: #3b82f6; }
+        .card { background: white; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03); }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .btn-accion { border: none; padding: 10px 16px; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        
+        /* 📱 INTERFAZ PREMIUM CON RELIEVE Y VOLUMEN (EFECTO APLICACIÓN NATIVA) */
+        .cliente-card-premium { background: #ffffff !important; border-radius: 14px !important; padding: 14px !important; margin-bottom: 12px !important; border: 1px solid #e2e8f0 !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; box-shadow: 0 4px 12px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.03) !important; width: 100% !important; clear: both !important; transition: transform 0.15s; }
+        .card-izquierda { display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 14px !important; flex: 1 !important; text-align: left !important; width: calc(100% - 65px) !important; }
+        .circulo-frecuencia { width: 38px; height: 34px; border-radius: 10px; border: 2.5px solid #ef4444; color: #ef4444; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; background: #fff1f2; flex-shrink: 0; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.1); }
+        .circulo-frecuencia.al-dia { border-color: #10b981; color: #10b981; background: #ecfdf5; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.1); }
+        .circulo-frecuencia.mora-leve { border-color: #f59e0b; color: #f59e0b; background: #fffbeb; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.1); }
         .info-bloque-texto { display: flex; flex-direction: column; flex: 1; }
-        .id-alias { font-size: 15px; font-weight: 800; color: #0f172a; line-height: 1.2; }
-        .nombre-real { font-size: 13px; color: #64748b; margin: 2px 0 8px 0; font-weight: 500; }
-        .grid-metricas-premium { display: grid; grid-template-columns: repeat(3, 1fr) !important; width: 100% !important; gap: 4px !important; text-align: left !important; margin-bottom: 8px !important; }
+        .id-alias { font-size: 15px; font-weight: 800; color: #1e293b; line-height: 1.2; letter-spacing: -0.2px; }
+        .nombre-real { font-size: 13px; color: #64748b; margin: 3px 0 10px 0; font-weight: 600; }
+        
+        .grid-metricas-premium { display: grid; grid-template-columns: repeat(3, 1fr) !important; width: 100% !important; gap: 6px !important; text-align: left !important; margin-bottom: 10px !important; background: #f8fafc; padding: 8px 10px; border-radius: 10px; border: 1px solid #f1f5f9; }
         .metric-col { display: flex; flex-direction: column; justify-content: flex-start; }
-        .metric-lbl { font-size: 11px !important; color: #94a3b8 !important; font-weight: 700 !important; margin-bottom: 2px !important; text-transform: none !important; }
+        .metric-lbl { font-size: 10px !important; color: #94a3b8 !important; font-weight: 700 !important; margin-bottom: 2px !important; text-transform: uppercase !important; letter-spacing: 0.3px; }
         .metric-val { font-size: 13px !important; font-weight: 800 !important; color: #334155 !important; }
-        .fila-utilidades-premium { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 4px; }
-        .btn-utilidad-foto { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; width: 32px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; }
-        .circulo-check-cuota { background: #e2e8f0; color: #475569; width: 24px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 1px solid #cbd5e1; }
+        
+        .fila-utilidades-premium { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 4px; }
+        .btn-utilidad-foto { background: #ffffff; color: #475569; border: 1px solid #cbd5e1; width: 34px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .circulo-check-cuota { background: #f1f5f9; color: #475569; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 1px solid #cbd5e1; }
         .circulo-check-cuota.gestionado { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
         .circulo-check-cuota.gestionado-ok { background: #dcfce7; color: #10b981; border-color: #bbf7d0; }
-        .badge-saldo-premium { font-size: 11px; color: #64748b; }
-        .badge-saldo-premium b { color: #1e293b; font-weight: 800; }
-        .card-derecha-acciones { display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding-left: 12px; border-left: 1px solid #e2e8f0; min-width: 50px; gap: 4px; }
-        .btn-accion-premium { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; font-size: 18px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: all 0.1s ease; }
+        .badge-saldo-premium { font-size: 12px; color: #64748b; }
+        .badge-saldo-premium b { color: #0f2b5c; font-weight: 800; }
+        
+        .card-derecha-acciones { display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding-left: 14px; border-left: 1px solid #e2e8f0; min-width: 55px; gap: 8px; }
+        .btn-accion-premium { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; font-size: 20px; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.1s ease; }
         .btn-accion-premium:active { transform: scale(0.9); }
-        .btn-accion-premium.cobrar { color: #10b981; background: #ecfdf5; border-color: #bbf7d0; }
-        .btn-accion-premium.saltar { color: #ef4444; background: #fff1f2; border-color: #fca5a5; }
+        .btn-accion-premium.cobrar { color: #10b981; background: #ecfdf5; border-color: #bbf7d0; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.1); }
+        .btn-accion-premium.saltar { color: #ef4444; background: #fff1f2; border-color: #fca5a5; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.1); }
         @media print {
             body * { visibility: hidden; }
             #ticketPrint, #ticketPrint * { visibility: visible; }
@@ -1160,7 +1050,7 @@ def dashboard_principal():
         
     hoy_str = date.today().isoformat()
     
-    # 📅 FECHA EN TIEMPO REAL: Formateo en español para el badge superior
+    # 📅 FECHA EN TIEMPO REAL: Formateo dinámico en español para el badge del Dashboard
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     ahora = datetime.now()
@@ -1208,7 +1098,7 @@ def dashboard_principal():
     <div id="clientesContainer">
     """
     
-    # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO
+    # 📱 CONSOLIDACIÓN CONTABLE PREMIUM: Saneamiento estricto de comillas y variables previas
     for c in clientes_ruta:
         pagado_acumulado = sum(p["valor_pagado"] for p in c["pagos"])
         saldo_restante = max(0.0, c["monto_total"] - pagado_acumulado)
@@ -1228,7 +1118,7 @@ def dashboard_principal():
         inicial_frecuencia = 'D' if c['frecuencia'] == 'Diaria' else 'S'
         clase_mora = "mora-leve" if es_mora_cl else "al-dia"
         clase_mora_badge = "1" if es_mora_cl else "0"
-        clase_check = "gestionado" if c['saltado_hoy'] > 0 else ("gestionado-ok" if cuotas_pagadas > 0 else "")
+        clase_check = "gradient-mora" if c['saltado_hoy'] > 0 else ("gestionado-ok" if cuotas_pagadas > 0 else "")
         numero_check = str(c['saltado_hoy'] if c['saltado_hoy'] > 0 else (cuotas_pagadas if cuotas_pagadas > 0 else 1))
         
         js_num_cuota = str(cuota_p["numero"]) if cuota_p else "1"
@@ -1239,8 +1129,8 @@ def dashboard_principal():
             <div class="card-izquierda">
                 <div class="circulo-frecuencia {clase_mora}">{inicial_frecuencia}</div>
                 <div class="info-bloque-texto" style="width:100%;">
-                    <div class="id-alias">{c_id} {c_referencia}</div>
-                    <div class="nombre-real">{c_nombre}</div>
+                    <div class="id-alias" style="cursor:pointer;" onclick="verFichaCliente({c_id})">{c_id} {c_referencia}</div>
+                    <div class="nombre-real" style="cursor:pointer;" onclick="verFichaCliente({c_id})">{c_nombre}</div>
                     
                     <div class="grid-metricas-premium">
                         <div class="metric-col"><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${c_valor_cuota}</span></div>
@@ -1249,7 +1139,6 @@ def dashboard_principal():
                     </div>
                     
                     <div class="fila-utilidades-premium">
-                        <!-- 📸 FIJADO: El botón de la cámara ahora abre directamente la modal de abonos para adjuntar comprobante sin desviar el flujo -->
                         <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
                         <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
@@ -1257,7 +1146,6 @@ def dashboard_principal():
                 </div>
             </div>
             
-            <!-- 🎯 RECAUDO PREMIUM: Botones verticales comerciales optimizados con billetes y marcas de visto/cruz -->
             <div class="card-derecha-acciones">
                 <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
                     💵✔️
