@@ -1257,13 +1257,13 @@ def dashboard_principal():
                 </div>
             </div>
             
-            <!-- 🎯 RECAUDO PREMIUM: Manos con billetes unificadas de cobro y salto de ruta diario -->
+            <!-- 🎯 RECAUDO PREMIUM: Botones verticales comerciales optimizados con billetes y marcas de visto/cruz -->
             <div class="card-derecha-acciones">
                 <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
-                    🫴💵✔️
+                    💵✔️
                 </button>
                 <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">
-                    🫴💵❌
+                    💵❌
                 </button>
             </div>
         </div>
