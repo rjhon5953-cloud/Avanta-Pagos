@@ -745,17 +745,6 @@ HTML_TEMPLATE = """
         .drawer-menu li a { display: flex; align-items: center; gap: 12px; padding: 14px 20px; color: #475569; text-decoration: none; font-weight: 600; font-size: 13px; border-bottom: 1px solid #f1f5f9; transition: background 0.2s; }
         .drawer-menu li a:active { background: #f8fafc; color: #0f2b5c; }
         .drawer-menu li a i { font-size: 16px; width: 22px; color: #3b82f6; text-align: center; }
-        .btn-nav-icon { background: rgba(255,255,255,0.12); color: white; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; text-decoration: none; }
-        .nav-title { font-size: 15px; font-weight: 800; color: white; }
-        .drawer-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.5); z-index: 300; }
-        .drawer-overlay.active { display: block; }
-        .drawer { position: fixed; top: 0; left: -290px; width: 290px; height: 100%; background: #ffffff; z-index: 301; transition: left 0.3s ease; display: flex; flex-direction: column; }
-        .drawer.active { left: 0; }
-        .drawer-header { background: #0f2b5c; color: white; padding: 20px 16px; border-bottom: 4px solid #00a8cc; }
-        .drawer-logo { font-size: 18px; font-weight: 800; }
-        .drawer-menu { list-style: none; padding: 10px 0; overflow-y: auto; flex: 1; }
-        .drawer-menu li a { display: flex; align-items: center; gap: 12px; padding: 13px 20px; color: #334155; text-decoration: none; font-weight: 700; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
-        .drawer-menu li a i { font-size: 16px; width: 20px; color: #0f2b5c; text-align: center; }
         .date-badge { text-align: center; font-size: 13px; font-weight: 800; color: #1e3a8a; background: #dbeafe; padding: 8px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #bfdbfe; box-shadow: inset 0 1px 2px rgba(255,255,255,0.6); }
         .grid-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
         .kpi-card { background: white; padding: 14px 12px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03), 0 2px 4px -1px rgba(0,0,0,0.02); }
