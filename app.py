@@ -1172,7 +1172,7 @@ def dashboard_principal():
         
     hoy_str = date.today().isoformat()
     
-    # 📅 FECHA EN TIEMPO REAL: Formateo dinámico en español para el badge del Dashboard
+    # 📅 FECHA EN TIEMPO REAL: Formateo dinámico en español para el badge superior
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     ahora = datetime.now()
@@ -1220,7 +1220,6 @@ def dashboard_principal():
     <div id="clientesContainer">
     """
     
-    # 📱 CONSOLIDACIÓN CONTABLE SEGURA: Inyección directa compatible con el cursor de Neon
     for c in clientes_ruta:
         pagado_acumulado = sum(p["valor_pagado"] for p in c["pagos"])
         saldo_restante = max(0.0, c["monto_total"] - pagado_acumulado)
@@ -1261,7 +1260,6 @@ def dashboard_principal():
                     </div>
                     
                     <div class="fila-utilidades-premium">
-                        <!-- 📸 Abre el panel del balance de forma nativa para adjuntar la foto sin desviar la ruta -->
                         <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
                         <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
@@ -1269,7 +1267,6 @@ def dashboard_principal():
                 </div>
             </div>
             
-            <!-- 🎯 RECAUDO PREMIUM COMERCIAL: Billetes e iconos interactivos unificados a la derecha de la tarjeta -->
             <div class="card-derecha-acciones">
                 <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
                     💵✔️
