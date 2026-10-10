@@ -169,6 +169,7 @@ def calcular_fecha(fecha_inicio, numero, frecuencia, omitir_domingos=True):
             actual += relativedelta(months=1)
         pasos += 1
     return actual
+
 LOGIN_HTML = """
 <!DOCTYPE html>
 <html lang="es">
@@ -519,48 +520,6 @@ CONTENIDO_HTML += """
             {% endfor %}
         {% else %}
             <p style="font-size:11px; color:#64748b; text-align:center; padding:10px;">Ningún cliente saltado hoy.</p>
-        {% endif %}
-    </div>
-
-{% elif vista == 'creditos_financieros' %}
-    <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL FINANCIERO DE CRÉDITOS</div>
-    <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Monitorea el rendimiento de tu cartera activa en tiempo real. Aquí puedes ver el desglose exacto de lo invertido frente a lo recaudado por cliente.</p>
-    
-    <div id="creditosContainer">
-        {% if lista_creditos %}
-            {% for c in lista_creditos %}
-                <div class="card" style="padding:14px; border-left:4px solid #10b981; text-align:left; margin-bottom:10px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-                    <div class="flex-between" style="border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:8px;">
-                        <div>
-                            <span style="font-weight:800; font-size:14px; color:#0f2b5c; display:block;">{{ c.nombre }}</span>
-                            <span style="font-size:10px; color:#64748b; display:block; margin-top:2px;">Modalidad: <b>{{ c.frecuencia }}</b> | Cuota: <b>${{ "%.2f"|format(c.valor_cuota) }}</b></span>
-                        </div>
-                        <div style="text-align:right;">
-                            <!-- 💰 Badge de Saldo Neto Pendiente Real -->
-                            <span style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; display:block;">Saldo Real</span>
-                            <span style="font-size:15px; font-weight:800; color:#ef4444; display:block;">${{ "%.2f"|format(c.saldo_pendiente) }}</span>
-                        </div>
-                    </div>
-                    
-                    <!-- 📊 Desglose de Métricas Contables individuales sin repetir líneas -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:11px; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid #e2e8f0;">
-                        <div>
-                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Préstamo</span>
-                            <span style="font-weight:700; color:#334155;">${{ "%.2f"|format(c.monto) }}</span>
-                        </div>
-                        <div>
-                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Con Interés ({{ c.interes_porcentaje }}%)</span>
-                            <span style="font-weight:700; color:#0f2b5c;">${{ "%.2f"|format(c.monto_total) }}</span>
-                        </div>
-                        <div>
-                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Cobrado</span>
-                            <span style="font-weight:700; color:#10b981;">${{ "%.2f"|format(c.total_recaudado) }}</span>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
-        {% else %}
-            <p style="font-size:11px; color:#64748b; text-align:center; padding:20px;">No se registran créditos financieros activos en este momento.</p>
         {% endif %}
     </div>
 
@@ -1561,46 +1520,71 @@ def seccion_reordenar_ruta():
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_orden))
 
 @app.route("/menu/listados")
-def seccion_listados():
+def seccion_listados_avanzados():
     if not session.get("autenticado"): return "Sesión expirada"
     fecha_filtro = request.args.get("fecha_auditoria", date.today().isoformat())
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT p.*, c.nombre FROM pagos p JOIN clientes c ON p.cliente_id = c.id WHERE p.fecha_pago_real = %s", (fecha_filtro,))
-            pagos_f = cursor.fetchall()
-            cursor.execute("SELECT * FROM clientes WHERE fecha_inicio = %s", (fecha_filtro,))
-            creditos_f = cursor.fetchall()
+            # 💰 1. Recaudos ejecutados en la fecha seleccionada
+            cursor.execute(
+                """
+                SELECT p.numero, p.valor_pagado, c.nombre 
+                FROM pagos p 
+                JOIN clientes c ON p.cliente_id = c.id 
+                WHERE p.fecha_pago_real = %s AND p.pagado = 1
+                ORDER BY c.nombre ASC
+                """, (fecha_filtro,)
+            )
+            pagos_dia = cursor.fetchall()
+            
+            # 👤 2. Créditos nuevos entregados en la fecha seleccionada
+            cursor.execute(
+                "SELECT nombre, monto, monto_total FROM clientes WHERE fecha_inicio = %s ORDER BY nombre ASC", 
+                (fecha_filtro,)
+            )
+            creditos_dia = cursor.fetchall()
+            
+            # 📈 3. MÉTRICAS GENERALES DE CARTERA CORPORATIVA (Consolidado Histórico Permanente)
+            cursor.execute(
+                """
+                SELECT 
+                    COALESCE(SUM(monto), 0) AS capital_base,
+                    COALESCE(SUM(monto_total), 0) AS cartera_total
+                FROM clientes 
+                WHERE estado != 'Eliminado'
+                """
+            )
+            totales_globales = cursor.fetchone()
+            
+            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE pagado = 1")
+            total_recaudado_historico = float(cursor.fetchone()["total"])
 
-    html_pagos = "".join([f'<p style="font-size:12px; border-bottom:1px solid #f1f5f9; padding:4px 0;">👤 {p["nombre"]} - Cuota #{p["numero"]} | <b style="color:#10b981;">${p["valor_pagado"]:.2f}</b></p>' for p in pagos_f])
-    if not html_pagos:
-        html_pagos = '<p style="font-size:11px; color:#64748b; text-align:center;">Sin recaudos en esta fecha.</p>'
+    # Cálculos matemáticos limpios procesados en el Backend de Python
+    base_invertida = float(totales_globales["capital_base"])
+    cartera_esperada = float(totales_globales["cartera_total"])
+    intereses_ganados = max(0.0, cartera_esperada - base_invertida)
+    saldo_restante_calle = max(0.0, cartera_esperada - total_recaudado_historico)
+    
+    # Rendimiento porcentual de cobro de la ruta
+    porcentaje_efectividad = (total_recaudado_historico / dinero_cartera * 100) if cartera_esperada > 0 else 0.0 # type: ignore
 
-    html_creditos = "".join([f'<p style="font-size:12px; border-bottom:1px solid #f1f5f9; padding:4px 0;">👤 {c["nombre"]} | Capital: <b>${c["monto"]:.2f}</b> | Total Cartera: <b>${c["monto_total"]:.2f}</b></p>' for c in creditos_f])
-    if not html_creditos:
-        html_creditos = '<p style="font-size:11px; color:#64748b; text-align:center;">Sin créditos nuevos en esta fecha.</p>'
-
-    html_listados = f"""
-    <div class="section-header-title"><i class="fa-solid fa-list-check"></i> Auditoría Histórica por Fecha</div>
-    <div class="card">
-        <form action="/menu/listados" method="GET" onsubmit="event.preventDefault(); navegarRuta('/menu/listados?fecha_auditoria=' + document.getElementById('fecha_auditor').value);">
-            <label>Selecciona la Fecha a Consultar</label>
-            <input type="date" id="fecha_auditor" value="{fecha_filtro}" required>
-            <button type="submit" class="btn-primary" style="background:#0f2b5c; color:white; border:none; padding:10px; font-weight:bold; width:100%; border-radius:8px; cursor:pointer;">🔍 Filtrar Historial</button>
-        </form>
-    </div>
-    <div class="card" style="text-align:left;">
-        <h4 style="font-size:12px; color:#0f2b5c; margin-bottom:6px;">💰 Recaudos de la Fecha</h4>
-        {html_pagos}
-    </div>
-    <div class="card" style="text-align:left;">
-        <h4 style="font-size:12px; color:#0f2b5c; margin-bottom:6px;">👤 Créditos Entregados</h4>
-        {html_creditos}
-    </div>
-    """
+    contexto = dict(
+        vista="auditoria_reportes",
+        fecha_filtro=fecha_filtro,
+        pagos_dia=pagos_dia,
+        creditos_dia=creditos_dia,
+        base_invertiva=base_invertida,
+        cartera_esperada=cartera_esperada,
+        intereses_ganados=intereses_ganados,
+        total_recaudado_historico=total_recaudado_historico,
+        saldo_restante_calle=saldo_restante_calle,
+        porcentaje_efectividad=porcentaje_efectividad
+    )
+    
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
-        return render_template_string(html_listados)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_listados))
+        return render_template_string(CONTENIDO_HTML, **contexto)
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
 
 @app.route("/menu/agregar_lista")
 def seccion_agregar_lista():
