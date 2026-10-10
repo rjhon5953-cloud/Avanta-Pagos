@@ -247,53 +247,11 @@ CONTENIDO_HTML = """
     </div>
 """
 CONTENIDO_HTML += """
-    <div class="section-header-title"><i class="fa-solid fa-route"></i> Ruta Principal</div>
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente o referencia..." onkeyup="filtrarClientes()">
-
-    <div id="clientesContainer">
-        {% for c in clientes %}
-            {% set pagado = c.pagos | map(attribute='valor_pagado') | sum %}
-            {% set saldo = c.monto_total - pagado %}
-            {% set cuota_pendiente = c.pagos | selectattr('pagado', 'equalto', 0) | list | first %}
-            {% set es_mora = c.saltado_hoy > 0 or c.cuotas_atrasadas > 0 %}
-
-            <div class="card cliente-card" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}">
-                <div class="flex-between">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <div style="display:flex; flex-direction:column; gap:2px;">
-                            <a href="/mover/{{ c.id }}/subir" style="text-decoration:none; font-size:10px; background:#f1f5f9; padding:2px 4px; border-radius:3px;">⬆️</a>
-                            <a href="/mover/{{ c.id }}/bajar" style="text-decoration:none; font-size:10px; background:#f1f5f9; padding:2px 4px; border-radius:3px;">⬇️</a>
-                        </div>
-                        <div style="cursor:pointer;" onclick="verFichaCliente({{ c.id }})">
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <span style="font-size:14px; font-weight:800; color:#0f2b5c;">{{ c.nombre }}</span>
-                                {% if es_mora %}
-                                    <span class="badge-mora">MORA</span>
-                                {% else %}
-                                    <span class="badge-al-dia">AL DÍA</span>
-                                {% endif %}
-                            </div>
-                            <div style="font-size:11px; color:#6b7280; margin-top:2px;">
-                                Ref: <b>{{ c.referencia or 'Ninguna' }}</b> | Cuota Base: <b>${{ "%.2f"|format(c.valor_cuota) }}</b>
-                            </div>
-                        </div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:10px; color:#64748b; font-weight:bold;">Métricas:</div>
-                        <div style="font-size:12px; font-weight:700; color:#ef4444; margin-top:2px;">Atraso: <b>{{ c.saltado_hoy }} días</b></div>
-                        <div style="font-size:12px; font-weight:700; color:#0f2b5c;">Saldo: <b>${{ "%.2f"|format(saldo) }}</b></div>
-                    </div>
-                </div>
-
-             <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
-                {% if cuota_pendiente %}
-                    <!-- ⚡ OPTIMIZADO: Botón único "Cobrar / Abonar" capaz de procesar cobros base o múltiples cuotas continuas -->
-                    <button class="btn-accion btn-pagar" style="background:#10b981;" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})"><i class="fa-solid fa-money-bill-wave"></i> Cobrar</button>
-                    <button class="btn-accion btn-nopagar" style="background:#ef4444;" onclick="ejecutarNoPago({{ c.id }})"><i class="fa-solid fa-ban"></i> Saltar</button>
-                {% endif %}
-            </div>
-            </div>
-        {% endfor %}
+        <div class="section-header-title"><i class="fa-solid fa-route"></i> Ruta Principal</div>
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente en ruta..." onkeyup="filtrarClientes()">
+    <div id="mainDashboardRuta">
+        <!-- 📱 El contenido dinámico premium se inyecta directamente desde la función dashboard_principal -->
+        {{ contenido_html | safe }}
     </div>
 """
 CONTENIDO_HTML += """
@@ -718,7 +676,8 @@ HTML_TEMPLATE = """
     </div>
 """
 HTML_TEMPLATE += """
-    <div class="modal" id="modalInfoCliente">
+    <!-- 🖼️ MODAL 1: Ficha de Información del Cliente -->
+    <div class="modal" id="modalInfoCliente" style="display:none;">
         <div class="modal-content">
             <h3 id="inf_nombre" style="margin-bottom:12px; color:#0f2b5c;">Cargando Ficha...</h3>
             <div class="modal-grid-data">
@@ -739,7 +698,8 @@ HTML_TEMPLATE += """
         </div>
     </div>
 
-    <div class="modal" id="modalWs">
+    <!-- 🖼️ MODAL 2: Confirmación de Pago Procesado y WhatsApp -->
+    <div class="modal" id="modalWs" style="display:none;">
         <div class="modal-content">
             <h3 style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Pago Procesado</h3>
             <p id="modalMsg" style="margin:10px 0;"></p>
@@ -749,29 +709,30 @@ HTML_TEMPLATE += """
         </div>
     </div>
 
-    <div class="modal" id="modalAbono">
+    <!-- 🖼️ MODAL 3: Formulario para Registrar Abono / Cobro -->
+    <div class="modal" id="modalAbono" style="display:none;">
         <div class="modal-content">
             <h3 id="modalAbonoTitulo">✏️ Registrar Pago</h3>
             <input type="hidden" id="abonoClienteId"><input type="hidden" id="abonoNumCuota">
-            <input type="number" step="any" id="abonoMontoInput" placeholder="Monto del dinero ($)">
-            <button onclick="confirmarAbono()" class="btn-primary" style="margin-top:10px; background:#10b981; color:white; border:none; padding:12px; font-weight:bold; width:100%; border-radius:8px; cursor:pointer;">💾 Guardar Recaudo</button>
+            <label style="text-align:left; font-size:11px; font-weight:bold; display:block; margin-bottom:4px; color:#475569;">Monto del dinero ($)</label>
+            <input type="number" step="any" id="abonoMontoInput" placeholder="0.00" style="margin-bottom:12px;">
+            <button onclick="confirmarAbono()" class="btn-primary" style="background:#10b981; color:white; border:none; padding:12px; font-weight:bold; width:100%; border-radius:8px; cursor:pointer;"><i class="fa-solid fa-floppy-disk"></i> Guardar Recaudo</button>
             <button onclick="cerrarModal('modalAbono')" class="btn-modal-close">Cancelar</button>
         </div>
     </div>
 
-        <!-- 🖼️ MODAL DE FOTO CORREGIDA: Estilos explícitos inline para matar la herencia circular de 28px -->
+    <!-- 🖼️ MODAL 4: Visor de Comprobantes Contables de Fotos -->
     <div class="modal" id="modalFoto" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:500; justify-content:center; align-items:center; padding:16px;">
         <div class="modal-content" style="background:white; border-radius:16px; padding:16px; width:100%; max-width:440px; text-align:center; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
             <h3 style="margin-top:0; font-size:14px; color:#0f2b5c; margin-bottom:12px;"><i class="fa-solid fa-receipt"></i> Comprobante Contable</h3>
-            
             <div style="background:#f8fafc; border-radius:10px; padding:6px; border:1px solid #e2e8f0; margin-bottom:12px; display:flex; justify-content:center; align-items:center; min-height:180px;">
                 <img id="imgComprobante" src="" style="width:100% !important; max-height:55vh !important; object-fit:contain !important; border-radius:8px !important; display:block !important;">
             </div>
-            
             <button onclick="cerrarModal('modalFoto')" class="btn-modal-close" style="width:100%; background:#e2e8f0; color:#334155; border:none; padding:10px; border-radius:8px; font-weight:700; cursor:pointer;">Cerrar Imagen</button>
         </div>
     </div>
 
+    <!-- Búfer oculto de impresión térmica -->
     <div id="ticketPrint" style="display:none;">
         ==============================<br>
         &nbsp;&nbsp;<b>AVANTA PAGOS RECAUDOS</b><br>
@@ -783,8 +744,7 @@ HTML_TEMPLATE += """
         Saldo: $<span id="tSaldo"></span><br>
         ==============================
     </div>
-"""
-HTML_TEMPLATE += """
+
 <script>
 function toggleDrawer() {
     document.getElementById('drawer').classList.toggle('active');
@@ -824,29 +784,25 @@ function verFichaCliente(id) {
                 document.getElementById('inf_v_cuota').innerText = '$' + d.data.valor_cuota.toFixed(2);
                 document.getElementById('inf_saldo_act').innerText = '$' + d.data.saldo_actual.toFixed(2);
                 document.getElementById('btn_llamar').href = 'tel:' + d.data.telefono;
-                
-                // 🗺️ FIJADO: Enlace de mapas universal profundo para celulares Android/iOS
                 document.getElementById('btn_mapa').href = 'https://google.com' + d.data.latitud + ',' + d.data.longitud;
-                
                 document.getElementById('modalInfoCliente').style.display = 'flex';
             }
         });
 }
-
 function filtrarClientes() {
     const query = document.getElementById('searchInput').value.toLowerCase();
-    document.querySelectorAll('.cliente-card').forEach(card => {
-        card.style.display = card.getAttribute('data-nombre').includes(query) ? "block" : "none";
+    document.querySelectorAll('.cliente-card-premium').forEach(card => {
+        card.style.display = card.getAttribute('data-nombre').includes(query) ? "flex" : "none";
     });
 }
 function filtrarEstado(tipo) {
     document.querySelectorAll('.btn-filtro').forEach(b => b.classList.remove('active'));
     document.getElementById('f-' + tipo).classList.add('active');
-    document.querySelectorAll('.cliente-card').forEach(card => {
+    document.querySelectorAll('.cliente-card-premium').forEach(card => {
         const esMora = card.getAttribute('data-mora') === '1';
-        if (tipo === 'todos') card.style.display = "block";
-        else if (tipo === 'mora' && esMora) card.style.display = "block";
-        else if (tipo === 'aldia' && !esMora) card.style.display = "block";
+        if (tipo === 'todos') card.style.display = "flex";
+        else if (tipo === 'mora' && esMora) card.style.display = "flex";
+        else if (tipo === 'aldia' && !esMora) card.style.display = "flex";
         else card.style.display = "none";
     });
 }
@@ -862,7 +818,7 @@ function calcularCuota() {
 function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota) {
     document.getElementById('abonoClienteId').value = clienteId;
     document.getElementById('abonoNumCuota').value = numCuota;
-    document.getElementById('abonoMontoInput').value = pendiente.toFixed(2);
+    document.getElementById('abonoMontoInput').value = parseFloat(pendiente).toFixed(2);
     document.getElementById('modalAbonoTitulo').innerText = '✏️ Registrar Pago - Cuota #' + numCuota;
     document.getElementById('modalAbono').style.display = 'flex';
 }
@@ -875,7 +831,6 @@ function confirmarAbono() {
 function ejecutarPago(clienteId, numCuota, pendiente) {
     procesarPagoAPI(clienteId, numCuota, pendiente);
 }
-// Variables de control ambiental de carga síncrona multimedia
 let imagenComprimidaB64 = "";
 let fotoListaParaEnviar = false;
 
@@ -893,9 +848,7 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 
                 const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
                 const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
-                
                 const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
-                // 📲 FIJADO: Enlace wa.me/ con barra diagonal integrada correctamente para evitar bloqueos
                 const urlWeb = 'https://wa.me' + numPuro + '?text=' + textoMensaje;
                 
                 const btnWs = document.getElementById('modalWsBtn');
@@ -918,25 +871,21 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
             }
         });
 }
-
 function ejecutarNoPago(clienteId) {
     if (confirm('¿Desea saltar el cobro de este cliente por el día de hoy?')) {
         fetch('/api/marcar_no_pago/' + clienteId)
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'ok') {
-                    // ❌ FIJADO: Recarga el listado dinámico dentro de la misma vista sin cambiar de sección
                     window.location.reload();
                 }
             }).catch(err => alert("Error al procesar el salto: " + err));
     }
 }
-
 function procesarImagenEnCaliente() {
     const fileInput = document.getElementById('foto_mov');
     if (!fileInput.files || fileInput.files.length === 0) return;
-    const file = fileInput.files[0];
-
+    const file = fileInput.files;
     const reader = new FileReader();
     reader.onload = function(e) {
         const img = new Image();
@@ -944,7 +893,6 @@ function procesarImagenEnCaliente() {
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
-
             const MAX_WIDTH = 800;
             if (width > MAX_WIDTH) {
                 height *= MAX_WIDTH / width;
@@ -952,10 +900,8 @@ function procesarImagenEnCaliente() {
             }
             canvas.width = width;
             canvas.height = height;
-
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
-
             imagenComprimidaB64 = canvas.toDataURL('image/jpeg', 0.6);
             document.getElementById('foto_comprimida_b64').value = imagenComprimidaB64;
             fotoListaParaEnviar = true;
@@ -965,18 +911,15 @@ function procesarImagenEnCaliente() {
     };
     reader.readAsDataURL(file);
 }
-
 function procesarYEnviarGasto(event) {
     const fileInput = document.getElementById('foto_mov');
     const form = document.getElementById('formBalance');
-    
     if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
         alert("⏳ Procesando imagen de alta definición... Espera un segundo y vuelve a presionar Guardar.");
         return false;
     }
     form.submit();
 }
-
 function cargarYVerFoto(gastoId) {
     fetch('/api/gasto_foto/' + gastoId)
         .then(res => res.json())
@@ -995,7 +938,6 @@ function cargarYVerFoto(gastoId) {
             }
         }).catch(err => alert("Error al conectar con el servidor: " + err));
 }
-
 function revertirGestionDia(tipo, id) {
     if (confirm('¿Está seguro de que desea deshacer esta gestión y regresar al cliente a la Ruta del Día?')) {
         fetch('/api/revertir_gestion/' + tipo + '/' + id)
@@ -1008,13 +950,13 @@ function revertirGestionDia(tipo, id) {
             }).catch(err => alert("Error al conectar: " + err));
     }
 }
-
 function imprimirTicket() { window.print(); }
 function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
 </script>
 </body>
 </html>
 """
+
 @app.route("/login", methods=["GET", "POST"])
 def login_route():
     if request.method == "POST":
