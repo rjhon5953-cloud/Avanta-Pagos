@@ -1520,7 +1520,7 @@ def seccion_reordenar_ruta():
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_orden))
 
 @app.route("/menu/listados")
-def seccion_listados_avanzados():
+def seccion_listados():
     if not session.get("autenticado"): return "Sesión expirada"
     fecha_filtro = request.args.get("fecha_auditoria", date.today().isoformat())
     
@@ -1536,23 +1536,22 @@ def seccion_listados_avanzados():
                 ORDER BY c.nombre ASC
                 """, (fecha_filtro,)
             )
-            pagos_dia = cursor.fetchall()
+            pagos_f = cursor.fetchall()
             
             # 👤 2. Créditos nuevos entregados en la fecha seleccionada
             cursor.execute(
                 "SELECT nombre, monto, monto_total FROM clientes WHERE fecha_inicio = %s ORDER BY nombre ASC", 
                 (fecha_filtro,)
             )
-            creditos_dia = cursor.fetchall()
+            creditos_f = cursor.fetchall()
             
-            # 📈 3. MÉTRICAS GENERALES DE CARTERA CORPORATIVA (Consolidado Histórico Permanente)
+            # 📈 3. MÉTRICAS GENERALES DE CARTERA GLOBAL (Consolidado Histórico Permanente)
             cursor.execute(
                 """
                 SELECT 
                     COALESCE(SUM(monto), 0) AS capital_base,
                     COALESCE(SUM(monto_total), 0) AS cartera_total
-                FROM clientes 
-                WHERE estado != 'Eliminado'
+                FROM clientes
                 """
             )
             totales_globales = cursor.fetchone()
@@ -1560,31 +1559,92 @@ def seccion_listados_avanzados():
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE pagado = 1")
             total_recaudado_historico = float(cursor.fetchone()["total"])
 
-    # Cálculos matemáticos limpios procesados en el Backend de Python
+    # Cálculos matemáticos contables procesados de forma nativa en Python
     base_invertida = float(totales_globales["capital_base"])
     cartera_esperada = float(totales_globales["cartera_total"])
     intereses_ganados = max(0.0, cartera_esperada - base_invertida)
     saldo_restante_calle = max(0.0, cartera_esperada - total_recaudado_historico)
-    
-    # Rendimiento porcentual de cobro de la ruta
-    porcentaje_efectividad = (total_recaudado_historico / dinero_cartera * 100) if cartera_esperada > 0 else 0.0 # type: ignore
+    porcentaje_efectividad = (total_recaudado_historico / cartera_esperada * 100) if cartera_esperada > 0 else 0.0
 
-    contexto = dict(
-        vista="auditoria_reportes",
-        fecha_filtro=fecha_filtro,
-        pagos_dia=pagos_dia,
-        creditos_dia=creditos_dia,
-        base_invertiva=base_invertida,
-        cartera_esperada=cartera_esperada,
-        intereses_ganados=intereses_ganados,
-        total_recaudado_historico=total_recaudado_historico,
-        saldo_restante_calle=saldo_restante_calle,
-        porcentaje_efectividad=porcentaje_efectividad
-    )
-    
+    # 📋 CONSTRUCCIÓN ESTRUCTURAL DE LISTADOS CON HOJAS DE RELIEVE COMPACTAS
+    html_pagos = "".join([
+        f'<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f8fafc; padding:8px 0; font-size:12px;">'
+        f'<span style="color:#334155;">👤 <b>{p["nombre"]}</b> <span style="color:#94a3b8; font-size:11px; margin-left:2px;">(Cuota #{p["numero"]})</span></span>'
+        f'<b style="color:#10b981; font-size:13px;">+${p["valor_pagado"]:.2f}</b>'
+        f'</div>' for p in pagos_f
+    ])
+    if not html_pagos:
+        html_pagos = '<p style="font-size:11px; color:#94a3b8; text-align:center; padding:10px;">Sin recaudos asentados en esta fecha.</p>'
+
+    html_creditos = "".join([
+        f'<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f8fafc; padding:8px 0; font-size:12px;">'
+        f'<span style="color:#334155;">👤 <b>{c["nombre"]}</b></span>'
+        f'<div style="text-align:right;"><span style="font-weight:700; color:#475569; font-size:12px;">Base: ${c["monto"]:.0f}</span>'
+        f'<span style="color:#94a3b8; font-size:10px; display:block; margin-top:1px;">Cartera: ${c["monto_total"]:.0f}</span></div>'
+        f'</div>' for c in creditos_f
+    ])
+    if not html_creditos:
+        html_creditos = '<p style="font-size:11px; color:#94a3b8; text-align:center; padding:10px;">Sin créditos entregados en esta fecha.</p>'
+        class interes_ganados:
+            ...
+
+        html_listados = f"""
+    <div class="section-header-title"><i class="fa-solid fa-chart-pie"></i> AUDITORÍA GENERAL DE CARTERA</div>
+    <p style="font-size:11px; color:#64748b; margin-bottom:14px; text-align:left; padding:0 4px;">Monitoreo y balance consolidado de tus inversiones, utilidades netas generadas y porcentaje de efectividad de cobro en calle.</p>
+
+    <!-- 📊 KPI'S CON RELIEVE Y VOLUMEN REAL TIPO CARTERA MAESTRA -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div class="kpi-card" style="border-left:4px solid #0f2b5c; background:white; padding:14px 12px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 6px -1px rgba(0,0,0,0.03);">
+            <div class="kpi-title" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Capital Invertido Base</div>
+            <div class="kpi-val" style="font-size:15px; font-weight:800; color:#0f2b5c; margin-top:2px;">${base_invertida:.2f}</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #10b981; background:white; padding:14px 12px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 6px -1px rgba(0,0,0,0.03);">
+            <div class="kpi-title" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Intereses / Ganancia</div>
+            <div class="kpi-val" style="font-size:15px; font-weight:800; color:#10b981; margin-top:2px;">+${interes_ganados:.2f}</div> # type: ignore # type: ignore
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div class="kpi-card" style="border-left:4px solid #6366f1; background:white; padding:14px 12px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 6px -1px rgba(0,0,0,0.03);">
+            <div class="kpi-title" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Total Cobrado Acum.</div>
+            <div class="kpi-val" style="font-size:15px; font-weight:800; color:#6366f1; margin-top:2px;">${total_recaudado_historico:.2f}</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #ef4444; background:white; padding:14px 12px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 6px -1px rgba(0,0,0,0.03);">
+            <div class="kpi-title" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Capital Neto en Calle</div>
+            <div class="kpi-val" style="font-size:15px; font-weight:800; color:#ef4444; margin-top:2px;">${saldo_restante_calle:.2f}</div>
+        </div>
+    </div>
+
+    <div class="card" style="background:linear-gradient(135deg, #1e3a8a 0%, #0f2b5c 100%); color:white; text-align:center; padding:14px; margin-bottom:14px; border:none; box-shadow:0 4px 14px rgba(15,43,92,0.15); border-radius:14px;">
+        <div class="kpi-title" style="color:white; opacity:0.85; font-weight:700; font-size:10px; text-transform:uppercase;">Efectividad Total de Recuperación</div>
+        <div class="kpi-val" style="color:white; font-size:22px; margin-top:4px; font-weight:800;">{porcentaje_efectividad:.1f}%</div>
+    </div>
+
+    <!-- 🔍 SELECTOR DINÁMICO DE FILTRADO POR FECHAS -->
+    <div class="card" style="padding:16px; border-top:4px solid #00a8cc; border-radius:14px; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">
+        <form action="/menu/listados" method="GET" onsubmit="event.preventDefault(); navegarRuta('/menu/listados?fecha_auditoria=' + document.getElementById('fecha_auditor').value);">
+            <label style="font-weight:700; color:#334155; margin-bottom:6px; font-size:11px; display:block; text-align:left;">Auditar Fecha Específica</label>
+            <div style="display:flex; gap:8px; align-items:center; margin-top:4px;">
+                <input type="date" id="fecha_auditor" value="{fecha_filtro}" style="flex:1; border-radius:10px; padding:11px; border:1px solid #cbd5e1; outline:none; font-size:13px;">
+                <button type="submit" class="btn-accion btn-pagar" style="background:#0f2b5c; padding:12px 16px; border-radius:10px; height:42px; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer; color:white;"><i class="fa-solid fa-magnifying-glass" style="font-size:14px;"></i></button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 📋 LISTADOS DETALLADOS COMPACTOS -->
+    <div class="card" style="padding:16px; text-align:left; border-radius:14px; border:1px solid #e2e8f0; box-shadow:0 4px 6px -1px rgba(0,0,0,0.03);">
+        <h4 style="font-size:13px; color:#10b981; margin-bottom:10px; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><i class="fa-solid fa-money-bill-trend-up"></i> Recaudos Asentados en la Fecha</h4>
+        {html_pagos}
+    </div>
+
+    <div class="card" style="padding:16px; text-align:left; border-radius:14px; border:1px solid #e2e8f0; box-shadow:0 4px 6px -1px rgba(0,0,0,0.03); margin-top:12px;">
+        <h4 style="font-size:13px; color:#0f2b5c; margin-bottom:10px; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><i class="fa-solid fa-user-plus"></i> Nuevos Créditos Entregados en la Fecha</h4>
+        {html_creditos}
+    </div>
+    """
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
-        return render_template_string(CONTENIDO_HTML, **contexto)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
+        return render_template_string(html_listados)
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_listados))
 
 @app.route("/menu/agregar_lista")
 def seccion_agregar_lista():
