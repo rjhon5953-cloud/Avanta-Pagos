@@ -719,73 +719,74 @@ HTML_TEMPLATE = """
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AVANTA PAGOS v1.3</title>
-    <!-- 🌐 CDNs REALES: Descarga el set tipográfico Inter y la librería de iconos FontAwesome -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>AVANTA PAGOS v1.3</title>
+    <!-- 🌐 FIJADO: Enlaces CDN oficiales para renderizar la tipografía y los iconos vectoriales de la captura -->
     <link href="https://googleapis.com" rel="stylesheet">
     <link rel="stylesheet" href="https://cloudflare.com" crossorigin="anonymous">
     <style>
-        * { box-sizing: border-box; font-family: 'Inter', sans-serif; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        body { background: #f1f5f9; color: #1e293b; padding-bottom: 70px; }
-        
-        /* 📱 EFECTO DE PROFUNDIDAD: Gradiente sofisticado y sombras nativas para la barra superior */
-        .navbar { background: linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 100%); color: white; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; box-shadow: 0 4px 12px rgba(15, 43, 92, 0.15); }
-        .btn-nav-icon { background: rgba(255, 255, 255, 0.15); color: white; border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; text-decoration: none; backdrop-filter: blur(4px); transition: all 0.2s; }
-        .btn-nav-icon:active { background: rgba(255, 255, 255, 0.25); transform: scale(0.95); }
-        .nav-title { font-size: 16px; font-weight: 800; color: white; letter-spacing: 0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        /* Menú Lateral Desplegable Premium */
-        .drawer-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 300; transition: opacity 0.3s ease; }
+        * { box-sizing: border-box; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+        body { background: #f8fafc; color: #0f172a; padding-bottom: 60px; }
+        .navbar { background: #0f2b5c; color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; }
+        .btn-nav-icon { background: rgba(255,255,255,0.12); color: white; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; text-decoration: none; }
+        .nav-title { font-size: 15px; font-weight: 800; color: white; }
+        .drawer-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.5); z-index: 300; }
         .drawer-overlay.active { display: block; }
-        .drawer { position: fixed; top: 0; left: -290px; width: 290px; height: 100%; background: #ffffff; z-index: 301; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; box-shadow: 5px 0 25px rgba(0,0,0,0.15); }
+        .drawer { position: fixed; top: 0; left: -290px; width: 290px; height: 100%; background: #ffffff; z-index: 301; transition: left 0.3s ease; display: flex; flex-direction: column; }
         .drawer.active { left: 0; }
-        .drawer-header { background: linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 100%); color: white; padding: 24px 16px; border-bottom: 4px solid #10b981; }
-        .drawer-logo { font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }
-        .drawer-menu { list-style: none; padding: 12px 0; overflow-y: auto; flex: 1; }
-        .drawer-menu li a { display: flex; align-items: center; gap: 12px; padding: 14px 20px; color: #475569; text-decoration: none; font-weight: 600; font-size: 13px; border-bottom: 1px solid #f1f5f9; transition: background 0.2s; }
-        .drawer-menu li a:active { background: #f8fafc; color: #0f2b5c; }
-        .drawer-menu li a i { font-size: 16px; width: 22px; color: #3b82f6; text-align: center; }
-
-        .date-badge { text-align: center; font-size: 13px; font-weight: 800; color: #1e3a8a; background: #dbeafe; padding: 8px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #bfdbfe; box-shadow: inset 0 1px 2px rgba(255,255,255,0.6); }
-        .grid-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-        .kpi-card { background: white; padding: 14px 12px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03), 0 2px 4px -1px rgba(0,0,0,0.02); }
-        .kpi-title { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-        .kpi-val { font-size: 15px; font-weight: 800; color: #0f2b5c; margin-top: 2px; }
-        .expected-card { background: linear-gradient(to bottom, #f0f9ff, #e0f2fe); border: 1px solid #bae6fd; padding: 14px; border-radius: 12px; margin-bottom: 14px; text-align: left; box-shadow: 0 4px 10px rgba(3, 105, 161, 0.05); }
-        .search-box { width: 100%; padding: 14px; border: 1px solid #cbd5e1; border-radius: 12px; margin-bottom: 14px; font-size: 13px; outline: none; background: white; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); transition: border-color 0.2s; }
-        .search-box:focus { border-color: #3b82f6; }
-        .card { background: white; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03); }
+        .drawer-header { background: #0f2b5c; color: white; padding: 20px 16px; border-bottom: 4px solid #00a8cc; }
+        .drawer-logo { font-size: 18px; font-weight: 800; }
+        .drawer-menu { list-style: none; padding: 10px 0; overflow-y: auto; flex: 1; }
+        .drawer-menu li a { display: flex; align-items: center; gap: 12px; padding: 13px 20px; color: #334155; text-decoration: none; font-weight: 700; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
+        .drawer-menu li a i { font-size: 16px; width: 20px; color: #0f2b5c; text-align: center; }
+        .date-badge { text-align: center; font-size: 13px; font-weight: 800; color: #475569; background: #e2e8f0; padding: 6px; border-radius: 6px; margin-bottom: 10px; }
+        .grid-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .kpi-card { background: white; padding: 12px 10px; border-radius: 12px; border: 1px solid #e2e8f0; }
+        .kpi-title { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; }
+        .kpi-val { font-size: 15px; font-weight: 800; color: #0f2b5c; }
+        .expected-card { background: #f0f9ff; border: 1px solid #bae6fd; padding: 12px; border-radius: 12px; margin-bottom: 12px; text-align: left; }
+        .search-box { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; margin-bottom: 12px; font-size: 13px; outline: none; }
+        .card { background: white; padding: 14px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
-        .btn-accion { border: none; padding: 10px 16px; border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; color: white; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-accion { border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 11px; cursor: pointer; color: white; text-align: center; }
+        .btn-pagar { background: #10b981; } .btn-nopagar { background: #ef4444; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); z-index: 400; justify-content: center; align-items: center; padding: 16px; }
+        .modal-content { background: white; border-radius: 16px; padding: 20px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; text-align: center; }
+        .modal-grid-data { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left; margin-bottom: 12px; }
+        .data-box { background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #f1f5f9; }
+        .data-lbl { font-size: 9px; color: #64748b; font-weight: 800; text-transform: uppercase; }
+        .data-val { font-size: 12px; font-weight: 700; color: #1e293b; }
+        .btn-ws { background: #25d366; color: white; text-decoration: none; display: block; padding: 10px; border-radius: 6px; font-weight: bold; margin-top: 8px; }
+        .btn-modal-close { background: #e2e8f0; color: #334155; border: none; padding: 10px; border-radius: 8px; font-weight: 700; width: 100%; margin-top: 6px; cursor: pointer; }
+        label { font-size: 11px; font-weight: bold; color: #475569; display: block; margin: 6px 0 2px 0; text-align: left; }
+        input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; }
         
-        /* 📱 INTERFAZ PREMIUM CON RELIEVE Y VOLUMEN (EFECTO APLICACIÓN NATIVA) */
-        .cliente-card-premium { background: #ffffff !important; border-radius: 14px !important; padding: 14px !important; margin-bottom: 12px !important; border: 1px solid #e2e8f0 !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; box-shadow: 0 4px 12px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.03) !important; width: 100% !important; clear: both !important; transition: transform 0.15s; }
-        .card-izquierda { display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 14px !important; flex: 1 !important; text-align: left !important; width: calc(100% - 65px) !important; }
-        .circulo-frecuencia { width: 38px; height: 34px; border-radius: 10px; border: 2.5px solid #ef4444; color: #ef4444; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; background: #fff1f2; flex-shrink: 0; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.1); }
-        .circulo-frecuencia.al-dia { border-color: #10b981; color: #10b981; background: #ecfdf5; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.1); }
-        .circulo-frecuencia.mora-leve { border-color: #f59e0b; color: #f59e0b; background: #fffbeb; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.1); }
+        /* 📱 ESTILOS PREMIUM UNIFICADOS COMPATIBLES CON CELULARES */
+        /* 📱 FIJADO: Bloque vertical responsivo rígido para evitar que las tarjetas se monten de lado */
+        .cliente-card-premium { background: #ffffff !important; border-radius: 10px !important; padding: 12px !important; margin-bottom: 12px !important; border: 1px solid #e2e8f0 !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important; width: 100% !important; clear: both !important; }
+        .card-izquierda { display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 12px !important; flex: 1 !important; text-align: left !important; width: calc(100% - 60px) !important; }
+        .circulo-frecuencia { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #ef4444; color: #ef4444; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; background: #fff1f2; flex-shrink: 0; }
+        .circulo-frecuencia.al-dia { border-color: #10b981; color: #10b981; background: #ecfdf5; }
+        .circulo-frecuencia.mora-leve { border-color: #f59e0b; color: #f59e0b; background: #fffbeb; }
         .info-bloque-texto { display: flex; flex-direction: column; flex: 1; }
-        .id-alias { font-size: 15px; font-weight: 800; color: #1e293b; line-height: 1.2; letter-spacing: -0.2px; }
-        .nombre-real { font-size: 13px; color: #64748b; margin: 3px 0 10px 0; font-weight: 600; }
-        
-        .grid-metricas-premium { display: grid; grid-template-columns: repeat(3, 1fr) !important; width: 100% !important; gap: 6px !important; text-align: left !important; margin-bottom: 10px !important; background: #f8fafc; padding: 8px 10px; border-radius: 10px; border: 1px solid #f1f5f9; }
+        .id-alias { font-size: 15px; font-weight: 800; color: #0f172a; line-height: 1.2; }
+        .nombre-real { font-size: 13px; color: #64748b; margin: 2px 0 8px 0; font-weight: 500; }
+        .grid-metricas-premium { display: grid; grid-template-columns: repeat(3, 1fr) !important; width: 100% !important; gap: 4px !important; text-align: left !important; margin-bottom: 8px !important; }
         .metric-col { display: flex; flex-direction: column; justify-content: flex-start; }
-        .metric-lbl { font-size: 10px !important; color: #94a3b8 !important; font-weight: 700 !important; margin-bottom: 2px !important; text-transform: uppercase !important; letter-spacing: 0.3px; }
+        .metric-lbl { font-size: 11px !important; color: #94a3b8 !important; font-weight: 700 !important; margin-bottom: 2px !important; text-transform: none !important; }
         .metric-val { font-size: 13px !important; font-weight: 800 !important; color: #334155 !important; }
-        
-        .fila-utilidades-premium { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 4px; }
-        .btn-utilidad-foto { background: #ffffff; color: #475569; border: 1px solid #cbd5e1; width: 34px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .circulo-check-cuota { background: #f1f5f9; color: #475569; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 1px solid #cbd5e1; }
+        .fila-utilidades-premium { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 4px; }
+        .btn-utilidad-foto { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; width: 32px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; }
+        .circulo-check-cuota { background: #e2e8f0; color: #475569; width: 24px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border: 1px solid #cbd5e1; }
         .circulo-check-cuota.gestionado { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
         .circulo-check-cuota.gestionado-ok { background: #dcfce7; color: #10b981; border-color: #bbf7d0; }
-        .badge-saldo-premium { font-size: 12px; color: #64748b; }
-        .badge-saldo-premium b { color: #0f2b5c; font-weight: 800; }
-        
-        .card-derecha-acciones { display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding-left: 14px; border-left: 1px solid #e2e8f0; min-width: 55px; gap: 8px; }
-        .btn-accion-premium { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; font-size: 20px; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.1s ease; }
+        .badge-saldo-premium { font-size: 11px; color: #64748b; }
+        .badge-saldo-premium b { color: #1e293b; font-weight: 800; }
+        .card-derecha-acciones { display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding-left: 12px; border-left: 1px solid #e2e8f0; min-width: 50px; gap: 4px; }
+        .btn-accion-premium { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; font-size: 18px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: all 0.1s ease; }
         .btn-accion-premium:active { transform: scale(0.9); }
-        .btn-accion-premium.cobrar { color: #10b981; background: #ecfdf5; border-color: #bbf7d0; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.1); }
-        .btn-accion-premium.saltar { color: #ef4444; background: #fff1f2; border-color: #fca5a5; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.1); }
-        
+        .btn-accion-premium.cobrar { color: #10b981; background: #ecfdf5; border-color: #bbf7d0; }
+        .btn-accion-premium.saltar { color: #ef4444; background: #fff1f2; border-color: #fca5a5; }
         @media print {
             body * { visibility: hidden; }
             #ticketPrint, #ticketPrint * { visibility: visible; }
@@ -794,9 +795,39 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
+    <div class="navbar">
+        <button class="btn-menu btn-nav-icon" onclick="toggleDrawer()"><i class="fa-solid fa-bars"></i> Menú</button>
+        <div class="nav-title">🌐 AVANTA PAGOS</div>
+        <a href="#" onclick="navegarRuta('/nuevo')" class="btn-nav-icon" style="background:#00a8cc;"><i class="fa-solid fa-plus"></i> Nuevo</a>
+    </div>
+
+    <div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer()"></div>
+    <div class="drawer" id="drawer">
+        <div class="drawer-header">
+            <div class="drawer-logo">🌐 AVANTA PAGOS v1.3</div>
+            <div style="font-size:11px; opacity:0.8; margin-top:4px;"><i class="fa-solid fa-phone"></i> Soporte: +593991234567</div>
+        </div>
+        <ul class="drawer-menu">
+            <li><a href="#" onclick="navegarRuta('/')"><i class="fa-solid fa-map-location-dot"></i> Ruta Principal</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/pagos_hoy')"><i class="fa-solid fa-receipt"></i> Pagos del Día</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/clientes')"><i class="fa-solid fa-address-book"></i> Clientes</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/creditos')"><i class="fa-solid fa-hand-holding-dollar"></i> Créditos Activos</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/ruta_orden')"><i class="fa-solid fa-arrow-down-up-lock"></i> Reordenar Ruta</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/listados')"><i class="fa-solid fa-list-check"></i> Listados Históricos</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/balance')"><i class="fa-solid fa-wallet"></i> Balance de Caja</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/agregar_lista')"><i class="fa-solid fa-user-plus"></i> Agregar a Lista</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/salvar_datos')"><i class="fa-solid fa-cloud-arrow-up"></i> Salvar en Nube</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/bluetooth')"><i class="fa-solid fa-print"></i> Conexión Bluetooth</a></li>
+            <li><a href="#" onclick="navegarRuta('/menu/configuracion')"><i class="fa-solid fa-sliders"></i> Ajustes de Sistema</a></li>
+            <li><a href="/logout" style="color:#ef4444;"><i class="fa-solid fa-power-off"></i> Cerrar Sesión</a></li>
+        </ul>
+    </div>
+
+    <div class="main-container" id="mainContent">
+        {{ contenido_html | safe }}
+    </div>
 """
 HTML_TEMPLATE += """
-    <!-- 🖼️ MODAL 1: Ficha de Información del Cliente -->
     <div class="modal" id="modalInfoCliente">
         <div class="modal-content">
             <h3 id="inf_nombre" style="margin-bottom:12px; color:#0f2b5c;">Cargando Ficha...</h3>
@@ -838,12 +869,15 @@ HTML_TEMPLATE += """
         </div>
     </div>
 
+        <!-- 🖼️ MODAL DE FOTO CORREGIDA: Estilos explícitos inline para matar la herencia circular de 28px -->
     <div class="modal" id="modalFoto" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:500; justify-content:center; align-items:center; padding:16px;">
         <div class="modal-content" style="background:white; border-radius:16px; padding:16px; width:100%; max-width:440px; text-align:center; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
             <h3 style="margin-top:0; font-size:14px; color:#0f2b5c; margin-bottom:12px;"><i class="fa-solid fa-receipt"></i> Comprobante Contable</h3>
+            
             <div style="background:#f8fafc; border-radius:10px; padding:6px; border:1px solid #e2e8f0; margin-bottom:12px; display:flex; justify-content:center; align-items:center; min-height:180px;">
                 <img id="imgComprobante" src="" style="width:100% !important; max-height:55vh !important; object-fit:contain !important; border-radius:8px !important; display:block !important;">
             </div>
+            
             <button onclick="cerrarModal('modalFoto')" class="btn-modal-close" style="width:100%; background:#e2e8f0; color:#334155; border:none; padding:10px; border-radius:8px; font-weight:700; cursor:pointer;">Cerrar Imagen</button>
         </div>
     </div>
@@ -859,11 +893,8 @@ HTML_TEMPLATE += """
         Saldo: $<span id="tSaldo"></span><br>
         ==============================
     </div>
-
-    <div class="main-container" id="mainContent">
-        {{ contenido_html | safe }}
-    </div>
-
+"""
+HTML_TEMPLATE += """
 <script>
 function toggleDrawer() {
     document.getElementById('drawer').classList.toggle('active');
@@ -903,25 +934,29 @@ function verFichaCliente(id) {
                 document.getElementById('inf_v_cuota').innerText = '$' + d.data.valor_cuota.toFixed(2);
                 document.getElementById('inf_saldo_act').innerText = '$' + d.data.saldo_actual.toFixed(2);
                 document.getElementById('btn_llamar').href = 'tel:' + d.data.telefono;
+                
+                // 🗺️ FIJADO: Enlace de mapas universal profundo para celulares Android/iOS
                 document.getElementById('btn_mapa').href = 'https://google.com' + d.data.latitud + ',' + d.data.longitud;
+                
                 document.getElementById('modalInfoCliente').style.display = 'flex';
             }
         });
 }
+
 function filtrarClientes() {
     const query = document.getElementById('searchInput').value.toLowerCase();
-    document.querySelectorAll('.cliente-card-premium').forEach(card => {
-        card.style.display = card.getAttribute('data-nombre').includes(query) ? "flex" : "none";
+    document.querySelectorAll('.cliente-card').forEach(card => {
+        card.style.display = card.getAttribute('data-nombre').includes(query) ? "block" : "none";
     });
 }
 function filtrarEstado(tipo) {
     document.querySelectorAll('.btn-filtro').forEach(b => b.classList.remove('active'));
     document.getElementById('f-' + tipo).classList.add('active');
-    document.querySelectorAll('.cliente-card-premium').forEach(card => {
+    document.querySelectorAll('.cliente-card').forEach(card => {
         const esMora = card.getAttribute('data-mora') === '1';
-        if (tipo === 'todos') card.style.display = "flex";
-        else if (tipo === 'mora' && esMora) card.style.display = "flex";
-        else if (tipo === 'aldia' && !esMora) card.style.display = "flex";
+        if (tipo === 'todos') card.style.display = "block";
+        else if (tipo === 'mora' && esMora) card.style.display = "block";
+        else if (tipo === 'aldia' && !esMora) card.style.display = "block";
         else card.style.display = "none";
     });
 }
@@ -937,7 +972,7 @@ function calcularCuota() {
 function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota) {
     document.getElementById('abonoClienteId').value = clienteId;
     document.getElementById('abonoNumCuota').value = numCuota;
-    document.getElementById('abonoMontoInput').value = parseFloat(pendiente).toFixed(2);
+    document.getElementById('abonoMontoInput').value = pendiente.toFixed(2);
     document.getElementById('modalAbonoTitulo').innerText = '✏️ Registrar Pago - Cuota #' + numCuota;
     document.getElementById('modalAbono').style.display = 'flex';
 }
@@ -950,6 +985,7 @@ function confirmarAbono() {
 function ejecutarPago(clienteId, numCuota, pendiente) {
     procesarPagoAPI(clienteId, numCuota, pendiente);
 }
+// Variables de control ambiental de carga síncrona multimedia
 let imagenComprimidaB64 = "";
 let fotoListaParaEnviar = false;
 
@@ -967,7 +1003,9 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 
                 const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
                 const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
+                
                 const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
+                // 📲 FIJADO: Enlace wa.me/ con barra diagonal integrada correctamente para evitar bloqueos
                 const urlWeb = 'https://wa.me' + numPuro + '?text=' + textoMensaje;
                 
                 const btnWs = document.getElementById('modalWsBtn');
@@ -997,6 +1035,7 @@ function ejecutarNoPago(clienteId) {
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'ok') {
+                    // ❌ FIJADO: Recarga el listado dinámico dentro de la misma vista sin cambiar de sección
                     window.location.reload();
                 }
             }).catch(err => alert("Error al procesar el salto: " + err));
@@ -1015,6 +1054,7 @@ function procesarImagenEnCaliente() {
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
+
             const MAX_WIDTH = 800;
             if (width > MAX_WIDTH) {
                 height *= MAX_WIDTH / width;
@@ -1022,8 +1062,10 @@ function procesarImagenEnCaliente() {
             }
             canvas.width = width;
             canvas.height = height;
+
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
+
             imagenComprimidaB64 = canvas.toDataURL('image/jpeg', 0.6);
             document.getElementById('foto_comprimida_b64').value = imagenComprimidaB64;
             fotoListaParaEnviar = true;
@@ -1037,6 +1079,7 @@ function procesarImagenEnCaliente() {
 function procesarYEnviarGasto(event) {
     const fileInput = document.getElementById('foto_mov');
     const form = document.getElementById('formBalance');
+    
     if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
         alert("⏳ Procesando imagen de alta definición... Espera un segundo y vuelve a presionar Guardar.");
         return false;
@@ -1082,7 +1125,6 @@ function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
 </body>
 </html>
 """
-
 @app.route("/login", methods=["GET", "POST"])
 def login_route():
     if request.method == "POST":
@@ -1118,7 +1160,7 @@ def dashboard_principal():
         
     hoy_str = date.today().isoformat()
     
-    # 📅 FECHA EN TIEMPO REAL: Formateo dinámico en español para el badge superior
+    # 📅 FECHA EN TIEMPO REAL: Formateo en español para el badge superior
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     ahora = datetime.now()
@@ -1166,6 +1208,7 @@ def dashboard_principal():
     <div id="clientesContainer">
     """
     
+    # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO
     for c in clientes_ruta:
         pagado_acumulado = sum(p["valor_pagado"] for p in c["pagos"])
         saldo_restante = max(0.0, c["monto_total"] - pagado_acumulado)
@@ -1206,6 +1249,7 @@ def dashboard_principal():
                     </div>
                     
                     <div class="fila-utilidades-premium">
+                        <!-- 📸 FIJADO: El botón de la cámara ahora abre directamente la modal de abonos para adjuntar comprobante sin desviar el flujo -->
                         <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
                         <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
@@ -1213,6 +1257,7 @@ def dashboard_principal():
                 </div>
             </div>
             
+            <!-- 🎯 RECAUDO PREMIUM: Botones verticales comerciales optimizados con billetes y marcas de visto/cruz -->
             <div class="card-derecha-acciones">
                 <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
                     💵✔️
