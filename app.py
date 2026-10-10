@@ -946,6 +946,7 @@ function verFichaCliente(id) {
                 document.getElementById('btn_llamar').href = 'tel:' + d.data.telefono;
                 
                 // 🗺️ FIJADO: Enlace de mapas universal profundo para celulares Android/iOS
+                                // 🗺️ FIJADO: Enlace universal profundo y mapeado para Google Maps en Android/iOS
                 document.getElementById('btn_mapa').href = 'https://google.com' + d.data.latitud + ',' + d.data.longitud;
                 
                 document.getElementById('modalInfoCliente').style.display = 'flex';
@@ -1016,6 +1017,7 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 
                 const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
                 // 📲 FIJADO: Enlace wa.me/ con barra diagonal integrada correctamente para evitar bloqueos
+                                // 📲 FIJADO: Enlace de wa.me/ con barra diagonal integrada correctamente para evitar bloqueos
                 const urlWeb = 'https://wa.me' + numPuro + '?text=' + textoMensaje;
                 
                 const btnWs = document.getElementById('modalWsBtn');
@@ -1170,7 +1172,7 @@ def dashboard_principal():
         
     hoy_str = date.today().isoformat()
     
-    # 📅 FECHA EN TIEMPO REAL: Formateo en español para el badge superior
+    # 📅 FECHA EN TIEMPO REAL: Formateo dinámico en español para el badge del Dashboard
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     ahora = datetime.now()
@@ -1218,7 +1220,7 @@ def dashboard_principal():
     <div id="clientesContainer">
     """
     
-    # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO
+    # 📱 CONSOLIDACIÓN CONTABLE SEGURA: Inyección directa compatible con el cursor de Neon
     for c in clientes_ruta:
         pagado_acumulado = sum(p["valor_pagado"] for p in c["pagos"])
         saldo_restante = max(0.0, c["monto_total"] - pagado_acumulado)
@@ -1259,7 +1261,7 @@ def dashboard_principal():
                     </div>
                     
                     <div class="fila-utilidades-premium">
-                        <!-- 📸 FIJADO: El botón de la cámara ahora abre directamente la modal de abonos para adjuntar comprobante sin desviar el flujo -->
+                        <!-- 📸 Abre el panel del balance de forma nativa para adjuntar la foto sin desviar la ruta -->
                         <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
                         <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
@@ -1267,7 +1269,7 @@ def dashboard_principal():
                 </div>
             </div>
             
-            <!-- 🎯 RECAUDO PREMIUM: Botones verticales comerciales optimizados con billetes y marcas de visto/cruz -->
+            <!-- 🎯 RECAUDO PREMIUM COMERCIAL: Billetes e iconos interactivos unificados a la derecha de la tarjeta -->
             <div class="card-derecha-acciones">
                 <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
                     💵✔️
