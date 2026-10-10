@@ -794,7 +794,9 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
-
+"""
+HTML_TEMPLATE += """
+    <!-- 🖼️ MODAL 1: Ficha de Información del Cliente -->
     <div class="modal" id="modalInfoCliente">
         <div class="modal-content">
             <h3 id="inf_nombre" style="margin-bottom:12px; color:#0f2b5c;">Cargando Ficha...</h3>
