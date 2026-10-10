@@ -733,7 +733,6 @@ HTML_TEMPLATE = """
         .btn-nav-icon { background: rgba(255, 255, 255, 0.15); color: white; border: 1px solid rgba(255, 255, 255, 0.1); padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; text-decoration: none; backdrop-filter: blur(4px); transition: all 0.2s; }
         .btn-nav-icon:active { background: rgba(255, 255, 255, 0.25); transform: scale(0.95); }
         .nav-title { font-size: 16px; font-weight: 800; color: white; letter-spacing: 0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        
         /* Menú Lateral Desplegable Premium */
         .drawer-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 300; transition: opacity 0.3s ease; }
         .drawer-overlay.active { display: block; }
@@ -795,39 +794,7 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
-    <div class="navbar">
-        <button class="btn-menu btn-nav-icon" onclick="toggleDrawer()"><i class="fa-solid fa-bars"></i> Menú</button>
-        <div class="nav-title">🌐 AVANTA PAGOS</div>
-        <a href="#" onclick="navegarRuta('/nuevo')" class="btn-nav-icon" style="background:#00a8cc;"><i class="fa-solid fa-plus"></i> Nuevo</a>
-    </div>
 
-    <div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer()"></div>
-    <div class="drawer" id="drawer">
-        <div class="drawer-header">
-            <div class="drawer-logo">🌐 AVANTA PAGOS v1.3</div>
-            <div style="font-size:11px; opacity:0.8; margin-top:4px;"><i class="fa-solid fa-phone"></i> Soporte: +593991234567</div>
-        </div>
-        <ul class="drawer-menu">
-            <li><a href="#" onclick="navegarRuta('/')"><i class="fa-solid fa-map-location-dot"></i> Ruta Principal</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/pagos_hoy')"><i class="fa-solid fa-receipt"></i> Pagos del Día</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/clientes')"><i class="fa-solid fa-address-book"></i> Clientes</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/creditos')"><i class="fa-solid fa-hand-holding-dollar"></i> Créditos Activos</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/ruta_orden')"><i class="fa-solid fa-arrow-down-up-lock"></i> Reordenar Ruta</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/listados')"><i class="fa-solid fa-list-check"></i> Listados Históricos</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/balance')"><i class="fa-solid fa-wallet"></i> Balance de Caja</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/agregar_lista')"><i class="fa-solid fa-user-plus"></i> Agregar a Lista</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/salvar_datos')"><i class="fa-solid fa-cloud-arrow-up"></i> Salvar en Nube</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/bluetooth')"><i class="fa-solid fa-print"></i> Conexión Bluetooth</a></li>
-            <li><a href="#" onclick="navegarRuta('/menu/configuracion')"><i class="fa-solid fa-sliders"></i> Ajustes de Sistema</a></li>
-            <li><a href="/logout" style="color:#ef4444;"><i class="fa-solid fa-power-off"></i> Cerrar Sesión</a></li>
-        </ul>
-    </div>
-
-    <div class="main-container" id="mainContent">
-        {{ contenido_html | safe }}
-    </div>
-"""
-HTML_TEMPLATE += """
     <div class="modal" id="modalInfoCliente">
         <div class="modal-content">
             <h3 id="inf_nombre" style="margin-bottom:12px; color:#0f2b5c;">Cargando Ficha...</h3>
@@ -869,15 +836,12 @@ HTML_TEMPLATE += """
         </div>
     </div>
 
-        <!-- 🖼️ MODAL DE FOTO CORREGIDA: Estilos explícitos inline para matar la herencia circular de 28px -->
     <div class="modal" id="modalFoto" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.8); z-index:500; justify-content:center; align-items:center; padding:16px;">
         <div class="modal-content" style="background:white; border-radius:16px; padding:16px; width:100%; max-width:440px; text-align:center; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
             <h3 style="margin-top:0; font-size:14px; color:#0f2b5c; margin-bottom:12px;"><i class="fa-solid fa-receipt"></i> Comprobante Contable</h3>
-            
             <div style="background:#f8fafc; border-radius:10px; padding:6px; border:1px solid #e2e8f0; margin-bottom:12px; display:flex; justify-content:center; align-items:center; min-height:180px;">
                 <img id="imgComprobante" src="" style="width:100% !important; max-height:55vh !important; object-fit:contain !important; border-radius:8px !important; display:block !important;">
             </div>
-            
             <button onclick="cerrarModal('modalFoto')" class="btn-modal-close" style="width:100%; background:#e2e8f0; color:#334155; border:none; padding:10px; border-radius:8px; font-weight:700; cursor:pointer;">Cerrar Imagen</button>
         </div>
     </div>
@@ -893,8 +857,11 @@ HTML_TEMPLATE += """
         Saldo: $<span id="tSaldo"></span><br>
         ==============================
     </div>
-"""
-HTML_TEMPLATE += """
+
+    <div class="main-container" id="mainContent">
+        {{ contenido_html | safe }}
+    </div>
+
 <script>
 function toggleDrawer() {
     document.getElementById('drawer').classList.toggle('active');
@@ -934,30 +901,25 @@ function verFichaCliente(id) {
                 document.getElementById('inf_v_cuota').innerText = '$' + d.data.valor_cuota.toFixed(2);
                 document.getElementById('inf_saldo_act').innerText = '$' + d.data.saldo_actual.toFixed(2);
                 document.getElementById('btn_llamar').href = 'tel:' + d.data.telefono;
-                
-                // 🗺️ FIJADO: Enlace de mapas universal profundo para celulares Android/iOS
-                                // 🗺️ FIJADO: Enlace universal profundo y mapeado para Google Maps en Android/iOS
                 document.getElementById('btn_mapa').href = 'https://google.com' + d.data.latitud + ',' + d.data.longitud;
-                
                 document.getElementById('modalInfoCliente').style.display = 'flex';
             }
         });
 }
-
 function filtrarClientes() {
     const query = document.getElementById('searchInput').value.toLowerCase();
-    document.querySelectorAll('.cliente-card').forEach(card => {
-        card.style.display = card.getAttribute('data-nombre').includes(query) ? "block" : "none";
+    document.querySelectorAll('.cliente-card-premium').forEach(card => {
+        card.style.display = card.getAttribute('data-nombre').includes(query) ? "flex" : "none";
     });
 }
 function filtrarEstado(tipo) {
     document.querySelectorAll('.btn-filtro').forEach(b => b.classList.remove('active'));
     document.getElementById('f-' + tipo).classList.add('active');
-    document.querySelectorAll('.cliente-card').forEach(card => {
+    document.querySelectorAll('.cliente-card-premium').forEach(card => {
         const esMora = card.getAttribute('data-mora') === '1';
-        if (tipo === 'todos') card.style.display = "block";
-        else if (tipo === 'mora' && esMora) card.style.display = "block";
-        else if (tipo === 'aldia' && !esMora) card.style.display = "block";
+        if (tipo === 'todos') card.style.display = "flex";
+        else if (tipo === 'mora' && esMora) card.style.display = "flex";
+        else if (tipo === 'aldia' && !esMora) card.style.display = "flex";
         else card.style.display = "none";
     });
 }
@@ -973,7 +935,7 @@ function calcularCuota() {
 function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota) {
     document.getElementById('abonoClienteId').value = clienteId;
     document.getElementById('abonoNumCuota').value = numCuota;
-    document.getElementById('abonoMontoInput').value = pendiente.toFixed(2);
+    document.getElementById('abonoMontoInput').value = parseFloat(pendiente).toFixed(2);
     document.getElementById('modalAbonoTitulo').innerText = '✏️ Registrar Pago - Cuota #' + numCuota;
     document.getElementById('modalAbono').style.display = 'flex';
 }
@@ -986,7 +948,6 @@ function confirmarAbono() {
 function ejecutarPago(clienteId, numCuota, pendiente) {
     procesarPagoAPI(clienteId, numCuota, pendiente);
 }
-// Variables de control ambiental de carga síncrona multimedia
 let imagenComprimidaB64 = "";
 let fotoListaParaEnviar = false;
 
@@ -1004,10 +965,7 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 
                 const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
                 const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
-                
                 const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
-                // 📲 FIJADO: Enlace wa.me/ con barra diagonal integrada correctamente para evitar bloqueos
-                                // 📲 FIJADO: Enlace de wa.me/ con barra diagonal integrada correctamente para evitar bloqueos
                 const urlWeb = 'https://wa.me' + numPuro + '?text=' + textoMensaje;
                 
                 const btnWs = document.getElementById('modalWsBtn');
@@ -1037,7 +995,6 @@ function ejecutarNoPago(clienteId) {
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'ok') {
-                    // ❌ FIJADO: Recarga el listado dinámico dentro de la misma vista sin cambiar de sección
                     window.location.reload();
                 }
             }).catch(err => alert("Error al procesar el salto: " + err));
@@ -1056,7 +1013,6 @@ function procesarImagenEnCaliente() {
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
-
             const MAX_WIDTH = 800;
             if (width > MAX_WIDTH) {
                 height *= MAX_WIDTH / width;
@@ -1064,10 +1020,8 @@ function procesarImagenEnCaliente() {
             }
             canvas.width = width;
             canvas.height = height;
-
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
-
             imagenComprimidaB64 = canvas.toDataURL('image/jpeg', 0.6);
             document.getElementById('foto_comprimida_b64').value = imagenComprimidaB64;
             fotoListaParaEnviar = true;
@@ -1081,7 +1035,6 @@ function procesarImagenEnCaliente() {
 function procesarYEnviarGasto(event) {
     const fileInput = document.getElementById('foto_mov');
     const form = document.getElementById('formBalance');
-    
     if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
         alert("⏳ Procesando imagen de alta definición... Espera un segundo y vuelve a presionar Guardar.");
         return false;
@@ -1127,6 +1080,7 @@ function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
 </body>
 </html>
 """
+
 @app.route("/login", methods=["GET", "POST"])
 def login_route():
     if request.method == "POST":
