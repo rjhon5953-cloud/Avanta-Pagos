@@ -659,8 +659,9 @@ CONTENIDO_HTML += """
                         </span>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
-                        {% if g.comprobante and g.comprobante != "None" and g.comprobante != "" %}
-                            <button type="button" onclick="cargarYVerFoto({{ g.id }})" style="padding:4px 8px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer;">📷 Ver</button>
+                        <!-- 📸 FIJADO: Validación compatible con bytes de PostgreSQL para pintar el botón al instante -->
+                        {% if g.comprobante is not none and g.comprobante != "" and g.comprobante != "None" %}
+                            <button type="button" onclick="cargarYVerFoto({{ g.id }})" style="padding:4px 8px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:700;">📷 Ver</button>
                         {% endif %}
                         <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Eliminar Gasto?')" style="color:#ef4444; text-decoration:none; font-weight:bold; font-size:14px; margin-left:4px;">🗑️</a>
                     </div>
