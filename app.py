@@ -1545,28 +1545,28 @@ def seccion_listados():
             )
             creditos_f = cursor.fetchall()
             
-            # 📈 3. MÉTRICAS GENERALES DE CARTERA GLOBAL (Consolidado Histórico Permanente)
+            # 📈 3. MÉTRICAS GENERALES DE CARTERA GLOBAL
             cursor.execute(
                 """
                 SELECT 
                     COALESCE(SUM(monto), 0) AS capital_base,
-                    COALESCE(SUM(monto_total), 0) AS cartera_total
+                    COALESCE(SUM(monto_total), 0) AS carter_total
                 FROM clientes
                 """
             )
-            totales_globales = cursor.fetchone()
+            totales_g = cursor.fetchone()
             
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE pagado = 1")
-            total_recaudado_historico = float(cursor.fetchone()["total"])
+            total_rec = float(cursor.fetchone()["total"])
 
-    # Cálculos matemáticos contables procesados de forma nativa en Python
-    base_invertida = float(totales_globales["capital_base"])
-    cartera_esperada = float(totales_globales["cartera_total"])
-    intereses_ganados = max(0.0, cartera_esperada - base_invertida)
-    saldo_restante_calle = max(0.0, cartera_esperada - total_recaudado_historico)
-    porcentaje_efectividad = (total_recaudado_historico / cartera_esperada * 100) if cartera_esperada > 0 else 0.0
+    # 🧬 SANEAMIENTO MATEMÁTICO ABSOLUTO EN BACKEND
+    base_inv = float(totales_g["capital_base"]) if totales_g else 0.0
+    cart_esp = float(totales_g["carter_total"]) if totales_g else 0.0
+    int_ganados = max(0.0, cart_esp - base_inv)
+    saldo_calle = max(0.0, cart_esp - total_rec)
+    porc_efec = (total_rec / cart_esp * 100) if cart_esp > 0 else 0.0
 
-    # 📋 CONSTRUCCIÓN ESTRUCTURAL DE LISTADOS CON HOJAS DE RELIEVE COMPACTAS
+    # 📋 CONSTRUCCIÓN DE FILAS DE RECAUDOS
     html_pagos = "".join([
         f'<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f8fafc; padding:8px 0; font-size:12px;">'
         f'<span style="color:#334155;">👤 <b>{p["nombre"]}</b> <span style="color:#94a3b8; font-size:11px; margin-left:2px;">(Cuota #{p["numero"]})</span></span>'
@@ -1574,71 +1574,67 @@ def seccion_listados():
         f'</div>' for p in pagos_f
     ])
     if not html_pagos:
-        html_pagos = '<p style="font-size:11px; color:#94a3b8; text-align:center; padding:10px;">Sin recaudos asentados en esta fecha.</p>'
+        html_pagos = '<p style="font-size:11px; color:#94a3b8; text-align:center; padding:10px;">Sin recaudos en esta fecha.</p>'
 
     html_creditos = "".join([
         f'<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f8fafc; padding:8px 0; font-size:12px;">'
         f'<span style="color:#334155;">👤 <b>{c["nombre"]}</b></span>'
-        f'<div style="text-align:right;"><span style="font-weight:700; color:#475569; font-size:12px;">Base: ${c["monto"]:.0f}</span>'
-        f'<span style="color:#94a3b8; font-size:10px; display:block; margin-top:1px;">Cartera: ${c["monto_total"]:.0f}</span></div>'
+        f'<div style="text-align:right;"><span style="font-weight:700; color:#475569; font-size:12px;">Base: ${c["monto"]:.2f}</span>'
+        f'<span style="color:#94a3b8; font-size:10px; display:block; margin-top:1px;">Cartera: ${c["monto_total"]:.2f}</span></div>'
         f'</div>' for c in creditos_f
     ])
     if not html_creditos:
-        html_creditos = '<p style="font-size:11px; color:#94a3b8; text-align:center; padding:10px;">Sin créditos entregados en esta fecha.</p>'
-        class interes_ganados:
-            ...
+        html_creditos = '<p style="font-size:11px; color:#94a3b8; text-align:center; padding:10px;">Sin créditos nuevos en esta fecha.</p>'
 
-        html_listados = f"""
+    # 🖼️ MAQUETACIÓN PREMIUM RENDERIZADA DIRECTO DESDE PYTHON EN TEXTO LIMPIO
+    html_listados = f"""
     <div class="section-header-title"><i class="fa-solid fa-chart-pie"></i> AUDITORÍA GENERAL DE CARTERA</div>
-    <p style="font-size:11px; color:#64748b; margin-bottom:14px; text-align:left; padding:0 4px;">Monitoreo y balance consolidado de tus inversiones, utilidades netas generadas y porcentaje de efectividad de cobro en calle.</p>
-
-    <!-- 📊 KPI'S CON RELIEVE Y VOLUMEN REAL TIPO CARTERA MAESTRA -->
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-        <div class="kpi-card" style="border-left:4px solid #0f2b5c; background:white; padding:14px 12px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 6px -1px rgba(0,0,0,0.03);">
-            <div class="kpi-title" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Capital Invertido Base</div>
-            <div class="kpi-val" style="font-size:15px; font-weight:800; color:#0f2b5c; margin-top:2px;">${base_invertida:.2f}</div>
-        </div>
-        <div class="kpi-card" style="border-left:4px solid #10b981; background:white; padding:14px 12px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 6px -1px rgba(0,0,0,0.03);">
-            <div class="kpi-title" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Intereses / Ganancia</div>
-            <div class="kpi-val" style="font-size:15px; font-weight:800; color:#10b981; margin-top:2px;">+${interes_ganados:.2f}</div> # type: ignore # type: ignore
-        </div>
-    </div>
+    <p style="font-size:11px; color:#64748b; margin-bottom:14px; text-align:left; padding:0 4px;">Monitoreo y balance consolidado de tus inversiones, utilidades netas generadas y efectividad de recuperación.</p>
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-        <div class="kpi-card" style="border-left:4px solid #6366f1; background:white; padding:14px 12px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 6px -1px rgba(0,0,0,0.03);">
-            <div class="kpi-title" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Total Cobrado Acum.</div>
-            <div class="kpi-val" style="font-size:15px; font-weight:800; color:#6366f1; margin-top:2px;">${total_recaudado_historico:.2f}</div>
+        <div class="kpi-card" style="border-left:4px solid #0f2b5c; background:white;">
+            <div class="kpi-title">Capital Invertido Base</div>
+            <div class="kpi-val">${base_inv:.2f}</div>
         </div>
-        <div class="kpi-card" style="border-left:4px solid #ef4444; background:white; padding:14px 12px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 6px -1px rgba(0,0,0,0.03);">
-            <div class="kpi-title" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Capital Neto en Calle</div>
-            <div class="kpi-val" style="font-size:15px; font-weight:800; color:#ef4444; margin-top:2px;">${saldo_restante_calle:.2f}</div>
+        <div class="kpi-card" style="border-left:4px solid #10b981; background:white;">
+            <div class="kpi-title">Intereses Proyectados</div>
+            <div class="kpi-val" style="color:#10b981;">+${int_ganados:.2f}</div>
         </div>
     </div>
 
-    <div class="card" style="background:linear-gradient(135deg, #1e3a8a 0%, #0f2b5c 100%); color:white; text-align:center; padding:14px; margin-bottom:14px; border:none; box-shadow:0 4px 14px rgba(15,43,92,0.15); border-radius:14px;">
-        <div class="kpi-title" style="color:white; opacity:0.85; font-weight:700; font-size:10px; text-transform:uppercase;">Efectividad Total de Recuperación</div>
-        <div class="kpi-val" style="color:white; font-size:22px; margin-top:4px; font-weight:800;">{porcentaje_efectividad:.1f}%</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div class="kpi-card" style="border-left:4px solid #6366f1; background:white;">
+            <div class="kpi-title">Recaudado Histórico</div>
+            <div class="kpi-val" style="color:#6366f1;">${total_rec:.2f}</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #ef4444; background:white;">
+            <div class="kpi-title">Capital en la Calle</div>
+            <div class="kpi-val" style="color:#ef4444;">${saldo_calle:.2f}</div>
+        </div>
     </div>
 
-    <!-- 🔍 SELECTOR DINÁMICO DE FILTRADO POR FECHAS -->
-    <div class="card" style="padding:16px; border-top:4px solid #00a8cc; border-radius:14px; border-left:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">
+    <div class="card" style="background:linear-gradient(135deg, #1e3a8a 0%, #0f2b5c 100%); color:white; text-align:center; padding:14px; margin-bottom:14px; border:none; box-shadow:0 4px 14px rgba(15,43,92,0.15);">
+        <div class="kpi-title" style="color:white; opacity:0.85; font-weight:700;">Efectividad de Recuperación</div>
+        <div class="kpi-val" style="color:white; font-size:22px; margin-top:4px; font-weight:800;">{porc_efec:.1f}%</div>
+    </div>
+
+    <div class="card" style="padding:16px; border-top:4px solid #00a8cc;">
         <form action="/menu/listados" method="GET" onsubmit="event.preventDefault(); navegarRuta('/menu/listados?fecha_auditoria=' + document.getElementById('fecha_auditor').value);">
-            <label style="font-weight:700; color:#334155; margin-bottom:6px; font-size:11px; display:block; text-align:left;">Auditar Fecha Específica</label>
+            <label style="font-weight:700; color:#334155; margin-bottom:6px; display:block;">Auditar Fecha Específica</label>
             <div style="display:flex; gap:8px; align-items:center; margin-top:4px;">
-                <input type="date" id="fecha_auditor" value="{fecha_filtro}" style="flex:1; border-radius:10px; padding:11px; border:1px solid #cbd5e1; outline:none; font-size:13px;">
-                <button type="submit" class="btn-accion btn-pagar" style="background:#0f2b5c; padding:12px 16px; border-radius:10px; height:42px; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer; color:white;"><i class="fa-solid fa-magnifying-glass" style="font-size:14px;"></i></button>
+                <input type="date" id="fecha_auditor" value="{fecha_filtro}" style="flex:1;">
+                <button type="submit" class="btn-accion btn-pagar" style="background:#0f2b5c; padding:12px 16px; border-radius:10px; border:none; height:42px; display:flex; align-items:center; justify-content:center; color:white; cursor:pointer;"><i class="fa-solid fa-magnifying-glass"></i></button>
             </div>
         </form>
     </div>
 
-    <!-- 📋 LISTADOS DETALLADOS COMPACTOS -->
-    <div class="card" style="padding:16px; text-align:left; border-radius:14px; border:1px solid #e2e8f0; box-shadow:0 4px 6px -1px rgba(0,0,0,0.03);">
-        <h4 style="font-size:13px; color:#10b981; margin-bottom:10px; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><i class="fa-solid fa-money-bill-trend-up"></i> Recaudos Asentados en la Fecha</h4>
+    <div class="card" style="padding:16px; text-align:left;">
+        <h4 style="font-size:13px; color:#10b981; margin-bottom:10px; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><i class="fa-solid fa-money-bill-trend-up"></i> Recaudos de la Fecha</h4>
         {html_pagos}
     </div>
 
-    <div class="card" style="padding:16px; text-align:left; border-radius:14px; border:1px solid #e2e8f0; box-shadow:0 4px 6px -1px rgba(0,0,0,0.03); margin-top:12px;">
-        <h4 style="font-size:13px; color:#0f2b5c; margin-bottom:10px; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><i class="fa-solid fa-user-plus"></i> Nuevos Créditos Entregados en la Fecha</h4>
+    <div class="card" style="padding:16px; text-align:left; margin-top:12px;">
+        <h4 style="font-size:13px; color:#0f2b5c; margin-bottom:10px; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><i class="fa-solid fa-user-plus"></i> Créditos Nuevos de la Fecha</h4>
         {html_creditos}
     </div>
     """
