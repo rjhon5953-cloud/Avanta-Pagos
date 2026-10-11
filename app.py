@@ -566,27 +566,76 @@ CONTENIDO_HTML += """
     </div>
 
 {% elif vista == 'nuevo' or vista == 'renovar' %}
-    <h3 style="margin-top:0; color:#0f2b5c;">{% if vista == 'renovar' %}🔄 Renovar Crédito a {{ cliente.nombre }}{% else %}👤 Registro de Crédito / Venta{% endif %}</h3>
-    <div class="card" style="padding:16px;">
+    <!-- 👤 MODULO DE APERTURA Y RENOVACIONES PREMIUM CON VOLUMEN -->
+    <div class="section-header-title">
+        <i class="fa-solid fa-user-plus"></i> {% if vista == 'renovar' %}RENOVAR CRÉDITO ACTIVO{% else %}REGISTRO DE NUEVO CRÉDITO{% endif %}
+    </div>
+    <p style="font-size:11px; color:#64748b; margin-bottom:14px; text-align:left; padding:0 4px;">
+        {% if vista == 'renovar' %}Restaura y refinancia la cuenta corriente de tu cliente. El sistema reajustará sus saldos históricos en Neon Cloud.{% else %}Ingresa los datos comerciales de la persona para dar de alta su préstamo e inicializar sus tablas contables de cobro.{% endif %}
+    </p>
+
+    <div class="card" style="padding:18px; border-radius:14px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border:1px solid #e2e8f0; text-align:left;">
         <form action="/guardar" method="POST">
-            {% if vista == 'renovar' %}<input type="hidden" name="cliente_id" value="{{ cliente.id }}">{% endif %}
-            <label>Nombre del Cliente</label><input type="text" name="nombre" value="{{ cliente.nombre if cliente else '' }}" required>
-            <label>WhatsApp</label><input type="text" name="telefono" value="{{ cliente.telefono if cliente else '' }}" required>
-            <label>Identificación / Cédula</label><input type="text" name="identificacion" value="{{ cliente.identificacion if cliente else '' }}">
-            <label>Dirección Domiciliaria</label><input type="text" name="direccion" value="{{ cliente.direccion if cliente else '' }}">
-            <label>Referencia Local</label><input type="text" name="referencia" value="{{ cliente.referencia if cliente else '' }}">
-            <label>Monto Financiado ($)</label><input type="number" step="any" id="calcMonto" name="monto" oninput="calcularCuota()" required>
-            <label>Interés (%)</label><input type="number" step="any" id="calcInteres" name="interes_porcentaje" value="20" oninput="calcularCuota()" required>
-            <label>Cuotas</label><input type="number" id="calcCuotas" name="cuotas" value="24" oninput="calcularCuota()" required>
-            <div id="simulacionText" style="font-weight:bold; color:#0369a1; margin:6px 0;">$0.00 / cuota</div>
-            <label>Frecuencia</label>
-            <select name="frecuencia"><option value="Diaria">Diaria</option><option value="Semanal">Semanal</option></select>
-            <label>Fecha de Inicio</label><input type="date" name="fecha_inicio" value="{{ hoy_str }}" required>
-            <input type="hidden" id="input_latitud" name="latitud"><input type="hidden" id="input_longitud" name="longitud">
-            <!-- ⚡ CORREGIDO: Se cambia 'btn-primary' por 'btn-accion btn-pagar' para heredar el comportamiento de clic prioritario -->
-            <button type="submit" class="btn-accion btn-pagar" style="width:100%; padding:12px; margin-top:8px; font-size:13px; font-weight:800;">💾 Guardar e Inicializar Tablas</button>
+            {% if vista == 'renovar' %}
+                <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
+                <div class="expected-card" style="border-left:4px solid #f59e0b; background:#fffbeb; padding:10px; border-radius:8px; margin-bottom:12px;">
+                    <span style="font-size:11px; color:#b45309; font-weight:800; text-transform:uppercase; display:block;">Cliente Seleccionado para Renovación</span>
+                    <b style="color:#78350f; font-size:14px;">{{ cliente.nombre }}</b>
+                </div>
+            {% endif %}
+
+            <label style="font-weight:700; color:#475569; font-size:11px;">Nombre Completo del Cliente</label>
+            <input type="text" name="nombre" value="{{ cliente.nombre if cliente else '' }}" required style="margin-bottom:10px; border-radius:10px; padding:11px;" placeholder="Ej: Jorge Sánchez">
+            
+            <label style="font-weight:700; color:#475569; font-size:11px;">WhatsApp de Contacto (Celular)</label>
+            <input type="text" name="telefono" value="{{ cliente.telefono if cliente else '' }}" required style="margin-bottom:10px; border-radius:10px; padding:11px;" placeholder="Ej: 593991234567">
+            
+            <label style="font-weight:700; color:#475569; font-size:11px;">Identificación / Número de Cédula</label>
+            <input type="text" name="identificacion" value="{{ cliente.identificacion if cliente else '' }}" style="margin-bottom:10px; border-radius:10px; padding:11px;" placeholder="Nro de documento">
+            
+            <label style="font-weight:700; color:#475569; font-size:11px;">Dirección Domiciliaria Exacta</label>
+            <input type="text" name="direccion" value="{{ cliente.direccion if cliente else '' }}" style="margin-bottom:10px; border-radius:10px; padding:11px;" placeholder="Calle principal y nro de casa">
+            
+            <label style="font-weight:700; color:#475569; font-size:11px;">Referencia Comercial del Local</label>
+            <input type="text" name="referencia" value="{{ cliente.referencia if cliente else '' }}" style="margin-bottom:12px; border-radius:10px; padding:11px;" placeholder="Ej: Al lado de la tienda de abastos">
+            
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:12px;">
+                <span style="font-size:12px; font-weight:800; color:#0f2b5c; display:block; margin-bottom:8px; border-bottom:1px solid #f1f5f9; padding-bottom:4px;"><i class="fa-solid fa-calculator"></i> CONFIGURACIÓN Y SIMULACIÓN FINANCIERA</span>
+                
+                <label style="font-weight:700; color:#475569; font-size:11px;">Monto del Préstamo / Dinero Financiado ($)</label>
+                <input type="number" step="any" id="calcMonto" name="monto" oninput="calcularCuota()" required style="margin-bottom:10px; border-radius:10px; padding:11px; background:white;" placeholder="0.00">
+                
+                <label style="font-weight:700; color:#475569; font-size:11px;">Tasa de Interés Operativo (%)</label>
+                <input type="number" step="any" id="calcInteres" name="interes_porcentaje" value="20" oninput="calcularCuota()" required style="margin-bottom:10px; border-radius:10px; padding:11px; background:white;">
+                
+                <label style="font-weight:700; color:#475569; font-size:11px;">Número de Cuotas Totales a Diferar</label>
+                <input type="number" id="calcCuotas" name="cuotas" value="24" oninput="calcularCuota()" required style="margin-bottom:12px; border-radius:10px; padding:11px; background:white;">
+                
+                <!-- 🎯 NOTA: El cuadro de texto simulado está forzado para que conviva impecable en ambas pantallas -->
+                <div class="card" style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:10px; padding:10px; text-align:center; margin-bottom:4px; box-shadow:none;">
+                    <div style="font-size:10px; color:#0369a1; font-weight:800; text-transform:uppercase;">Valor Proporcional Proyectado</div>
+                    <div id="simulacionText" style="font-size:18px; font-weight:800; color:#0369a1; margin-top:2px;">$0.00 / cuota</div>
+                </div>
+            </div>
+
+            <label style="font-weight:700; color:#475569; font-size:11px;">Frecuencia del Plan de Pagos</label>
+            <select name="frecuencia" style="margin-bottom:10px; border-radius:10px; padding:11px;">
+                <option value="Diaria" {% if cliente and cliente.frecuencia == 'Diaria' %}selected{% endif %}>📆 Cobro Diario (Omitiendo Domingos)</option>
+                <option value="Semanal" {% if cliente and cliente.frecuencia == 'Semanal' %}selected{% endif %}>📅 Cobro Semanal Fijo</option>
+            </select>
+            
+            <label style="font-weight:700; color:#475569; font-size:11px;">Fecha de Inicio de Facturación</label>
+            <input type="date" name="fecha_inicio" value="{{ hoy_str }}" required style="margin-bottom:14px; border-radius:10px; padding:11px;">
+            
+            <input type="hidden" id="input_latitud" name="latitud">
+            <input type="hidden" id="input_longitud" name="longitud">
+            
+            <button type="submit" class="btn-accion btn-pagar" style="width:100%; padding:14px; font-weight:800; border-radius:10px; background:#10b981; border:none; color:white; font-size:13px; box-shadow: 0 4px 6px rgba(16,185,129,0.15); cursor:pointer;">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Guardar e Inicializar Tablas en Neon
+            </button>
         </form>
     </div>
+{% endif %}
 
 {% elif vista == 'balance' or vista == 'gastos' %}
     <div class="section-header-title"><i class="fa-solid fa-scale-balanced"></i> Estado Contable del Balance</div>
@@ -922,12 +971,24 @@ function filtrarEstado(tipo) {
     });
 }
 function calcularCuota() {
-    const monto = parseFloat(document.getElementById('calcMonto').value) || 0;
-    const interes = parseFloat(document.getElementById('calcInteres').value) || 0;
-    const cuotas = parseInt(document.getElementById('calcCuotas').value) || 0;
+    // 🧬 SANEAMIENTO LOGICO EN TIEMPO REAL: Evita que el script aborte si el elemento se carga de forma diferida
+    const montoInput = document.getElementById('calcMonto');
+    const interesInput = document.getElementById('calcInteres');
+    const cuotasInput = document.getElementById('calcCuotas');
+    const textOutput = document.getElementById('simulacionText');
+
+    if (!montoInput || !interesInput || !cuotasInput || !textOutput) return;
+
+    const monto = parseFloat(montoInput.value) || 0;
+    const interes = parseFloat(interesInput.value) || 0;
+    const cuotas = parseInt(cuotasInput.value) || 0;
+
     if (monto > 0 && cuotas > 0) {
-        const total = monto * (1 + (interes / 100));
-        document.getElementById('simulacionText').innerText = '$' + (total / cuotas).toFixed(2) + ' / cuota';
+        const totalConInteres = monto * (1 + (interes / 100));
+        const valorPorCuota = totalConInteres / cuotas;
+        textOutput.innerText = '$' + valorPorCuota.toFixed(2) + ' / cuota';
+    } else {
+        textOutput.innerText = '$0.00 / cuota';
     }
 }
 function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota) {
