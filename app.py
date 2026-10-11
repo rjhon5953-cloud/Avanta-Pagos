@@ -1048,22 +1048,10 @@ function procesarYEnviarGasto(event) {
 }
 
 function cargarYVerFoto(gastoId) {
-    fetch('/api/gasto_foto/' + gastoId)
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'ok' && data.comprobante) {
-                const img = document.getElementById('imgComprobante');
-                img.src = ""; 
-                let textoB64 = data.comprobante.replace(/\\n/g, '').replace(/\\r/g, '').trim();
-                if (!textoB64.startsWith('data:image')) {
-                    textoB64 = 'data:image/jpeg;base64,' + textoB64;
-                }
-                img.src = textoB64;
-                document.getElementById('modalFoto').style.display = 'flex';
-            } else {
-                alert("⚠️ No se pudo cargar la imagen o el registro no tiene comprobante.");
-            }
-        }).catch(err => alert("Error al conectar con el servidor: " + err));
+    // ⚡ CONEXIÓN DIRECTA MULTIMEDIA: El src lee la ruta del archivo real salteándose bloqueos de Brave
+    const img = document.getElementById('imgComprobante');
+    img.src = "/api/gasto_foto/" + gastoId;
+    document.getElementById('modalFoto').style.display = 'flex';
 }
 
 function revertirGestionDia(tipo, id) {
@@ -1318,7 +1306,7 @@ def seccion_balance_maestro():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 🏢 FIJADO: Uso de alias explícitos 'AS val' para asegurar compatibilidad total con DictCursor
+            # 🏢 1. Recuperamos la Caja Base asignada al cobrador
             cursor.execute("SELECT valor AS val FROM configuracion WHERE llave = 'caja_base'")
             res_caja = cursor.fetchone()
             caja_base = float(res_caja["val"]) if res_caja else 100.00
@@ -1327,32 +1315,47 @@ def seccion_balance_maestro():
             res_estado = cursor.fetchone()
             balance_estado = res_estado["val"] if res_estado else "Sin cerrar"
             
+            # 📥 2. FIJADO: Sumatoria en tiempo real de todos los cobros de cuotas realizados en la calle hoy
+            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s AND pagado = 1", (hoy_str,))
+            abonos_de_cuotas_hoy = float(cursor.fetchone()["total"])
+            
+            # 📥 3. Recuperamos los movimientos manuales asentados en la caja hoy
             cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
             movimientos = cursor.fetchall()
             
-    entradas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Entrada")
-    salidas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Salida")
-    efectivo_neto = caja_base + entradas_totales - salidas_totales
+    # Separamos inversiones manuales de gastos manuales
+    entradas_manuales = sum(m["monto"] for m in movimientos if m["tipo"] == "Entrada")
+    salidas_gastos = sum(m["monto"] for m in movimientos if m["tipo"] == "Salida")
+    
+    # 📊 FÓRMULA CONTABLE DE LIQUIDEZ REAL (Caja Base + Cobros del Día + Entradas Manuales - Gastos)
+    entradas_totales = abonos_de_cuotas_hoy + entradas_manuales
+    efectivo_neto = caja_base + entradas_totales - salidas_gastos
     
     movimientos_limpios = []
     for m in movimientos:
         m_dict = dict(m)
-        # 🧼 Saneamiento crítico para DictCursor: limpia el Base64 y asegura que nunca devuelva un string roto o un None oculto
         if m_dict["comprobante"] and str(m_dict["comprobante"]).strip() != "" and m_dict["comprobante"] != "None":
             try:
                 comprobante_puro = str(m_dict["comprobante"]).replace("\n", "").replace("\r", "").strip()
                 if "base64," in comprobante_puro:
                     comprobante_puro = comprobante_puro.split("base64,")[-1]
                 m_dict["comprobante"] = comprobante_puro
-            except Exception as b64_err:
-                print(f"Error procesando imagen en backend: {b64_err}")
+            except Exception:
                 m_dict["comprobante"] = ""
         else:
             m_dict["comprobante"] = ""
-            
         movimientos_limpios.append(m_dict)
             
-    contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos_limpios, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
+    contexto = dict(
+        vista="balance", 
+        caja_base=caja_base, 
+        balance_estado=balance_estado, 
+        gastos_list=movimientos_limpios, 
+        entradas_totales=entradas_totales, 
+        salidas_totales=salidas_gastos, 
+        efectivo_neto=efectivo_neto
+    )
+    
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     nombre_emp, tel_emp = obtener_ajustes_empresa()
@@ -1447,16 +1450,21 @@ def balance_guardar_movimiento():
     hoy_str = date.today().isoformat()
     if not concepto: concepto = "Flujo de " + categoria
     
-    # 📸 FIJADO: Captura el string comprimido de la imagen que le envía el nuevo formulario JavaScript
-    base64_str = request.form.get("foto_comprimida_b64", "").strip()
+    # 📸 PROCESAMIENTO BINARIO NATIVO: Captura el archivo binario directo de la cámara sin Base64
+    foto_archivo = request.files.get("foto_mov")
+    bytes_imagen = None
+    if foto_archivo and foto_archivo.filename != "":
+        bytes_imagen = foto_archivo.read()
     
     with get_db() as conn:
         with conn.cursor() as cursor:
+            # Forzamos la creación de la columna tipo BYTEA si Neon la creó antes como TEXT
+            cursor.execute("ALTER TABLE balance_movimientos ALTER COLUMN comprobante TYPE BYTEA USING comprobante::bytea")
             cursor.execute(
                 """
                 INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante) 
                 VALUES (%s, %s, %s, %s, %s, %s)
-                """, (tipo, categoria, concepto, monto, hoy_str, base64_str)
+                """, (tipo, categoria, concepto, monto, hoy_str, psycopg2.Binary(bytes_imagen) if bytes_imagen else None)
             )
         conn.commit()
     return redirect("/menu/balance")
@@ -1896,28 +1904,20 @@ def api_lista_negra(id):
 
 @app.route("/api/gasto_foto/<int:gasto_id>")
 def api_gasto_foto(gasto_id):
-    if not session.get("autenticado"): 
-        return jsonify({"status": "error", "message": "No autorizado"})
-        
+    if not session.get("autenticado"): return redirect("/login")
+    
     with get_db() as conn:
         with conn.cursor() as cursor:
             cursor.execute("SELECT comprobante FROM balance_movimientos WHERE id = %s", (gasto_id,))
             res = cursor.fetchone()
             
+    # 🛡️ Retorna el archivo binario crudo con su tipo MIME correcto para pintar la foto al instante
     if res and res["comprobante"]:
-        comprobante_puro = str(res["comprobante"]).replace("\n", "").replace("\r", "").strip()
+        import io
+        bytes_foto = bytes(res["comprobante"])
+        return send_file(io.BytesIO(bytes_foto), mimetype="image/jpeg")
         
-        # 🧼 Limpieza absoluta de residuos anteriores del cursor
-        if "base64," in comprobante_puro:
-            comprobante_puro = comprobante_puro.split("base64,")[-1]
-            
-        # 🛡️ FIJADO: Retornamos la respuesta forzando cabeceras de origen seguro para romper el bloqueo de Chrome
-        respuesta = jsonify({"status": "ok", "comprobante": comprobante_puro})
-        respuesta.headers.add("Access-Control-Allow-Origin", "*")
-        respuesta.headers.add("Content-Type", "application/json")
-        return respuesta
-        
-    return jsonify({"status": "error", "message": "No encontrado"})
+    return "Imagen no encontrada", 404
 
 @app.route("/menu/pagos_hoy")
 def seccion_pagos_hoy():
