@@ -763,8 +763,9 @@ HTML_TEMPLATE = """
     <div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer()"></div>
     <div class="drawer" id="drawer">
         <div class="drawer-header">
-            <div class="drawer-logo">🌐 AVANTA PAGOS v1.3</div>
-            <div style="font-size:11px; opacity:0.8; margin-top:4px;"><i class="fa-solid fa-phone"></i> Soporte: +593991234567</div>
+            <div class="drawer-logo">🌐 {{ empresa_nombre }} v1.3</div>
+            <div style="font-size:11px; opacity:0.8; margin-top:4px;"><i class="fa-solid fa-phone"></i> Soporte: +{{ empresa_telefono }}
+    </div>
         </div>
         <ul class="drawer-menu">
             <li><a href="#" onclick="navegarRuta('/')"><i class="fa-solid fa-map-location-dot"></i> Ruta Principal</a></li>
@@ -1112,6 +1113,18 @@ def logout():
     session.clear()
     return redirect("/login")
 
+# 🌐 EXTRACTOR COMPACTO DE CONFIGURACIÓN DINÁMICA
+def obtener_ajustes_empresa():
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT llave, valor FROM configuracion")
+                filas = cursor.fetchall()
+        cfg = {f["llave"]: f["valor"] for f in filas}
+        return cfg.get("empresa_nombre", "AVANTA PAGOS"), cfg.get("empresa_telefono", "593991234567")
+    except Exception:
+        return "AVANTA PAGOS", "593991234567"
+
 @app.route("/")
 def dashboard_principal():
     if not session.get("autenticado"): 
@@ -1231,7 +1244,9 @@ def dashboard_principal():
     contexto_dash += "</div>"
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(contexto_dash)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(contexto_dash))
+    nombre_emp, tel_emp = obtener_ajustes_empresa()
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(...), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
+
 
 @app.route("/menu/clientes")
 def seccion_clientes_maestro():
@@ -1293,7 +1308,8 @@ def seccion_creditos_activos():
     )
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
+    nombre_emp, tel_emp = obtener_ajustes_empresa()
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(...), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
 
 @app.route("/menu/balance")
 def seccion_balance_maestro():
@@ -1339,7 +1355,8 @@ def seccion_balance_maestro():
     contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos_limpios, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
+    nombre_emp, tel_emp = obtener_ajustes_empresa()
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(...), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
 
 @app.route("/nuevo")
 @app.route("/mover_renovacion/<int:cliente_id>")
@@ -1356,7 +1373,8 @@ def seccion_nuevo_credito(cliente_id=None):
     contexto = dict(vista="nuevo", hoy_str=hoy_str, cliente=cliente)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
+    nombre_emp, tel_emp = obtener_ajustes_empresa()
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(...), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
 
 @app.route("/guardar", methods=["POST"])
 def guardar_nuevo_cliente():
@@ -1800,17 +1818,72 @@ def api_marcar_no_pago(cliente_id):
 @app.route("/menu/bluetooth")
 @app.route("/menu/configuracion")
 def seccion_configuracion_sistema():
-    html_config = """
-    <div class="section-header-title"><i class="fa-solid fa-sliders"></i> Panel de Configuración y Acciones</div>
-    <div class="card" style="text-align:left;">
-        <h4 style="font-size:13px; color:#0f2b5c; margin-bottom:8px;">🛠️ Mantenimiento Base</h4>
-        <button type="button" onclick="alert('Estados de ruta diarias reiniciados con éxito.');" style="background:#475569; color:white; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; width:100%; cursor:pointer;">Resetear Estados de Cobro Diarios</button>
-        <button type="button" onclick="alert('Buscando dispositivos térmicos de 58mm...');" style="background:#0284c7; color:white; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; margin-top:8px; width:100%; cursor:pointer;">🔄 Sincronizar Impresora Bluetooth Portátil</button>
+    if not session.get("autenticado"): return "Sesión expirada"
+    
+    # 🏢 Recuperamos de Neon las variables de configuración vigentes de la empresa
+    with get_db() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT llave, valor FROM configuracion")
+            filas = cursor.fetchall()
+            
+    # Mapeamos a un diccionario limpio compatible con DictCursor
+    cfg = {f["llave"]: f["valor"] for f in filas}
+    
+    # Valores de fábrica si no existen en la base de datos
+    empresa = cfg.get("empresa_nombre", "AVANTA PAGOS")
+    telefono = cfg.get("empresa_telefono", "593991234567")
+    encabezado = cfg.get("ticket_encabezado", "¡BIENVENIDO A AVANTA PAGOS!")
+    caja = cfg.get("caja_base", "100.00")
+    
+    # 🎨 MAQUETA DEL FORMULARIO INTEGRADA CON RELIEVE PREMIUM
+    html_config = f"""
+    <div class="section-header-title"><i class="fa-solid fa-sliders"></i> AJUSTES DEL SISTEMA</div>
+    <p style="font-size:11px; color:#64748b; margin-bottom:14px; text-align:left; padding:0 4px;">Modifica los parámetros comerciales de tu ruta. Los cambios se aplicarán al instante en los recibos impresos y de WhatsApp.</p>
+    
+    <div class="card" style="padding:16px; border-radius:14px; text-align:left; border-top:4px solid #0f2b5c;">
+        <form action="/api/configuracion/guardar" method="POST" onsubmit="event.preventDefault(); fetch('/api/configuracion/guardar', {{ method: 'POST', body: new FormData(this) }}).then(res => res.json()).then(d => {{ if(d.status==='ok') alert('✅ Ajustes de empresa guardados en Neon Cloud.'); window.location.reload(); }});">
+            <label style="font-weight:700; color:#334155;">Nombre de la Empresa / Ruta</label>
+            <input type="text" name="empresa_nombre" value="{empresa}" required style="margin-bottom:10px; border-radius:10px;">
+            
+            <label style="font-weight:700; color:#334155;">WhatsApp de Soporte Comercial</label>
+            <input type="text" name="empresa_telefono" value="{telefono}" required style="margin-bottom:10px; border-radius:10px;">
+            
+            <label style="font-weight:700; color:#334155;">Encabezado del Recibo Térmico</label>
+            <input type="text" name="ticket_encabezado" value="{encabezado}" required style="margin-bottom:10px; border-radius:10px;">
+            
+            <label style="font-weight:700; color:#334155;">Base de Caja Inicial ($)</label>
+            <input type="number" step="any" name="caja_base" value="{caja}" required style="margin-bottom:14px; border-radius:10px;">
+            
+            <button type="submit" class="btn-accion btn-pagar" style="width:100%; padding:12px; font-weight:800; border-radius:10px; cursor:pointer; background:#10b981; border:none; color:white;"><i class="fa-solid fa-floppy-disk"></i> Actualizar Configuración</button>
+        </form>
+    </div>
+    
+    <div class="card" style="text-align:left; padding:16px; margin-top:12px; border-radius:14px;">
+        <h4 style="font-size:12px; color:#0f2b5c; margin-bottom:8px; font-weight:800; text-transform:uppercase;">🛠️ Mantenimiento Base</h4>
+        <button type="button" onclick="alert('Estados de ruta diarias reiniciados con éxito.');" style="background:#475569; color:white; border:none; padding:11px; border-radius:10px; font-size:12px; font-weight:bold; width:100%; cursor:pointer;">Resetear Estados de Cobro Diarios</button>
+        <button type="button" onclick="alert('Buscando dispositivos térmicos de 58mm...');" style="background:#0284c7; color:white; border:none; padding:11px; border-radius:10px; font-size:12px; font-weight:bold; margin-top:8px; width:100%; cursor:pointer;">🔄 Sincronizar Impresora Bluetooth Portátil</button>
     </div>
     """
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(html_config)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_config))
+
+@app.route("/api/configuracion/guardar", methods=["POST"])
+def api_guardar_configuracion():
+    if not session.get("autenticado"): return jsonify({"status": "error"})
+    
+    with get_db() as conn:
+        with conn.cursor() as cursor:
+            # Recorremos de forma segura los parámetros enviados en el formulario para actualizarlos en Neon
+            for llave in ["empresa_nombre", "empresa_telefono", "ticket_encabezado", "caja_base"]:
+                valor_ingresado = request.form.get(llave, "").strip()
+                if valor_ingresado:
+                    cursor.execute(
+                        "INSERT INTO configuracion (llave, valor) VALUES (%s, %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
+                        (llave, valor_ingresado)
+                    )
+        conn.commit()
+    return jsonify({"status": "ok"})
 
 @app.route("/api/clientes/lista_negra/<int:id>")
 def api_lista_negra(id):
