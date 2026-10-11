@@ -638,86 +638,85 @@ CONTENIDO_HTML += """
 {% endif %}
 
 {% elif vista == 'balance' or vista == 'gastos' %}
-    <div class="section-header-title"><i class="fa-solid fa-scale-balanced"></i> Estado Contable del Balance</div>
-    <div class="expected-card" style="border-left: 5px solid #10b981; background:#ecfdf5; padding:12px; border-radius:12px; margin-bottom:12px; text-align:left;">
-        <div class="kpi-title" style="color:#065f46;">Estado Actual</div>
-        <div class="kpi-val" style="color:#065f46; font-size:14px;">Sin Cerrar | Caja Base: ${{ "%.2f"|format(caja_base) }}</div>
+    <!-- 🏢 SECCIÓN DE BALANCE CONTABLE CORPORATIVO CON VOLUMEN -->
+    <div class="section-header-title"><i class="fa-solid fa-scale-balanced"></i> ESTADO CONTABLE DE CAJA</div>
+    <p style="font-size:11px; color:#64748b; margin-bottom:14px; text-align:left; padding:0 4px;">Audita el flujo de dinero en efectivo de la ruta. Monitorea la base entregada, los cobros del día y los gastos operativos.</p>
+
+    <div class="expected-card" style="border-left: 5px solid #10b981; background: linear-gradient(to right, #ecfdf5, #ffffff); padding:14px; border-radius:14px; margin-bottom:12px; text-align:left; box-shadow: 0 4px 6px rgba(16,185,129,0.05);">
+        <div class="kpi-title" style="color:#065f46; font-weight:800;">Estado de la Ruta del Día</div>
+        <div class="kpi-val" style="color:#065f46; font-size:14px; margin-top:2px; font-weight:800;">🟢 Ruta Activa | Caja Base: <b>${{ "%.2f"|format(caja_base) }}</b></div>
     </div>
     
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
-        <div class="kpi-card" style="border-left:4px solid #10b981; background:white; padding:10px; border-radius:8px;">
-            <div class="kpi-title">Inversión / Entradas</div>
-            <div class="kpi-val" style="color:#10b981;">+${{ "%.2f"|format(entradas_totales) }}</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div class="kpi-card" style="border-left:4px solid #10b981; background:white; padding:14px 12px; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+            <div class="kpi-title" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Cobros + Entradas</div>
+            <div class="kpi-val" style="color:#10b981; font-weight:800; font-size:16px; margin-top:2px;">+${{ "%.2f"|format(entradas_totales) }}</div>
         </div>
-        <div class="kpi-card" style="border-left:4px solid #ef4444; background:white; padding:10px; border-radius:8px;">
-            <div class="kpi-title">Salidas / Gastos</div>
-            <div class="kpi-val" style="color:#ef4444;">-${{ "%.2f"|format(salidas_totales) }}</div>
+        <div class="kpi-card" style="border-left:4px solid #ef4444; background:white; padding:14px 12px; border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+            <div class="kpi-title" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Salidas / Gastos</div>
+            <div class="kpi-val" style="color:#ef4444; font-weight:800; font-size:16px; margin-top:2px;">-${{ "%.2f"|format(salidas_totales) }}</div>
         </div>
     </div>
 
-    <div class="card" style="background:#0f2b5c; color:white; text-align:center; padding:12px; margin-bottom:12px;">
-        <div class="kpi-title" style="color:white; opacity:0.8;">Efectivo Líquido Neto</div>
-        <div class="kpi-val" style="color:white; font-size:20px; margin-top:2px;">${{ "%.2f"|format(efectivo_neto) }}</div>
+    <div class="card" style="background: linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 100%); color:white; text-align:center; padding:16px; margin-bottom:14px; border:none; border-radius:14px; box-shadow: 0 6px 16px rgba(15,43,92,0.18);">
+        <div class="kpi-title" style="color:white; opacity:0.85; font-weight:700; letter-spacing:0.5px; font-size:10px; text-transform:uppercase;">EFECTIVO TOTAL EN MANO DEL COBRADOR</div>
+        <div class="kpi-val" style="color:white; font-size:24px; margin-top:4px; font-weight:800; text-shadow: 0 2px 4px rgba(0,0,0,0.15);">${{ "%.2f"|format(efectivo_neto) }}</div>
     </div>
 
-    <div class="card" style="padding:16px;">
-        <div class="kpi-title" style="margin-bottom:8px;">Registrar Movimiento de Flujo</div>
-        <!-- 🔑 FIJADO: Envío tradicional cancelado. Delegado al script asíncrono controlado procesarYEnviarGasto -->
-        <form id="formBalance" method="POST" action="/api/balance/guardar_movimiento">
-            <label>Tipo de Flujo</label>
-            <select name="tipo_mov" id="tipo_mov" required>
-                <option value="Entrada">📥 Entrada / Inversión Capital</option>
+    <!-- 📝 FORMULARIO DE REGISTRO CON CONTENEDORES ESTILIZADOS -->
+    <div class="card" style="padding:18px; border-radius:14px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border:1px solid #e2e8f0; text-align:left;">
+        <h4 style="font-size:14px; color:#0f2b5c; font-weight:800; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><i class="fa-solid fa-pen-to-square"></i> Registrar Movimiento de Flujo</h4>
+        <form id="formBalance" method="POST" action="/api/balance/guardar_movimiento" enctype="multipart/form-data">
+            <label style="font-weight:700; color:#475569; font-size:11px;">Tipo de Flujo</label>
+            <select name="tipo_mov" style="margin-bottom:10px; border-radius:10px; padding:11px; width:100%; border:1px solid #cbd5e1; outline:none;">
                 <option value="Salida" selected>📤 Salida / Registro de Gasto</option>
+                <option value="Entrada">📥 Entrada / Inversión de Capital</option>
             </select>
             
-            <label>Categoría del Movimiento</label>
-            <select name="categoria_mov" id="categoria_mov">
-                <option value="Inversión">💰 Inversión de Capital</option>
+            <label style="font-weight:700; color:#475569; font-size:11px;">Categoría del Movimiento</label>
+            <select name="categoria_mov" style="margin-bottom:10px; border-radius:10px; padding:11px; width:100%; border:1px solid #cbd5e1; outline:none;">
                 <option value="Gasolina">⛽ Gasolina</option>
                 <option value="Almuerzo">🍔 Almuerzo</option>
                 <option value="Mantenimiento">🛠️ Mantenimiento Vehículo</option>
-                <option value="Viáticos">🎒 Viáticos de Ruta</option>
-                <option value="Sueldo">💵 Comisión</option>
+                <option value="Sueldo">💵 Comisión / Sueldo</option>
                 <option value="Otros" selected>📦 Otros</option>
             </select>
             
-            <label>Descripción / Detalle</label>
-            <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Compra de repuestos de moto" required>
+            <label style="font-weight:700; color:#475569; font-size:11px;">Descripción / Detalle</label>
+            <input type="text" name="concepto_mov" placeholder="Ej: Compra de repuestos de moto" required style="margin-bottom:10px; border-radius:10px; padding:11px; width:100%; border:1px solid #cbd5e1; outline:none;">
             
-            <label>Monto ($)</label>
-            <input type="number" step="any" name="monto_mov" id="monto_mov" placeholder="Valor en dinero" required>
+            <label style="font-weight:700; color:#475569; font-size:11px;">Monto del Dinero ($)</label>
+            <input type="number" step="any" name="monto_mov" placeholder="0.00" required style="margin-bottom:12px; border-radius:10px; padding:11px; width:100%; border:1px solid #cbd5e1; outline:none;">
             
-            <label>📸 Foto Factura / Comprobante</label>
-            <input type="file" id="foto_mov" accept="image/*" capture="environment" style="border:none; padding:4px 0;" onchange="procesarImagenEnCaliente()">
+            <label style="font-weight:700; color:#475569; font-size:11px;">📸 Foto Factura / Comprobante Físico</label>
+            <input type="file" name="foto_mov" accept="image/*" capture="environment" style="border:none; padding:6px 0; font-size:12px; margin-bottom:12px; display:block; width:100%;">
             
-            <input type="hidden" id="foto_comprimida_b64" name="foto_comprimida_b64">
-            
-            <button type="button" onclick="procesarYEnviarGasto(event)" class="btn-accion btn-pagar" style="width:100%; padding:12px; margin-top:10px; font-size:13px; font-weight:800; border:none; border-radius:8px; color:white; cursor:pointer;">Guardar Registro</button>
+            <button type="submit" class="btn-accion btn-pagar" style="width:100%; padding:14px; font-weight:800; border-radius:10px; background:#10b981; border:none; color:white; font-size:13px; box-shadow: 0 4px 6px rgba(16,185,129,0.15); cursor:pointer;"><i class="fa-solid fa-floppy-disk"></i> Guardar Asiento en Caja</button>
         </form>
     </div>
 
-    <div class="card" style="padding:16px; text-align:left;">
-        <h4 style="font-size:13px; color:#0f2b5c; margin-bottom:10px;">📋 Historial de Movimientos de Hoy</h4>
+    <!-- 📋 HISTORIAL DE MOVIMIENTOS -->
+    <div class="card" style="padding:16px; text-align:left; border-radius:14px; border:1px solid #e2e8f0; margin-top:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+        <h4 style="font-size:13px; color:#0f2b5c; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:10px;"><i class="fa-solid fa-list-check"></i> Historial de Movimientos de Hoy</h4>
         {% if gastos_list %}
             {% for g in gastos_list %}
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding:8px 0; font-size:12px;">
-                    <div style="flex:1;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f8fafc; padding:10px 0; font-size:12px;">
+                    <div style="flex:1; padding-right:8px; color:#334155;">
                         <b>[{{ g.categoria }}]</b> {{ g.concepto }}
-                        <span style="color: {% if g.tipo == 'Entrada' %}#10b981{% else %}#ef4444{% endif %}; font-weight:bold; margin-left:6px;">
+                        <span style="color: {% if g.tipo == 'Entrada' %}#10b981{% else %}#ef4444{% endif %}; font-weight:800; margin-left:4px; font-size:13px;">
                             {% if g.tipo == 'Entrada' %}+{% else %}-{% endif %}${{ "%.2f"|format(g.monto) }}
                         </span>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <!-- 📸 FIJADO: Validación compatible con bytes de PostgreSQL para pintar el botón al instante -->
+                    <div style="display:flex; align-items:center; gap:6px;">
                         {% if g.comprobante is not none and g.comprobante != "" and g.comprobante != "None" %}
-                            <button type="button" onclick="cargarYVerFoto({{ g.id }})" style="padding:4px 8px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:700;">📷 Ver</button>
+                            <button type="button" onclick="cargarYVerFoto({{ g.id }})" style="padding:5px 10px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:700; box-shadow: 0 2px 4px rgba(0,168,204,0.15);">📷 Ver</button>
                         {% endif %}
-                        <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Eliminar Gasto?')" style="color:#ef4444; text-decoration:none; font-weight:bold; font-size:14px; margin-left:4px;">🗑️</a>
+                        <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Deseas eliminar este movimiento contable?')" style="color:#ef4444; text-decoration:none; font-weight:bold; font-size:15px; margin-left:4px; padding:4px;">🗑️</a>
                     </div>
                 </div>
             {% endfor %}
         {% else %}
-            <p style="font-size:11px; color:#64748b; text-align:center;">No hay flujos asentados hoy.</p>
+            <p style="font-size:11px; color:#94a3b8; text-align:center; padding:12px;">No se registran egresos o flujos manuales hoy.</p>
         {% endif %}
     </div>
 {% endif %}
@@ -1182,7 +1181,7 @@ def dashboard_principal():
         
     hoy_str = date.today().isoformat()
     
-    # 📅 FECHA EN TIEMPO REAL: Formateo en español para el badge superior
+    # 📅 FECHA EN TIEMPO REAL: Formateo dinámico en español para el badge superior
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     ahora = datetime.now()
@@ -1230,7 +1229,6 @@ def dashboard_principal():
     <div id="clientesContainer">
     """
     
-    # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO
     for c in clientes_ruta:
         pagado_acumulado = sum(p["valor_pagado"] for p in c["pagos"])
         saldo_restante = max(0.0, c["monto_total"] - pagado_acumulado)
@@ -1261,8 +1259,8 @@ def dashboard_principal():
             <div class="card-izquierda">
                 <div class="circulo-frecuencia {clase_mora}">{inicial_frecuencia}</div>
                 <div class="info-bloque-texto" style="width:100%;">
-                    <div class="id-alias">{c_id} {c_referencia}</div>
-                    <div class="nombre-real">{c_nombre}</div>
+                    <div class="id-alias" style="cursor:pointer;" onclick="verFichaCliente({c_id})">{c_id} {c_referencia}</div>
+                    <div class="nombre-real" style="cursor:pointer;" onclick="verFichaCliente({c_id})">{c_nombre}</div>
                     
                     <div class="grid-metricas-premium">
                         <div class="metric-col"><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${c_valor_cuota}</span></div>
@@ -1271,22 +1269,15 @@ def dashboard_principal():
                     </div>
                     
                     <div class="fila-utilidades-premium">
-                        <!-- 📸 FIJADO: El botón de la cámara ahora abre directamente la modal de abonos para adjuntar comprobante sin desviar el flujo -->
                         <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
                         <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
                     </div>
                 </div>
             </div>
-            
-            <!-- 🎯 RECAUDO PREMIUM: Botones verticales comerciales optimizados con billetes y marcas de visto/cruz -->
             <div class="card-derecha-acciones">
-                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
-                    💵✔️
-                </button>
-                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">
-                    💵❌
-                </button>
+                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">💵✔️</button>
+                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">💵❌</button>
             </div>
         </div>
         """
@@ -1303,7 +1294,6 @@ def seccion_clientes_maestro():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 📊 SECCIÓN CLIENTES INTERCAMBIADA: Recupera TODOS los clientes del sistema para el desglose contable general
             cursor.execute(
                 """
                 SELECT c.id, c.nombre, c.monto, c.interes_porcentaje, c.monto_total, c.valor_cuota, c.frecuencia, c.estado,
@@ -1335,7 +1325,6 @@ def seccion_creditos_activos():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 🛡️ SECCIÓN CRÉDITOS INTERCAMBIADA: Control maestro de estados mapeado por pestañas de Neon
             cursor.execute("SELECT id, nombre, frecuencia, monto_total, estado FROM clientes WHERE estado = %s ORDER BY nombre ASC", (filtro_estado,))
             todos = cursor.fetchall()
             
@@ -1348,14 +1337,7 @@ def seccion_creditos_activos():
             cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE estado = 'Lista Negra'")
             total_negra = int(cursor.fetchone()["total"])
             
-    contexto = dict(
-        vista="creditos_maestros", 
-        todos=todos, 
-        total_activos=total_activos, 
-        total_inactivos=total_inactivos, 
-        total_negra=total_negra, 
-        filtro_estado=filtro_estado
-    )
+    contexto = dict(vista="creditos_maestros", todos=todos, total_activos=total_activos, total_inactivos=total_inactivos, total_negra=total_negra, filtro_estado=filtro_estado)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     nombre_emp, tel_emp = obtener_ajustes_empresa()
@@ -1368,56 +1350,34 @@ def seccion_balance_maestro():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 🏢 1. Recuperamos la Caja Base asignada al cobrador
             cursor.execute("SELECT valor AS val FROM configuracion WHERE llave = 'caja_base'")
             res_caja = cursor.fetchone()
             caja_base = float(res_caja["val"]) if res_caja else 100.00
-            
             cursor.execute("SELECT valor AS val FROM configuracion WHERE llave = 'balance_estado'")
             res_estado = cursor.fetchone()
             balance_estado = res_estado["val"] if res_estado else "Sin cerrar"
             
-            # 📥 2. FIJADO: Sumatoria en tiempo real de todos los cobros de cuotas realizados en la calle hoy
+            # 📥 FIJADO: Sumatoria en tiempo real de todos los cobros de cuotas realizados en la calle hoy
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s AND pagado = 1", (hoy_str,))
             abonos_de_cuotas_hoy = float(cursor.fetchone()["total"])
             
-            # 📥 3. Recuperamos los movimientos manuales asentados en la caja hoy
+            # 📥 Recuperamos los movimientos manuales asentados hoy
             cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
             movimientos = cursor.fetchall()
             
-    # Separamos inversiones manuales de gastos manuales
     entradas_manuales = sum(m["monto"] for m in movimientos if m["tipo"] == "Entrada")
     salidas_gastos = sum(m["monto"] for m in movimientos if m["tipo"] == "Salida")
     
-    # 📊 FÓRMULA CONTABLE DE LIQUIDEZ REAL (Caja Base + Cobros del Día + Entradas Manuales - Gastos)
+    # 📊 ARITMÉTICA DE ENTRADAS GENERALES Y EFECTIVO NETO EN MANO REAL
     entradas_totales = abonos_de_cuotas_hoy + entradas_manuales
     efectivo_neto = caja_base + entradas_totales - salidas_gastos
     
     movimientos_limpios = []
     for m in movimientos:
         m_dict = dict(m)
-        if m_dict["comprobante"] and str(m_dict["comprobante"]).strip() != "" and m_dict["comprobante"] != "None":
-            try:
-                comprobante_puro = str(m_dict["comprobante"]).replace("\n", "").replace("\r", "").strip()
-                if "base64," in comprobante_puro:
-                    comprobante_puro = comprobante_puro.split("base64,")[-1]
-                m_dict["comprobante"] = comprobante_puro
-            except Exception:
-                m_dict["comprobante"] = ""
-        else:
-            m_dict["comprobante"] = ""
         movimientos_limpios.append(m_dict)
             
-    contexto = dict(
-        vista="balance", 
-        caja_base=caja_base, 
-        balance_estado=balance_estado, 
-        gastos_list=movimientos_limpios, 
-        entradas_totales=entradas_totales, 
-        salidas_totales=salidas_gastos, 
-        efectivo_neto=efectivo_neto
-    )
-    
+    contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos_limpios, entradas_totales=entradas_totales, salidas_totales=salidas_gastos, efectivo_neto=efectivo_neto)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     nombre_emp, tel_emp = obtener_ajustes_empresa()
@@ -1458,29 +1418,43 @@ def guardar_nuevo_cliente():
         latitud = request.form.get("latitud", "").strip()
         longitud = request.form.get("longitud", "").strip()
         
+        cliente_id_existente = request.form.get("cliente_id")
+        es_renovacion = True if cliente_id_existente else False
+        
         monto_total = float(round(monto * (1 + (interes_porcentaje / 100)), 2))
         valor_base_cuota = float(round(monto_total / cuotas, 2))
         fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas, frecuencia)
         
         with get_db() as conn:
             with conn.cursor() as cursor:
-                # 🏢 Obtención limpia forzando nombres de columnas
-                cursor.execute("SELECT COALESCE(MAX(orden), 0) AS max_o FROM clientes")
-                res_orden = cursor.fetchone()
-                max_orden = res_orden["max_o"] if res_orden else 0
-                
-                # Inserción parametrizada convirtiendo fechas a cadenas de texto ISO
-                cursor.execute(
-                    """
-                    INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, estado, saltado_hoy, fecha_gestion, latitud, longitud)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Activo', 0, '', %s, %s) RETURNING id
-                    """,
-                    (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, str(fecha_inicio_dt.isoformat()), str(fecha_vencimiento_dt.isoformat()), latitud, longitud)
-                )
-                
-                # 🔑 FIJADO: Desestructuración posicional por índice para asegurar la captura del ID real en Neon
-                res_id = cursor.fetchone()
-                cliente_id = res_id[0] if res_id else None
+                if es_renovacion:
+                    cursor.execute(
+                        """
+                        UPDATE clientes SET 
+                            nombre=%s, telefono=%s, direccion=%s, referencia=%s, identificacion=%s, 
+                            monto=%s, interes_porcentaje=%s, monto_total=%s, cuotas=%s, frecuencia=%s, 
+                            valor_cuota=%s, fecha_inicio=%s, fecha_vencimiento=%s, estado='Activo', 
+                            saltado_hoy=0, fecha_gestion='', enrutado_forzado=0
+                        WHERE id=%s
+                        """,
+                        (nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, str(fecha_inicio_dt.isoformat()), str(fecha_vencimiento_dt.isoformat()), int(cliente_id_existente))
+                    )
+                    cliente_id = int(cliente_id_existente)
+                    cursor.execute("DELETE FROM pagos WHERE cliente_id = %s", (cliente_id,))
+                else:
+                    cursor.execute("SELECT COALESCE(MAX(orden), 0) AS max_o FROM clientes")
+                    res_orden = cursor.fetchone()
+                    max_orden = res_orden["max_o"] if res_orden else 0
+                    
+                    cursor.execute(
+                        """
+                        INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, estado, saltado_hoy, fecha_gestion, latitud, longitud)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Activo', 0, '', %s, %s) RETURNING id
+                        """,
+                        (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, str(fecha_inicio_dt.isoformat()), str(fecha_vencimiento_dt.isoformat()), latitud, longitud)
+                    )
+                    res_id = cursor.fetchone()
+                    cliente_id = res_id[0] if res_id else None
                 
                 if cliente_id:
                     acumulado = 0.0
@@ -1488,18 +1462,20 @@ def guardar_nuevo_cliente():
                         valor_cuota_real = float(round(monto_total - acumulado, 2)) if num == cuotas else valor_base_cuota
                         acumulado += valor_cuota_real
                         f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
-                        fecha_cuota_str = str(f_cuota.isoformat())
-                        
                         cursor.execute(
-                            """
-                            INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real) 
-                            VALUES (%s, %s, %s, %s, 0, 0, '')
-                            """, 
-                            (cliente_id, num, fecha_cuota_str, valor_cuota_real)
+                            "INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real) VALUES (%s, %s, %s, %s, 0, 0, '')", 
+                            (cliente_id, num, str(f_cuota.isoformat()), valor_cuota_real)
                         )
+                    
+                    # 📥 AUTOMATIZACIÓN DE BALANCE: Registra la salida física del dinero para actualizar el Efectivo Neto
+                    concepto_balance = f"Renovación de Crédito: {nombre}" if es_renovacion else f"Entrega de Crédito Nuevo: {nombre}"
+                    cursor.execute(
+                        "INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante) VALUES ('Salida', 'Inversión', %s, %s, %s, '')",
+                        (concepto_balance, monto, str(fecha_inicio_dt.isoformat()))
+                    )
             conn.commit()
     except Exception as e: 
-        print(f"Error crítico en guardar cliente: {e}")
+        print(f"Error crítico: {e}")
     return redirect("/")
 
 @app.route("/api/balance/guardar_movimiento", methods=["POST"])
@@ -1520,7 +1496,6 @@ def balance_guardar_movimiento():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # Forzamos la creación de la columna tipo BYTEA si Neon la creó antes como TEXT
             cursor.execute("ALTER TABLE balance_movimientos ALTER COLUMN comprobante TYPE BYTEA USING comprobante::bytea")
             cursor.execute(
                 """
@@ -1591,12 +1566,8 @@ def seccion_reordenar_ruta():
                 </div>
             </div>
             <div style="display:flex; gap:6px;">
-                <a href="/mover/{cl['id']}/subir" style="text-decoration:none; font-size:11px; background:#f1f5f9; color:#0f2b5c; padding:8px 10px; border-radius:8px; font-weight:800; display:flex; align-items:center; gap:4px; border:1px solid #e2e8f0; transition:all 0.2s;">
-                    ▲ Subir
-                </a>
-                <a href="/mover/{cl['id']}/bajar" style="text-decoration:none; font-size:11px; background:#f1f5f9; color:#0f2b5c; padding:8px 10px; border-radius:8px; font-weight:800; display:flex; align-items:center; gap:4px; border:1px solid #e2e8f0; transition:all 0.2s;">
-                    ▼ Bajar
-                </a>
+                <a href="/mover/{cl['id']}/subir" style="text-decoration:none; font-size:11px; background:#f1f5f9; color:#0f2b5c; padding:8px 10px; border-radius:8px; font-weight:800; display:flex; align-items:center; gap:4px; border:1px solid #e2e8f0; transition:all 0.2s;">▲ Subir</a>
+                <a href="/mover/{cl['id']}/bajar" style="text-decoration:none; font-size:11px; background:#f1f5f9; color:#0f2b5c; padding:8px 10px; border-radius:8px; font-weight:800; display:flex; align-items:center; gap:4px; border:1px solid #e2e8f0; transition:all 0.2s;">▼ Bajar</a>
             </div>
         </div>
         """
@@ -1614,121 +1585,61 @@ def seccion_listados():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 💰 1. Recaudos ejecutados en la fecha seleccionada
-            cursor.execute(
-                """
-                SELECT p.numero, p.valor_pagado, c.nombre 
-                FROM pagos p 
-                JOIN clientes c ON p.cliente_id = c.id 
-                WHERE p.fecha_pago_real = %s AND p.pagado = 1
-                ORDER BY c.nombre ASC
-                """, (fecha_filtro,)
-            )
+            cursor.execute("SELECT p.numero, p.valor_pagado, c.nombre FROM pagos p JOIN clientes c ON p.cliente_id = c.id WHERE p.fecha_pago_real = %s AND p.pagado = 1 ORDER BY c.nombre ASC", (fecha_filtro,))
             pagos_f = cursor.fetchall()
             
-            # 👤 2. Créditos nuevos entregados en la fecha seleccionada
-            cursor.execute(
-                "SELECT nombre, monto, monto_total FROM clientes WHERE fecha_inicio = %s ORDER BY nombre ASC", 
-                (fecha_filtro,)
-            )
+            cursor.execute("SELECT nombre, monto, monto_total FROM clientes WHERE fecha_inicio = %s ORDER BY nombre ASC", (fecha_filtro,))
             creditos_f = cursor.fetchall()
             
-            # 📈 3. MÉTRICAS GENERALES DE CARTERA GLOBAL
-            cursor.execute(
-                """
-                SELECT 
-                    COALESCE(SUM(monto), 0) AS capital_base,
-                    COALESCE(SUM(monto_total), 0) AS carter_total
-                FROM clientes
-                """
-            )
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS capital_base, COALESCE(SUM(monto_total), 0) AS carter_total FROM clientes")
             totales_g = cursor.fetchone()
             
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE pagado = 1")
             total_rec = float(cursor.fetchone()["total"])
 
-    # 🧬 SANEAMIENTO MATEMÁTICO ABSOLUTO EN BACKEND
     base_inv = float(totales_g["capital_base"]) if totales_g else 0.0
     cart_esp = float(totales_g["carter_total"]) if totales_g else 0.0
     int_ganados = max(0.0, cart_esp - base_inv)
     saldo_calle = max(0.0, cart_esp - total_rec)
     porc_efec = (total_rec / cart_esp * 100) if cart_esp > 0 else 0.0
 
-    # 📋 CONSTRUCCIÓN DE FILAS DE RECAUDOS
     html_pagos = "".join([
         f'<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f8fafc; padding:8px 0; font-size:12px;">'
-        f'<span style="color:#334155;">👤 <b>{p["nombre"]}</b> <span style="color:#94a3b8; font-size:11px; margin-left:2px;">(Cuota #{p["numero"]})</span></span>'
-        f'<b style="color:#10b981; font-size:13px;">+${p["valor_pagado"]:.2f}</b>'
-        f'</div>' for p in pagos_f
+        f'<span style="color:#334155;"><b>{p["nombre"]}</b> (Cuota #{p["numero"]})</span><b style="color:#10b981;">+${p["valor_pagado"]:.2f}</b></div>' for p in pagos_f
     ])
-    if not html_pagos:
-        html_pagos = '<p style="font-size:11px; color:#94a3b8; text-align:center; padding:10px;">Sin recaudos en esta fecha.</p>'
+    if not html_pagos: html_pagos = '<p style="font-size:11px; color:#94a3b8; text-align:center;">Sin recaudos en esta fecha.</p>'
 
     html_creditos = "".join([
         f'<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f8fafc; padding:8px 0; font-size:12px;">'
-        f'<span style="color:#334155;">👤 <b>{c["nombre"]}</b></span>'
-        f'<div style="text-align:right;"><span style="font-weight:700; color:#475569; font-size:12px;">Base: ${c["monto"]:.2f}</span>'
-        f'<span style="color:#94a3b8; font-size:10px; display:block; margin-top:1px;">Cartera: ${c["monto_total"]:.2f}</span></div>'
-        f'</div>' for c in creditos_f
+        f'<span><b>{c["nombre"]}</b></span><div style="text-align:right;"><b>Base: ${c["monto"]:.2f}</b><br><small>Cartera: ${c["monto_total"]:.2f}</small></div></div>' for c in creditos_f
     ])
-    if not html_creditos:
-        html_creditos = '<p style="font-size:11px; color:#94a3b8; text-align:center; padding:10px;">Sin créditos nuevos en esta fecha.</p>'
+    if not html_creditos: html_creditos = '<p style="font-size:11px; color:#94a3b8; text-align:center;">Sin créditos entregados en esta fecha.</p>'
 
-    # 🖼️ MAQUETACIÓN PREMIUM RENDERIZADA DIRECTO DESDE PYTHON EN TEXTO LIMPIO
     html_listados = f"""
     <div class="section-header-title"><i class="fa-solid fa-chart-pie"></i> AUDITORÍA GENERAL DE CARTERA</div>
-    <p style="font-size:11px; color:#64748b; margin-bottom:14px; text-align:left; padding:0 4px;">Monitoreo y balance consolidado de tus inversiones, utilidades netas generadas y efectividad de recuperación.</p>
-
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-        <div class="kpi-card" style="border-left:4px solid #0f2b5c; background:white;">
-            <div class="kpi-title">Capital Invertido Base</div>
-            <div class="kpi-val">${base_inv:.2f}</div>
-        </div>
-        <div class="kpi-card" style="border-left:4px solid #10b981; background:white;">
-            <div class="kpi-title">Intereses Proyectados</div>
-            <div class="kpi-val" style="color:#10b981;">+${int_ganados:.2f}</div>
-        </div>
+        <div class="kpi-card" style="border-left:4px solid #0f2b5c;"><div>Capital Base</div><b>${base_inv:.2f}</b></div>
+        <div class="kpi-card" style="border-left:4px solid #10b981;"><div>Intereses</div><b style="color:#10b981;">+${int_ganados:.2f}</b></div>
     </div>
-
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-        <div class="kpi-card" style="border-left:4px solid #6366f1; background:white;">
-            <div class="kpi-title">Recaudado Histórico</div>
-            <div class="kpi-val" style="color:#6366f1;">${total_rec:.2f}</div>
-        </div>
-        <div class="kpi-card" style="border-left:4px solid #ef4444; background:white;">
-            <div class="kpi-title">Capital en la Calle</div>
-            <div class="kpi-val" style="color:#ef4444;">${saldo_calle:.2f}</div>
-        </div>
+        <div class="kpi-card" style="border-left:4px solid #6366f1;"><div>Total Cobrado</div><b>${total_rec:.2f}</b></div>
+        <div class="kpi-card" style="border-left:4px solid #ef4444;"><div>En la Calle</div><b style="color:#ef4444;">${saldo_calle:.2f}</b></div>
     </div>
-
-    <div class="card" style="background:linear-gradient(135deg, #1e3a8a 0%, #0f2b5c 100%); color:white; text-align:center; padding:14px; margin-bottom:14px; border:none; box-shadow:0 4px 14px rgba(15,43,92,0.15);">
-        <div class="kpi-title" style="color:white; opacity:0.85; font-weight:700;">Efectividad de Recuperación</div>
-        <div class="kpi-val" style="color:white; font-size:22px; margin-top:4px; font-weight:800;">{porc_efec:.1f}%</div>
+    <div class="card" style="background:linear-gradient(135deg, #1e3a8a 0%, #0f2b5c 100%); color:white; text-align:center;">
+        <div>Efectividad de Recuperación</div><b>{porc_efec:.1f}%</b>
     </div>
-
     <div class="card" style="padding:16px; border-top:4px solid #00a8cc;">
         <form action="/menu/listados" method="GET" onsubmit="event.preventDefault(); navegarRuta('/menu/listados?fecha_auditoria=' + document.getElementById('fecha_auditor').value);">
-            <label style="font-weight:700; color:#334155; margin-bottom:6px; display:block;">Auditar Fecha Específica</label>
-            <div style="display:flex; gap:8px; align-items:center; margin-top:4px;">
-                <input type="date" id="fecha_auditor" value="{fecha_filtro}" style="flex:1;">
-                <button type="submit" class="btn-accion btn-pagar" style="background:#0f2b5c; padding:12px 16px; border-radius:10px; border:none; height:42px; display:flex; align-items:center; justify-content:center; color:white; cursor:pointer;"><i class="fa-solid fa-magnifying-glass"></i></button>
-            </div>
+            <label>Auditar Fecha Específica</label>
+            <div style="display:flex; gap:8px;"><input type="date" id="fecha_auditor" value="{fecha_filtro}" style="flex:1;"><button type="submit" class="btn-accion btn-pagar" style="background:#0f2b5c;"><i class="fa-solid fa-magnifying-glass"></i></button></div>
         </form>
     </div>
-
-    <div class="card" style="padding:16px; text-align:left;">
-        <h4 style="font-size:13px; color:#10b981; margin-bottom:10px; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><i class="fa-solid fa-money-bill-trend-up"></i> Recaudos de la Fecha</h4>
-        {html_pagos}
-    </div>
-
-    <div class="card" style="padding:16px; text-align:left; margin-top:12px;">
-        <h4 style="font-size:13px; color:#0f2b5c; margin-bottom:10px; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:6px;"><i class="fa-solid fa-user-plus"></i> Créditos Nuevos de la Fecha</h4>
-        {html_creditos}
-    </div>
+    <div class="card"><h4>📊 Recaudos</h4>{html_pagos}</div>
+    <div class="card"><h4>👤 Créditos Nuevos</h4>{html_creditos}</div>
     """
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
-        return render_template_string(html_listados)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_listados))
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(html_listados)
+    nombre_emp, tel_emp = obtener_ajustes_empresa()
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_listados), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
 
 @app.route("/menu/agregar_lista")
 def seccion_agregar_lista():
@@ -1752,9 +1663,9 @@ def seccion_agregar_lista():
         </form>
     </div>
     """
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
-        return render_template_string(html_sincro, todos=todos)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_sincro, todos=todos))
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(html_sincro, todos=todos)
+    nombre_emp, tel_emp = obtener_ajustes_empresa()
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_sincro, todos=todos), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
 
 @app.route("/api/clientes/forzar_enrutado", methods=["POST"])
 def api_clientes_forzar_enrutado():
@@ -1776,66 +1687,46 @@ def seccion_respaldo_nube():
         <button type="button" onclick="alert('⚡ ¡Sincronización forzada con éxito! Copia de seguridad guardada en Neon Cloud.');" class="btn-primary" style="background:#10b981; border:none; color:white; font-weight:bold; padding:12px; width:100%; border-radius:8px; cursor:pointer;">Forzar Respaldo Ahora</button>
     </div>
     """
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
-        return render_template_string(html_cloud)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_cloud))
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(html_cloud)
+    nombre_emp, tel_emp = obtener_ajustes_empresa()
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_cloud), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
 
 @app.route("/api/cliente_info/<int:id>")
 def api_cliente_info(id):
-    if not session.get("autenticado"): 
-        return jsonify({"status": "error", "message": "No autorizado"})
-        
+    if not session.get("autenticado"): return jsonify({"status": "error", "message": "No autorizado"})
     with get_db() as conn:
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM clientes WHERE id = %s", (id,))
             c = cursor.fetchone()
-            if not c:
-                return jsonify({"status": "error", "message": "No encontrado"})
-                
+            if not c: return jsonify({"status": "error", "message": "No encontrado"})
             cursor.execute("SELECT * FROM pagos WHERE cliente_id = %s ORDER BY numero ASC", (id,))
             pagos = cursor.fetchall()
-            
     c_dict = dict(c)
     pagado = sum(p["valor_pagado"] for p in pagos)
     c_dict["saldo_actual"] = max(0.0, c_dict["monto_total"] - pagado)
-    
     return jsonify({"status": "ok", "data": c_dict})
 
 @app.route("/api/marcar_pago/<int:cliente_id>/<int:num_cuota>")
 def api_marcar_pago(cliente_id, num_cuota):
-    if not session.get("autenticado"): 
-        return jsonify({"status": "error", "message": "No autorizado"})
-        
+    if not session.get("autenticado"): return jsonify({"status": "error", "message": "No autorizado"})
     monto_recaudado = float(request.args.get("monto", 0))
     hoy_str = date.today().isoformat()
     monto_restante = monto_recaudado
-    
     with get_db() as conn:
         with conn.cursor() as cursor:
             cursor.execute("SELECT id, numero, valor, valor_pagado, pagado FROM pagos WHERE cliente_id = %s AND pagado = 0 ORDER BY numero ASC", (cliente_id,))
             pagos_pendientes = cursor.fetchall()
-            
             for p in pagos_pendientes:
-                if monto_restante <= 0:
-                    break
-                    
+                if monto_restante <= 0: break
                 pendiente_cuota = p["valor"] - p["valor_pagado"]
-                
                 if monto_restante >= pendiente_cuota:
                     monto_restante = round(monto_restante - pendiente_cuota, 2)
-                    cursor.execute(
-                        "UPDATE pagos SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
-                        (p["valor"], hoy_str, p["id"])
-                    )
+                    cursor.execute("UPDATE pagos SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s WHERE id = %s", (p["valor"], hoy_str, p["id"]))
                 else:
                     nuevo_pago_parcial = round(p["valor_pagado"] + monto_restante, 2)
                     monto_restante = 0
-                    cursor.execute(
-                        "UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
-                        (nuevo_pago_parcial, hoy_str, p["id"])
-                    )
-            
-            # Recalcular saldos para validar si ya liquidó la deuda completa
+                    cursor.execute("UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s WHERE id = %s", (nuevo_pago_parcial, hoy_str, p["id"]))
+                                # Recalcular saldos para validar si ya liquidó la deuda completa
             cursor.execute("SELECT nombre, telefono, monto_total FROM clientes WHERE id = %s", (cliente_id,))
             c = cursor.fetchone()
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE cliente_id = %s", (cliente_id,))
@@ -1843,12 +1734,10 @@ def api_marcar_pago(cliente_id, num_cuota):
             
             saldo_restante = max(0.0, c["monto_total"] - total_pagado)
             
-            # 🛡️ FIJADO: Si el saldo llegó a $0.00, el cliente se da por liquidado y pasa a 'Inactivo' de inmediato
             if saldo_restante <= 0:
                 cursor.execute("UPDATE clientes SET estado = 'Inactivo', enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
             else:
                 cursor.execute("UPDATE clientes SET enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
-                
             conn.commit()
         
     mensaje_ws = f"🧾 *AVANTA PAGOS*\nRecibo de Pago\nCliente: {c['nombre']}\nMonto Cobrado: ${monto_recaudado:.2f}\nSaldo Restante: ${saldo_restante:.2f}\n"
@@ -1869,209 +1758,32 @@ def api_marcar_pago(cliente_id, num_cuota):
 
 @app.route("/api/marcar_no_pago/<int:cliente_id>")
 def api_marcar_no_pago(cliente_id):
-    if not session.get("autenticado"): 
-        return jsonify({"status": "error", "message": "No autorizado"})
-        
+    if not session.get("autenticado"): return jsonify({"status": "error", "message": "No autorizado"})
     hoy_str = date.today().isoformat()
     with get_db() as conn:
         with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                UPDATE clientes 
-                SET saltado_hoy = saltado_hoy + 1, fecha_gestion = %s 
-                WHERE id = %s
-                """, (hoy_str, cliente_id)
-            )
+            cursor.execute("UPDATE clientes SET saltado_hoy = saltado_hoy + 1, fecha_gestion = %s WHERE id = %s", (hoy_str, cliente_id))
         conn.commit()
     return jsonify({"status": "ok"})
-
-@app.route("/menu/bluetooth")
-@app.route("/menu/configuracion")
-def seccion_configuracion_sistema():
-    if not session.get("autenticado"): return "Sesión expirada"
-    
-    # 🏢 Recuperamos de Neon las variables de configuración vigentes de la empresa
-    with get_db() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT llave, valor FROM configuracion")
-            filas = cursor.fetchall()
-            
-    # Mapeamos a un diccionario limpio compatible con DictCursor
-    cfg = {f["llave"]: f["valor"] for f in filas}
-    
-    # Valores de fábrica si no existen en la base de datos
-    empresa = cfg.get("empresa_nombre", "AVANTA PAGOS")
-    telefono = cfg.get("empresa_telefono", "593991234567")
-    encabezado = cfg.get("ticket_encabezado", "¡BIENVENIDO A AVANTA PAGOS!")
-    caja = cfg.get("caja_base", "100.00")
-    
-    # 🎨 MAQUETA DEL FORMULARIO INTEGRADA CON RELIEVE PREMIUM
-    html_config = f"""
-    <div class="section-header-title"><i class="fa-solid fa-sliders"></i> AJUSTES DEL SISTEMA</div>
-    <p style="font-size:11px; color:#64748b; margin-bottom:14px; text-align:left; padding:0 4px;">Modifica los parámetros comerciales de tu ruta. Los cambios se aplicarán al instante en los recibos impresos y de WhatsApp.</p>
-    
-    <div class="card" style="padding:16px; border-radius:14px; text-align:left; border-top:4px solid #0f2b5c;">
-        <form action="/api/configuracion/guardar" method="POST" onsubmit="event.preventDefault(); fetch('/api/configuracion/guardar', {{ method: 'POST', body: new FormData(this) }}).then(res => res.json()).then(d => {{ if(d.status==='ok') alert('✅ Ajustes de empresa guardados en Neon Cloud.'); window.location.reload(); }});">
-            <label style="font-weight:700; color:#334155;">Nombre de la Empresa / Ruta</label>
-            <input type="text" name="empresa_nombre" value="{empresa}" required style="margin-bottom:10px; border-radius:10px;">
-            
-            <label style="font-weight:700; color:#334155;">WhatsApp de Soporte Comercial</label>
-            <input type="text" name="empresa_telefono" value="{telefono}" required style="margin-bottom:10px; border-radius:10px;">
-            
-            <label style="font-weight:700; color:#334155;">Encabezado del Recibo Térmico</label>
-            <input type="text" name="ticket_encabezado" value="{encabezado}" required style="margin-bottom:10px; border-radius:10px;">
-            
-            <label style="font-weight:700; color:#334155;">Base de Caja Inicial ($)</label>
-            <input type="number" step="any" name="caja_base" value="{caja}" required style="margin-bottom:14px; border-radius:10px;">
-            
-            <button type="submit" class="btn-accion btn-pagar" style="width:100%; padding:12px; font-weight:800; border-radius:10px; cursor:pointer; background:#10b981; border:none; color:white;"><i class="fa-solid fa-floppy-disk"></i> Actualizar Configuración</button>
-        </form>
-    </div>
-    
-    <div class="card" style="text-align:left; padding:16px; margin-top:12px; border-radius:14px;">
-        <h4 style="font-size:12px; color:#0f2b5c; margin-bottom:8px; font-weight:800; text-transform:uppercase;">🛠️ Mantenimiento Base</h4>
-        <button type="button" onclick="alert('Estados de ruta diarias reiniciados con éxito.');" style="background:#475569; color:white; border:none; padding:11px; border-radius:10px; font-size:12px; font-weight:bold; width:100%; cursor:pointer;">Resetear Estados de Cobro Diarios</button>
-        <button type="button" onclick="alert('Buscando dispositivos térmicos de 58mm...');" style="background:#0284c7; color:white; border:none; padding:11px; border-radius:10px; font-size:12px; font-weight:bold; margin-top:8px; width:100%; cursor:pointer;">🔄 Sincronizar Impresora Bluetooth Portátil</button>
-    </div>
-    """
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
-        return render_template_string(html_config)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_config))
-
-@app.route("/api/configuracion/guardar", methods=["POST"])
-def api_guardar_configuracion():
-    if not session.get("autenticado"): return jsonify({"status": "error"})
-    
-    with get_db() as conn:
-        with conn.cursor() as cursor:
-            # Recorremos de forma segura los parámetros enviados en el formulario para actualizarlos en Neon
-            for llave in ["empresa_nombre", "empresa_telefono", "ticket_encabezado", "caja_base"]:
-                valor_ingresado = request.form.get(llave, "").strip()
-                if valor_ingresado:
-                    cursor.execute(
-                        "INSERT INTO configuracion (llave, valor) VALUES (%s, %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                        (llave, valor_ingresado)
-                    )
-        conn.commit()
-    return jsonify({"status": "ok"})
-
-@app.route("/api/clientes/lista_negra/<int:id>")
-def api_lista_negra(id):
-    if not session.get("autenticado"): return "No autorizado"
-    with get_db() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("UPDATE clientes SET estado = 'Lista Negra' WHERE id = %s", (id,))
-        conn.commit()
-    return redirect("/menu/clientes")
-
-@app.route("/api/gasto_foto/<int:gasto_id>")
-def api_gasto_foto(gasto_id):
-    if not session.get("autenticado"): return redirect("/login")
-    
-    with get_db() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT comprobante FROM balance_movimientos WHERE id = %s", (gasto_id,))
-            res = cursor.fetchone()
-            
-    # 🛡️ Retorna el archivo binario crudo con su tipo MIME correcto para pintar la foto al instante
-    if res and res["comprobante"]:
-        import io
-        bytes_foto = bytes(res["comprobante"])
-        return send_file(io.BytesIO(bytes_foto), mimetype="image/jpeg")
-        
-    return "Imagen no encontrada", 404
-
-@app.route("/menu/pagos_hoy")
-def seccion_pagos_hoy():
-    if not session.get("autenticado"): return "Sesión expirada"
-    hoy_str = date.today().isoformat()
-    
-    with get_db() as conn:
-        with conn.cursor() as cursor:
-            # 💵 Traemos los recaudos individuales de hoy
-            cursor.execute(
-                """
-                SELECT p.id AS pago_id, c.id AS cliente_id, c.nombre, p.numero, p.valor_pagado 
-                FROM pagos p 
-                JOIN clientes c ON p.cliente_id = c.id 
-                WHERE p.fecha_pago_real = %s AND p.pagado = 1
-                ORDER BY c.nombre ASC, p.numero ASC
-                """, (hoy_str,)
-            )
-            pagos_individuales = cursor.fetchall()
-            
-            # ❌ Obtener todos los clientes que fueron SALTADOS hoy por el cobrador
-            cursor.execute(
-                """
-                SELECT id AS cliente_id, nombre, saltado_hoy 
-                FROM clientes 
-                WHERE fecha_gestion = %s AND estado = 'Activo' AND id NOT IN (
-                    SELECT DISTINCT cliente_id FROM pagos WHERE fecha_pago_real = %s
-                )
-                """, (hoy_str, hoy_str)
-            )
-            saltados = cursor.fetchall()
-            
-    # 🔄 AGRUPACIÓN CRÍTICA CONTRA DUPLICADOS: Consolida las cuotas continuas del mismo cliente
-    pagados_agrupados = []
-    mapa_agrupacion = {}
-    
-    for p in pagos_individuales:
-        c_id = p["cliente_id"]
-        if c_id not in mapa_agrupacion:
-            mapa_agrupacion[c_id] = {
-                "nombre": p["nombre"],
-                "cuotas": [p["numero"]],
-                "total_abonado": float(p["valor_pagado"]),
-                "pago_ids": [p["pago_id"]]
-            }
-        else:
-            mapa_agrupacion[c_id]["cuotas"].append(p["numero"])
-            mapa_agrupacion[c_id]["total_abonado"] += float(p["valor_pagado"])
-            mapa_agrupacion[c_id]["pago_ids"].append(p["pago_id"])
-
-    for c_id, info in mapa_agrupacion.items():
-        min_c = min(info["cuotas"])
-        max_c = max(info["cuotas"])
-        # Formatea el texto de las cuotas: si es una sola muestra "#1", si son varias muestra "#1 al #3"
-        rango_cuotas = f"#{min_c}" if min_c == max_c else f"#{min_c} a la #{max_c}"
-        
-        pagados_agrupados.append({
-            "nombre": info["nombre"],
-            "rango_cuotas": rango_cuotas,
-            "total_abonado": info["total_abonado"],
-            # Serializamos los IDs separados por guiones para que el botón de deshacer liquide todo el bloque junto
-            "pago_ids_str": "-".join(map(str, info["pago_ids"]))
-        })
-            
-    contexto = dict(vista="pagos_hoy", pagados_list=pagados_agrupados, saltados_list=saltados)
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
-        return render_template_string(CONTENIDO_HTML, **contexto)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
 
 @app.route("/api/revertir_gestion/<string:tipo>/<string:id_str>")
 def api_revertir_gestion(tipo, id_str):
-    if not session.get("autenticado"): 
-        return jsonify({"status": "error", "message": "No autorizado"})
-        
-    hoy_str = date.today().isoformat()
+    if not session.get("autenticado"): return jsonify({"status": "error", "message": "No autorizado"})
     with get_db() as conn:
         with conn.cursor() as cursor:
             if tipo == "pago":
-                # Desestructuramos los IDs del bloque agrupado (ej: "12-13-14") para revertirlos juntos
                 pago_ids = [int(x) for x in id_str.split("-") if x.strip()]
                 for p_id in pago_ids:
                     cursor.execute("UPDATE pagos SET pagado = 0, valor_pagado = 0, fecha_pago_real = '' WHERE id = %s RETURNING cliente_id", (p_id,))
                     res = cursor.fetchone()
-                    if res:
-                        cursor.execute("UPDATE clientes SET fecha_gestion = '' WHERE id = %s", (res[0],))
+                    if res: 
+                        cursor.execute("UPDATE clientes SET fecha_gestion = '' WHERE id = %s", (res["cliente_id"],))
+
             elif tipo == "salto":
                 cursor.execute("UPDATE clientes SET saltado_hoy = GREATEST(0, saltado_hoy - 1), fecha_gestion = '' WHERE id = %s", (int(id_str),))
         conn.commit()
     return jsonify({"status": "ok"})
 
 if __name__ == "__main__":
-    # Servidor local configurado para ejecutarse en el puerto estricto 8080
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
-
