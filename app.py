@@ -1245,8 +1245,7 @@ def dashboard_principal():
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(contexto_dash)
     nombre_emp, tel_emp = obtener_ajustes_empresa()
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(...), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
-
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(contexto_dash), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
 
 @app.route("/menu/clientes")
 def seccion_clientes_maestro():
@@ -1276,7 +1275,8 @@ def seccion_clientes_maestro():
     contexto = dict(vista="clientes_financieros", lista_creditos=creditos_procesados)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
+    nombre_emp, tel_emp = obtener_ajustes_empresa()
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
 
 @app.route("/menu/creditos")
 def seccion_creditos_activos():
@@ -1309,7 +1309,7 @@ def seccion_creditos_activos():
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     nombre_emp, tel_emp = obtener_ajustes_empresa()
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(...), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
 
 @app.route("/menu/balance")
 def seccion_balance_maestro():
@@ -1356,7 +1356,7 @@ def seccion_balance_maestro():
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     nombre_emp, tel_emp = obtener_ajustes_empresa()
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(...), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
 
 @app.route("/nuevo")
 @app.route("/mover_renovacion/<int:cliente_id>")
@@ -1374,7 +1374,7 @@ def seccion_nuevo_credito(cliente_id=None):
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     nombre_emp, tel_emp = obtener_ajustes_empresa()
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(...), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto), empresa_nombre=nombre_emp, empresa_telefono=tel_emp)
 
 @app.route("/guardar", methods=["POST"])
 def guardar_nuevo_cliente():
