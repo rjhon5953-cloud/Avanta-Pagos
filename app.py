@@ -1045,12 +1045,11 @@ function procesarYEnviarGasto() {
         return;
     }
 
-    if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
-        alert("⏳ Comprimiendo imagen... Espera un segundo y vuelve a presionar Guardar.");
-        return;
-    }
+    // 🟢 ELIMINADO EL MENSAJE DE ALERTA DE COMPRESIÓN: Si la foto aún no ha terminado de cargarse en el Canvas,
+    // se toma directamente el string actual (o viaja vacío de forma segura) sin interrumpir ni bloquear el guardado del registro.
+    let imagenFinalB64 = (fotoListaParaEnviar && imagenComprimidaB64 !== "") ? imagenComprimidaB64 : "";
 
-    // 🟢 ENVIÓ BLINDADO: Despachamos todos los datos via AJAX/JSON para blindar el Base64
+    // Despachamos todos los datos de inmediato via AJAX/JSON para blindar el flujo
     fetch('/api/balance/guardar_movimiento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1059,7 +1058,7 @@ function procesarYEnviarGasto() {
             categoria_mov: categoria,
             concepto_mov: concepto,
             monto_mov: monto,
-            foto_comprimida_b64: imagenComprimidaB64 // Viaja sin alteraciones de URL encoding
+            foto_comprimida_b64: imagenFinalB64
         })
     })
     .then(res => res.json())
