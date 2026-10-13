@@ -1045,20 +1045,38 @@ function procesarYEnviarGasto() {
         return;
     }
 
-    // 🟢 CORREGIDO: Si NO se seleccionó ningún archivo de foto, guardamos de inmediato sin esperar nada.
-    if (fileInput.files.length === 0) {
-        ejecutarEnvioGasto(tipo, categoria, concepto, monto, "");
-        return;
-    }
-
-    // Si hay un archivo seleccionado pero el lector FileReader aún no ha terminado de cargarlo
+    // 🟢 SILENCIOSO Y AUTOMÁTICO: Si hay una foto seleccionada pero el Canvas sigue procesando,
+    // esperamos 200 milisegundos en segundo plano. NO muestra alertas ni interrumpe el flujo.
     if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
-        alert("⏳ Comprimiendo imagen... Espera un segundo y vuelve a presionar Guardar.");
+        console.log("⏳ Esperando procesamiento de imagen en segundo plano...");
+        setTimeout(procesarYEnviarGasto, 200);
         return;
     }
 
-    // Si ya terminó de procesar la foto, la mandamos empaquetada
-    ejecutarEnvioGasto(tipo, categoria, concepto, monto, imagenComprimidaB64);
+    // Si no hay foto, o si la foto ya está lista en la variable, se envía de inmediato
+    let imagenFinalB64 = (fotoListaParaEnviar && imagenComprimidaB64 !== "") ? imagenComprimidaB64 : "";
+
+    // Despacho controlado via JSON estable
+    fetch('/api/balance/guardar_movimiento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            tipo_mov: tipo,
+            categoria_mov: categoria,
+            concepto_mov: concepto,
+            monto_mov: monto,
+            foto_comprimida_b64: imagenFinalB64
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            window.location.reload();
+        } else {
+            alert("Error al guardar: " + data.message);
+        }
+    })
+    .catch(err => alert("Error de conexión con el servidor: " + err));
 }
 
 // Función auxiliar unificada para procesar el despacho JSON limpio sin bucles
