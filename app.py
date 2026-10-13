@@ -1035,13 +1035,23 @@ function procesarImagenEnCaliente() {
 }
 
 function procesarYEnviarGasto(event) {
+    if (event) event.preventDefault(); // Detiene el envío inmediato e inestable del celular
+    
     const fileInput = document.getElementById('foto_mov');
     const form = document.getElementById('formBalance');
     
+    // Verificamos si el cobrador seleccionó una foto pero el Canvas sigue procesando
     if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
         alert("⏳ Procesando imagen de alta definición... Espera un segundo y vuelve a presionar Guardar.");
         return false;
     }
+    
+    // 🟢 Aseguramos que el valor comprimido actual se asigne con fuerza antes del submit
+    if (fotoListaParaEnviar && imagenComprimidaB64 !== "") {
+        document.getElementById('foto_comprimida_b64').value = imagenComprimidaB64;
+    }
+    
+    // Enviamos el formulario de forma segura con los datos cargados
     form.submit();
 }
 
