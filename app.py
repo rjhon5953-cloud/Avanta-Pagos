@@ -1045,11 +1045,16 @@ function procesarYEnviarGasto() {
         return;
     }
 
-    // 🟢 ELIMINADO EL MENSAJE DE ALERTA DE COMPRESIÓN: Si la foto aún no ha terminado de cargarse en el Canvas,
-    // se toma directamente el string actual (o viaja vacío de forma segura) sin interrumpir ni bloquear el guardado del registro.
+    // 🟢 RECONFIGURACIÓN COMPLETA AUTOMÁTICA: 
+    // Si hay un archivo cargado pero el Canvas asíncrono no ha terminado, reintentamos automáticamente en 300 milisegundos sin alertas.
+    if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
+        console.log("⏳ Esperando compresión multimedia...");
+        setTimeout(procesarYEnviarGasto, 300);
+        return;
+    }
+
     let imagenFinalB64 = (fotoListaParaEnviar && imagenComprimidaB64 !== "") ? imagenComprimidaB64 : "";
 
-    // Despachamos todos los datos de inmediato via AJAX/JSON para blindar el flujo
     fetch('/api/balance/guardar_movimiento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
