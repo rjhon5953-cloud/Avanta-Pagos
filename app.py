@@ -1045,41 +1045,24 @@ function procesarYEnviarGasto() {
         return;
     }
 
-    // 🟢 SILENCIOSO Y AUTOMÁTICO: Si hay una foto seleccionada pero el Canvas sigue procesando,
-    // esperamos 200 milisegundos en segundo plano. NO muestra alertas ni interrumpe el flujo.
+    // 🟢 CORREGIDO: Si NO hay foto seleccionada, ejecutamos el envío directo sin demoras
+    if (fileInput.files.length === 0) {
+        ejecutarEnvioGasto(tipo, categoria, concepto, monto, "");
+        return;
+    }
+
+    // Si hay una foto pero el lector síncrono del Canvas aún no termina de procesarla
     if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
-        console.log("⏳ Esperando procesamiento de imagen en segundo plano...");
+        console.log("⏳ Esperando compresión multimedia...");
         setTimeout(procesarYEnviarGasto, 200);
         return;
     }
 
-    // Si no hay foto, o si la foto ya está lista en la variable, se envía de inmediato
-    let imagenFinalB64 = (fotoListaParaEnviar && imagenComprimidaB64 !== "") ? imagenComprimidaB64 : "";
-
-    // Despacho controlado via JSON estable
-    fetch('/api/balance/guardar_movimiento', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            tipo_mov: tipo,
-            categoria_mov: categoria,
-            concepto_mov: concepto,
-            monto_mov: monto,
-            foto_comprimida_b64: imagenFinalB64
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'ok') {
-            window.location.reload();
-        } else {
-            alert("Error al guardar: " + data.message);
-        }
-    })
-    .catch(err => alert("Error de conexión con el servidor: " + err));
+    // Si la foto está lista, la enviamos acoplada al JSON
+    ejecutarEnvioGasto(tipo, categoria, concepto, monto, imagenComprimidaB64);
 }
 
-// Función auxiliar unificada para procesar el despacho JSON limpio sin bucles
+// 🟢 FUNCIÓN AUXILIAR UNIFICADA: Envía el paquete via AJAX de forma rígida y estable
 function ejecutarEnvioGasto(tipo, categoria, concepto, monto, fotoB64) {
     fetch('/api/balance/guardar_movimiento', {
         method: 'POST',
