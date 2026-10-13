@@ -1053,16 +1053,25 @@ function procesarYEnviarGasto() {
         return;
     }
 
-    // Si hay una foto seleccionada pero el Canvas sigue procesando la compresión en memoria
+    // 🟢 CORREGIDO: Si el cobrador NO seleccionó ninguna foto, enviamos los datos de texto inmediatamente
+    if (!fileInput.files || fileInput.files.length === 0) {
+        ejecutarDespachoGasto(tipo, categoria, concepto, monto, "");
+        return;
+    }
+
+    // Si hay una foto seleccionada pero el Canvas sigue procesando la compresión
     if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
         console.log("⏳ Comprimiendo imagen en background...");
         setTimeout(procesarYEnviarGasto, 200);
         return;
     }
 
-    let imagenFinalB64 = (fotoListaParaEnviar && imagenComprimidaB64 !== "") ? imagenComprimidaB64 : "";
+    // Si ya hay una foto lista comprimida en la variable
+    ejecutarDespachoGasto(tipo, categoria, concepto, monto, imagenComprimidaB64);
+}
 
-    // 🟢 ENVÍO AJAX TOTALMENTE AJUSTADO Y SEGURO CONTRA CAÍDAS DE RED
+// 🟢 FUNCIÓN DE APOYO: Despacha de forma rígida el paquete JSON limpio a tu API de Flask
+function ejecutarDespachoGasto(tipo, categoria, concepto, monto, fotoB64) {
     fetch('/api/balance/guardar_movimiento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1071,7 +1080,7 @@ function procesarYEnviarGasto() {
             categoria_mov: categoria,
             concepto_mov: concepto,
             monto_mov: monto,
-            foto_comprimida_b64: imagenFinalB64
+            foto_comprimida_b64: fotoB64
         })
     })
     .then(res => res.json())
