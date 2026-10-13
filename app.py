@@ -612,8 +612,8 @@ CONTENIDO_HTML += """
 
     <div class="card" style="padding:16px;">
         <div class="kpi-title" style="margin-bottom:8px;">Registrar Movimiento de Flujo</div>
-        <!-- 🔑 FIJADO: Envío tradicional cancelado. Delegado al script asíncrono controlado procesarYEnviarGasto -->
-        <form id="formBalance" method="POST" action="/api/balance/guardar_movimiento" enctype="multipart/form-data">
+        <!-- 🟢 RECONFIGURADO: Se elimina el POST tradicional inestable y se delega el control a JavaScript -->
+        <form id="formBalance" onsubmit="event.preventDefault();">
             <label>Tipo de Flujo</label>
             <select name="tipo_mov" id="tipo_mov" required>
                 <option value="Entrada">📥 Entrada / Inversión Capital</option>
@@ -631,7 +631,6 @@ CONTENIDO_HTML += """
                 <option value="Otros" selected>📦 Otros</option>
             </select>
             
-            <!-- 🟢 SOLUCIONADO: Se añaden las cajas de texto que le faltaban a tu código original -->
             <label>Descripción / Detalle</label>
             <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Compra de repuestos" required>
             
@@ -641,9 +640,7 @@ CONTENIDO_HTML += """
             <label>📸 Foto Factura / Comprobante</label>
             <input type="file" id="foto_mov" accept="image/*" capture="environment" style="border:none; padding:4px 0;" onchange="procesarImagenEnCaliente()">
             
-            <input type="hidden" id="foto_comprimida_b64" name="foto_comprimida_b64">
-            
-            <button type="button" onclick="procesarYEnviarGasto(event)" class="btn-accion btn-pagar" style="width:100%; padding:12px; margin-top:10px; font-size:13px; font-weight:800; border:none; border-radius:8px; color:white; cursor:pointer;">Guardar Registro</button>
+            <button type="button" onclick="procesarYEnviarGasto()" class="btn-accion btn-pagar" style="width:100%; padding:12px; margin-top:10px; font-size:13px; font-weight:800; border:none; border-radius:8px; color:white; cursor:pointer;">Guardar Registro</button>
         </form>
     </div>
 
@@ -1036,24 +1033,44 @@ function procesarImagenEnCaliente() {
     reader.readAsDataURL(file);
 }
 
-function procesarYEnviarGasto(event) {
-    if (event) event.preventDefault(); // Detiene cualquier envío prematuro del teléfono
-    
+function procesarYEnviarGasto() {
     const fileInput = document.getElementById('foto_mov');
-    const form = document.getElementById('formBalance');
-    
-    // Si el usuario tomó una foto pero el Canvas asíncrono no ha terminado de procesarla
+    const tipo = document.getElementById('tipo_mov').value;
+    const categoria = document.getElementById('categoria_mov').value;
+    const concepto = document.getElementById('concepto_mov').value.trim();
+    const monto = document.getElementById('monto_mov').value;
+
+    if (!concepto || !monto) {
+        alert("⚠️ Por favor llena los campos de Descripción y Monto.");
+        return;
+    }
+
     if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
-        alert("⏳ Comprimiendo imagen para ahorrar datos... Espera un segundo y vuelve a presionar Guardar.");
-        return false;
+        alert("⏳ Comprimiendo imagen... Espera un segundo y vuelve a presionar Guardar.");
+        return;
     }
-    
-    // 🟢 FIJADO: Forzamos la asignación del Base64 directamente en el campo oculto antes de subirlo
-    if (fotoListaParaEnviar && imagenComprimidaB64 !== "") {
-        document.getElementById('foto_comprimida_b64').value = imagenComprimidaB64;
-    }
-    
-    form.submit(); // Despacha el formulario con los datos acoplados de forma segura
+
+    // 🟢 ENVIÓ BLINDADO: Despachamos todos los datos via AJAX/JSON para blindar el Base64
+    fetch('/api/balance/guardar_movimiento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            tipo_mov: tipo,
+            categoria_mov: categoria,
+            concepto_mov: concepto,
+            monto_mov: monto,
+            foto_comprimida_b64: imagenComprimidaB64 // Viaja sin alteraciones de URL encoding
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            window.location.reload();
+        } else {
+            alert("Error al guardar: " + data.message);
+        }
+    })
+    .catch(err => alert("Error de conexión: " + err));
 }
 
 function cargarYVerFoto(gastoId) {
@@ -1440,28 +1457,26 @@ def guardar_nuevo_cliente():
 @app.route("/api/balance/guardar_movimiento", methods=["POST"])
 def balance_guardar_movimiento():
     if not session.get("autenticado"): 
-        return redirect("/login")
+        return jsonify({"status": "error", "message": "No autorizado"})
         
-    tipo = request.form.get("tipo_mov")
-    categoria = request.form.get("categoria_mov", "Otros")
-    concepto = request.form.get("concepto_mov", "").strip()
-    monto = float(request.form.get("monto_mov", "0"))
+    # 🟢 CONTROL DE DATOS: Captura el paquete JSON directo de los encabezados de red
+    datos = request.get_json()
+    if not datos:
+        return jsonify({"status": "error", "message": "No se recibieron datos"})
+        
+    tipo = datos.get("tipo_mov")
+    categoria = datos.get("categoria_mov", "Otros")
+    concepto = datos.get("concepto_mov", "").strip()
+    monto = float(datos.get("monto_mov", "0"))
+    base64_str = datos.get("foto_comprimida_b64", "").strip()
     hoy_str = date.today().isoformat()
+    
     if not concepto: 
-        concepto = "Flujo de " + categoria
-    
-    # Captura el string comprimido de la imagen que envía el JavaScript
-    base64_str = request.form.get("foto_comprimida_b64", "").strip()
-    
-    # 🟢 CORREGIDO: Soluciona el bug de codificación URL restaurando los caracteres '+' destruidos por el POST tradicional
-    if base64_str:
-        # Si el string mantiene el prefijo de datos URL del Canvas, lo removemos de forma limpia
-        if "base64," in base64_str:
-            base64_str = base64_str.split("base64,")[-1]
+        concepto = f"Flujo de {categoria}"
         
-        # El navegador web cambia los '+' por espacios ' '. Aquí los restauramos quirúrgicamente
-        base64_str = base64_str.replace(" ", "+")
-    
+    if base64_str and "base64," in base64_str:
+        base64_str = base64_str.split("base64,")[-1]
+
     with get_db() as conn:
         with conn.cursor() as cursor:
             cursor.execute(
@@ -1472,7 +1487,7 @@ def balance_guardar_movimiento():
             )
         conn.commit()
         
-    return redirect("/menu/balance")
+    return jsonify({"status": "ok"})
 
 @app.route("/api/eliminar_gasto/<int:gasto_id>")
 def eliminar_gasto(gasto_id):
