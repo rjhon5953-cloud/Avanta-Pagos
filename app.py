@@ -613,7 +613,7 @@ CONTENIDO_HTML += """
     <div class="card" style="padding:16px;">
         <div class="kpi-title" style="margin-bottom:8px;">Registrar Movimiento de Flujo</div>
         <!-- 🔑 FIJADO: Envío tradicional cancelado. Delegado al script asíncrono controlado procesarYEnviarGasto -->
-        <form id="formBalance" method="POST" action="/api/balance/guardar_movimiento">
+                <form id="formBalance" method="POST" action="/api/balance/guardar_movimiento">
             <label>Tipo de Flujo</label>
             <select name="tipo_mov" id="tipo_mov" required>
                 <option value="Entrada">📥 Entrada / Inversión Capital</option>
@@ -631,11 +631,12 @@ CONTENIDO_HTML += """
                 <option value="Otros" selected>📦 Otros</option>
             </select>
             
+            <!-- 🟢 CORREGIDO: Se estructuran las entradas de texto correspondientes de tu app -->
             <label>Descripción / Detalle</label>
-            <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Compra de repuestos de moto" required>
+            <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Almuerzo supervisor" required>
             
             <label>Monto ($)</label>
-            <input type="number" step="any" name="monto_mov" id="monto_mov" placeholder="Valor en dinero" required>
+            <input type="number" step="any" name="monto_mov" id="monto_mov" placeholder="0.00" required>
             
             <label>📸 Foto Factura / Comprobante</label>
             <input type="file" id="foto_mov" accept="image/*" capture="environment" style="border:none; padding:4px 0;" onchange="procesarImagenEnCaliente()">
@@ -999,7 +1000,6 @@ function ejecutarNoPago(clienteId) {
             }).catch(err => alert("Error al procesar el salto: " + err));
     }
 }
-
 function procesarImagenEnCaliente() {
     const fileInput = document.getElementById('foto_mov');
     if (!fileInput.files || fileInput.files.length === 0) return;
@@ -1013,7 +1013,7 @@ function procesarImagenEnCaliente() {
             let width = img.width;
             let height = img.height;
 
-            const MAX_WIDTH = 800;
+            const MAX_WIDTH = 600; // Reducimos a 600px para que la cadena Base64 sea ultra liviana en redes móviles
             if (width > MAX_WIDTH) {
                 height *= MAX_WIDTH / width;
                 width = MAX_WIDTH;
@@ -1024,10 +1024,12 @@ function procesarImagenEnCaliente() {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
 
-            imagenComprimidaB64 = canvas.toDataURL('image/jpeg', 0.6);
+            imagenComprimidaB64 = canvas.toDataURL('image/jpeg', 0.5); // Calidad optimizada al 50%
+            
+            // 🟢 FIJADO: Guardamos la imagen directamente en el input oculto en el instante en que se procesa
             document.getElementById('foto_comprimida_b64').value = imagenComprimidaB64;
             fotoListaParaEnviar = true;
-            console.log("⚡ Foto comprimida con éxito.");
+            console.log("⚡ Foto comprimida e inyectada con éxito.");
         };
         img.src = e.target.result;
     };
