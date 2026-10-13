@@ -1889,6 +1889,6 @@ def api_revertir_gestion(tipo, id_str):
     return jsonify({"status": "ok"})
 
 if __name__ == "__main__":
-    # Servidor local configurado para ejecutarse en el puerto estricto 8080
+    # Servidor optimizado y blindado con hilos controlados para evitar caídas en Render
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
