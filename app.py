@@ -1440,16 +1440,28 @@ def guardar_nuevo_cliente():
 
 @app.route("/api/balance/guardar_movimiento", methods=["POST"])
 def balance_guardar_movimiento():
-    if not session.get("autenticado"): return redirect("/login")
+    if not session.get("autenticado"): 
+        return redirect("/login")
+        
     tipo = request.form.get("tipo_mov")
     categoria = request.form.get("categoria_mov", "Otros")
     concepto = request.form.get("concepto_mov", "").strip()
     monto = float(request.form.get("monto_mov", "0"))
     hoy_str = date.today().isoformat()
-    if not concepto: concepto = "Flujo de " + categoria
+    if not concepto: 
+        concepto = "Flujo de " + categoria
     
-    # 📸 FIJADO: Captura el string comprimido de la imagen que le envía el nuevo formulario JavaScript
+    # Captura el string comprimido de la imagen que envía el JavaScript
     base64_str = request.form.get("foto_comprimida_b64", "").strip()
+    
+    # 🟢 CORREGIDO: Soluciona el bug de codificación URL restaurando los caracteres '+' destruidos por el POST tradicional
+    if base64_str:
+        # Si el string mantiene el prefijo de datos URL del Canvas, lo removemos de forma limpia
+        if "base64," in base64_str:
+            base64_str = base64_str.split("base64,")[-1]
+        
+        # El navegador web cambia los '+' por espacios ' '. Aquí los restauramos quirúrgicamente
+        base64_str = base64_str.replace(" ", "+")
     
     with get_db() as conn:
         with conn.cursor() as cursor:
@@ -1460,6 +1472,7 @@ def balance_guardar_movimiento():
                 """, (tipo, categoria, concepto, monto, hoy_str, base64_str)
             )
         conn.commit()
+        
     return redirect("/menu/balance")
 
 @app.route("/api/eliminar_gasto/<int:gasto_id>")
