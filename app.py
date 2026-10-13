@@ -588,72 +588,80 @@ CONTENIDO_HTML += """
     </div>
 
 {% elif vista == 'balance' or vista == 'gastos' %}
-    <div class="section-header-title"><i class="fa-solid fa-scale-balanced"></i> Estado Contable del Balance</div>
+    <div class="section-header-title"><i class="fa-solid fa-scale-balanced"></i> Control de Caja y Balance Diario</div>
+    
+    <!-- 📊 TARJETA DE ESTADO ACTUAL -->
     <div class="expected-card" style="border-left: 5px solid #10b981; background:#ecfdf5; padding:12px; border-radius:12px; margin-bottom:12px; text-align:left;">
-        <div class="kpi-title" style="color:#065f46;">Estado Actual</div>
-        <div class="kpi-val" style="color:#065f46; font-size:14px;">Sin Cerrar | Caja Base: ${{ "%.2f"|format(caja_base) }}</div>
+        <div class="kpi-title" style="color:#065f46;">Estado Operativo de Ruta</div>
+        <div class="kpi-val" style="color:#065f46; font-size:14px;">Abierta | Base Inicial: ${{ "%.2f"|format(caja_base) }}</div>
     </div>
     
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
-        <div class="kpi-card" style="border-left:4px solid #10b981; background:white; padding:10px; border-radius:8px;">
-            <div class="kpi-title">Inversión / Entradas</div>
-            <div class="kpi-val" style="color:#10b981;">+${{ "%.2f"|format(entradas_totales) }}</div>
+    <!-- 📊 CUADRÍCULA DE VALORES RECOLECTADOS -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:12px;">
+        <div class="kpi-card" style="border-left:4px solid #10b981; background:white; padding:10px; border-radius:8px; text-align:left;">
+            <div class="kpi-title">Cobros (Cuotas)</div>
+            <div class="kpi-val" style="color:#10b981; font-size:13px;">+${{ "%.2f"|format(total_cobrado_hoy) }}</div>
         </div>
-        <div class="kpi-card" style="border-left:4px solid #ef4444; background:white; padding:10px; border-radius:8px;">
-            <div class="kpi-title">Salidas / Gastos</div>
-            <div class="kpi-val" style="color:#ef4444;">-${{ "%.2f"|format(salidas_totales) }}</div>
+        <div class="kpi-card" style="border-left:4px solid #00a8cc; background:white; padding:10px; border-radius:8px; text-align:left;">
+            <div class="kpi-title">Ventas (Nuevos)</div>
+            <div class="kpi-val" style="color:#00a8cc; font-size:13px;">+${{ "%.2f"|format(entradas_totales) }}</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #ef4444; background:white; padding:10px; border-radius:8px; text-align:left;">
+            <div class="kpi-title">Gastos / Salidas</div>
+            <div class="kpi-val" style="color:#ef4444; font-size:13px;">-${{ "%.2f"|format(salidas_totales) }}</div>
         </div>
     </div>
 
-    <div class="card" style="background:#0f2b5c; color:white; text-align:center; padding:12px; margin-bottom:12px;">
-        <div class="kpi-title" style="color:white; opacity:0.8;">Efectivo Líquido Neto</div>
-        <div class="kpi-val" style="color:white; font-size:20px; margin-top:2px;">${{ "%.2f"|format(efectivo_neto) }}</div>
+    <!-- 💰 TARJETA DEL EFECTIVO TOTAL NETO EN MANO -->
+    <div class="card" style="background:#0f2b5c; color:white; text-align:center; padding:14px; margin-bottom:12px; box-shadow:0 4px 12px rgba(15,43,92,0.15);">
+        <div class="kpi-title" style="color:white; opacity:0.8; letter-spacing:1px;">TOTAL EFECTIVO A TENER EN MANO</div>
+        <div class="kpi-val" style="color:white; font-size:22px; margin-top:4px; font-weight:800;">${{ "%.2f"|format(efectivo_neto) }}</div>
     </div>
 
-    <div class="card" style="padding:16px;">
-        <div class="kpi-title" style="margin-bottom:8px;">Registrar Movimiento de Flujo</div>
-        <!-- 🟢 RECONFIGURADO: Se elimina el POST tradicional inestable y se delega el control a JavaScript -->
+    <!-- ⚡ BOTÓN MAESTRO DE REDIRECCIÓN A CIERRE DE CAJA -->
+    <button type="button" onclick="navegarRuta('/menu/configuracion')" class="btn-accion" style="width:100%; background:#7c3aed; color:white; padding:12px; font-size:13px; font-weight:800; border-radius:8px; margin-bottom:16px; border:none; cursor:pointer; box-shadow:0 4px 10px rgba(124,58,237,0.2); display:block;">
+        🔒 Ir a Cierre de Caja de la Ruta
+    </button>
+
+    <!-- 📝 FORMULARIO DE REGISTRO EN CALIENTE -->
+    <div class="card" style="padding:16px; text-align:left;">
+        <div class="kpi-title" style="margin-bottom:10px; color:#0f2b5c; font-size:11px;">📥 Registrar Gasto o Flujo Extraordinario</div>
         <form id="formBalance" onsubmit="event.preventDefault();">
-            <label>Tipo de Flujo</label>
-            <select name="tipo_mov" id="tipo_mov" required>
-                <option value="Entrada">📥 Entrada / Inversión Capital</option>
-                <option value="Salida" selected>📤 Salida / Registro de Gasto</option>
-            </select>
+            <input type="hidden" name="tipo_mov" id="tipo_mov" value="Salida">
             
-            <label>Categoría del Movimiento</label>
-            <select name="categoria_mov" id="categoria_mov">
-                <option value="Inversión">💰 Inversión de Capital</option>
-                <option value="Gasolina">⛽ Gasolina</option>
-                <option value="Almuerzo">🍔 Almuerzo</option>
+            <label>Categoría del Gasto</label>
+            <select name="categoria_mov" id="categoria_mov" style="margin-bottom:10px;">
+                <option value="Gasolina">⛽ Gasolina / Transporte</option>
+                <option value="Almuerzo">🍔 Almuerzo / Alimentación</option>
                 <option value="Mantenimiento">🛠️ Mantenimiento Vehículo</option>
                 <option value="Viáticos">🎒 Viáticos de Ruta</option>
-                <option value="Sueldo">💵 Comisión</option>
-                <option value="Otros" selected>📦 Otros</option>
+                <option value="Otros" selected>📦 Otros Gastos</option>
             </select>
             
             <label>Descripción / Detalle</label>
-            <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Compra de repuestos" required>
+            <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Parche de llanta" required style="margin-bottom:10px;">
             
-            <label>Monto ($)</label>
-            <input type="number" step="any" name="monto_mov" id="monto_mov" placeholder="0.00" required>
+            <label>Monto a Restar ($)</label>
+            <input type="number" step="any" name="monto_mov" id="monto_mov" placeholder="0.00" required style="margin-bottom:12px;">
             
             <label>📸 Foto Factura / Comprobante</label>
-            <input type="file" id="foto_mov" accept="image/*" capture="environment" style="border:none; padding:4px 0;" onchange="procesarImagenEnCaliente()">
+            <input type="file" id="foto_mov" accept="image/*" capture="environment" style="border:none; padding:4px 0; margin-bottom:12px;" onchange="procesarImagenEnCaliente()">
             
-            <button type="button" onclick="procesarYEnviarGasto()" class="btn-accion btn-pagar" style="width:100%; padding:12px; margin-top:10px; font-size:13px; font-weight:800; border:none; border-radius:8px; color:white; cursor:pointer;">Guardar Registro</button>
+            <button type="button" onclick="procesarYEnviarGasto()" class="btn-accion btn-pagar" style="width:100%; padding:12px; font-size:13px; font-weight:800; border:none; border-radius:8px;">
+                💾 Guardar Movimiento
+            </button>
         </form>
     </div>
 
+    <!-- 📋 HISTORIAL DE MOVIMIENTOS -->
     <div class="card" style="padding:16px; text-align:left;">
-        <h4 style="font-size:13px; color:#0f2b5c; margin-bottom:10px;">📋 Historial de Movimientos de Hoy</h4>
+        <h4 style="font-size:12px; color:#0f2b5c; margin-bottom:10px;">📋 Historial de Gastos de Hoy</h4>
         {% if gastos_list %}
             {% for g in gastos_list %}
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding:8px 0; font-size:12px;">
                     <div style="flex:1;">
                         <b>[{{ g.categoria }}]</b> {{ g.concepto }}
-                        <span style="color: {% if g.tipo == 'Entrada' %}#10b981{% else %}#ef4444{% endif %}; font-weight:bold; margin-left:6px;">
-                            {% if g.tipo == 'Entrada' %}+{% else %}-{% endif %}${{ "%.2f"|format(g.monto) }}
-                        </span>
+                        <span style="color:#ef4444; font-weight:bold; margin-left:6px;">-${{ "%.2f"|format(g.monto) }}</span>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         {% if g.comprobante and g.comprobante != "None" and g.comprobante != "" %}
@@ -664,7 +672,7 @@ CONTENIDO_HTML += """
                 </div>
             {% endfor %}
         {% else %}
-            <p style="font-size:11px; color:#64748b; text-align:center;">No hay flujos asentados hoy.</p>
+            <p style="font-size:11px; color:#64748b; text-align:center;">No se registran gastos asentados hoy.</p>
         {% endif %}
     </div>
 {% endif %}
@@ -1045,25 +1053,16 @@ function procesarYEnviarGasto() {
         return;
     }
 
-    // 🟢 CORREGIDO: Si NO hay foto seleccionada, ejecutamos el envío directo sin demoras
-    if (fileInput.files.length === 0) {
-        ejecutarEnvioGasto(tipo, categoria, concepto, monto, "");
-        return;
-    }
-
-    // Si hay una foto pero el lector síncrono del Canvas aún no termina de procesarla
+    // Si hay una foto seleccionada pero el Canvas sigue procesando la compresión en memoria
     if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
-        console.log("⏳ Esperando compresión multimedia...");
+        console.log("⏳ Comprimiendo imagen en background...");
         setTimeout(procesarYEnviarGasto, 200);
         return;
     }
 
-    // Si la foto está lista, la enviamos acoplada al JSON
-    ejecutarEnvioGasto(tipo, categoria, concepto, monto, imagenComprimidaB64);
-}
+    let imagenFinalB64 = (fotoListaParaEnviar && imagenComprimidaB64 !== "") ? imagenComprimidaB64 : "";
 
-// 🟢 FUNCIÓN AUXILIAR UNIFICADA: Envía el paquete via AJAX de forma rígida y estable
-function ejecutarEnvioGasto(tipo, categoria, concepto, monto, fotoB64) {
+    // 🟢 ENVÍO AJAX TOTALMENTE AJUSTADO Y SEGURO CONTRA CAÍDAS DE RED
     fetch('/api/balance/guardar_movimiento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1072,7 +1071,7 @@ function ejecutarEnvioGasto(tipo, categoria, concepto, monto, fotoB64) {
             categoria_mov: categoria,
             concepto_mov: concepto,
             monto_mov: monto,
-            foto_comprimida_b64: fotoB64
+            foto_comprimida_b64: imagenFinalB64
         })
     })
     .then(res => res.json())
@@ -1080,10 +1079,10 @@ function ejecutarEnvioGasto(tipo, categoria, concepto, monto, fotoB64) {
         if (data.status === 'ok') {
             window.location.reload();
         } else {
-            alert("Error al guardar: " + data.message);
+            alert("Error del servidor: " + data.message);
         }
     })
-    .catch(err => alert("Error de conexión con el servidor: " + err));
+    .catch(err => alert("Error crítico de comunicación con Render: " + err));
 }
 
 function cargarYVerFoto(gastoId) {
@@ -1350,41 +1349,44 @@ def seccion_balance_maestro():
     
     with get_db() as conn:
         with conn.cursor() as cursor:
-            # 🏢 FIJADO: Uso de alias explícitos 'AS val' para asegurar compatibilidad total con DictCursor
-            cursor.execute("SELECT valor AS val FROM configuracion WHERE llave = 'caja_base'")
+            # 🏢 Obtención de Caja Base Inicial
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_base'")
             res_caja = cursor.fetchone()
-            caja_base = float(res_caja["val"]) if res_caja else 100.00
+            caja_base = float(res_caja["valor"]) if res_caja else 100.00
             
-            cursor.execute("SELECT valor AS val FROM configuracion WHERE llave = 'balance_estado'")
-            res_estado = cursor.fetchone()
-            balance_estado = res_estado["val"] if res_estado else "Sin cerrar"
+            # 💵 1. Pagos Cobrados (Suma total de cuotas recaudadas hoy en la calle)
+            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s", (hoy_str,))
+            total_cobrado_hoy = float(cursor.fetchone()["total"])
             
-            cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
-            movimientos = cursor.fetchall()
+            # 📥 2. Ventas Nuevas / Entradas de capital extraordinarias hoy
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND fecha = %s", (hoy_str,))
+            entradas_totales = float(cursor.fetchone()["total"])
             
-    entradas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Entrada")
-    salidas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Salida")
-    efectivo_neto = caja_base + entradas_totales - salidas_totales
+            # 📤 3. Gastos / Salidas asentadas hoy
+            cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE tipo = 'Salida' AND fecha = %s ORDER BY id DESC", (hoy_str,))
+            movimientos_gastos = cursor.fetchall()
+            
+    salidas_totales = sum(float(g["monto"]) for g in movimientos_gastos)
+    
+    # 🧮 FÓRMULA MATEMÁTICA DEL EFECTIVO NETO REAL A TENER EN MANO
+    efectivo_neto = caja_base + total_cobrado_hoy + entradas_totales - salidas_totales
     
     movimientos_limpios = []
-    for m in movimientos:
+    for m in movimientos_gastos:
         m_dict = dict(m)
-        # 🧼 Saneamiento crítico para DictCursor: limpia el Base64 y asegura que nunca devuelva un string roto o un None oculto
-        if m_dict["comprobante"] and str(m_dict["comprobante"]).strip() != "" and m_dict["comprobante"] != "None":
-            try:
-                comprobante_puro = str(m_dict["comprobante"]).replace("\n", "").replace("\r", "").strip()
-                if "base64," in comprobante_puro:
-                    comprobante_puro = comprobante_puro.split("base64,")[-1]
-                m_dict["comprobante"] = comprobante_puro
-            except Exception as b64_err:
-                print(f"Error procesando imagen en backend: {b64_err}")
-                m_dict["comprobante"] = ""
-        else:
-            m_dict["comprobante"] = ""
-            
+        m_dict["comprobante"] = str(m_dict["comprobante"]).strip() if m_dict["comprobante"] else ""
         movimientos_limpios.append(m_dict)
             
-    contexto = dict(vista="balance", caja_base=caja_base, balance_estado=balance_estado, gastos_list=movimientos_limpios, entradas_totales=entradas_totales, salidas_totales=salidas_totales, efectivo_neto=efectivo_neto)
+    contexto = dict(
+        vista="balance", 
+        caja_base=caja_base, 
+        total_cobrado_hoy=total_cobrado_hoy,
+        entradas_totales=entradas_totales, 
+        salidas_totales=salidas_totales, 
+        efectivo_neto=efectivo_neto,
+        gastos_list=movimientos_limpios
+    )
+    
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
@@ -1472,12 +1474,11 @@ def balance_guardar_movimiento():
     if not session.get("autenticado"): 
         return jsonify({"status": "error", "message": "No autorizado"})
         
-    # 🟢 CONTROL DE DATOS: Captura el paquete JSON directo de los encabezados de red
     datos = request.get_json()
     if not datos:
         return jsonify({"status": "error", "message": "No se recibieron datos"})
         
-    tipo = datos.get("tipo_mov")
+    tipo = datos.get("tipo_mov", "Salida")
     categoria = datos.get("categoria_mov", "Otros")
     concepto = datos.get("concepto_mov", "").strip()
     monto = float(datos.get("monto_mov", "0"))
@@ -1485,7 +1486,7 @@ def balance_guardar_movimiento():
     hoy_str = date.today().isoformat()
     
     if not concepto: 
-        concepto = f"Flujo de {categoria}"
+        concepto = f"Gasto de {categoria}"
         
     if base64_str and "base64," in base64_str:
         base64_str = base64_str.split("base64,")[-1]
