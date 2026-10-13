@@ -1045,16 +1045,24 @@ function procesarYEnviarGasto() {
         return;
     }
 
-    // 🟢 RECONFIGURACIÓN COMPLETA AUTOMÁTICA: 
-    // Si hay un archivo cargado pero el Canvas asíncrono no ha terminado, reintentamos automáticamente en 300 milisegundos sin alertas.
-    if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
-        console.log("⏳ Esperando compresión multimedia...");
-        setTimeout(procesarYEnviarGasto, 300);
+    // 🟢 CORREGIDO: Si NO se seleccionó ningún archivo de foto, guardamos de inmediato sin esperar nada.
+    if (fileInput.files.length === 0) {
+        ejecutarEnvioGasto(tipo, categoria, concepto, monto, "");
         return;
     }
 
-    let imagenFinalB64 = (fotoListaParaEnviar && imagenComprimidaB64 !== "") ? imagenComprimidaB64 : "";
+    // Si hay un archivo seleccionado pero el lector FileReader aún no ha terminado de cargarlo
+    if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
+        alert("⏳ Comprimiendo imagen... Espera un segundo y vuelve a presionar Guardar.");
+        return;
+    }
 
+    // Si ya terminó de procesar la foto, la mandamos empaquetada
+    ejecutarEnvioGasto(tipo, categoria, concepto, monto, imagenComprimidaB64);
+}
+
+// Función auxiliar unificada para procesar el despacho JSON limpio sin bucles
+function ejecutarEnvioGasto(tipo, categoria, concepto, monto, fotoB64) {
     fetch('/api/balance/guardar_movimiento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1063,7 +1071,7 @@ function procesarYEnviarGasto() {
             categoria_mov: categoria,
             concepto_mov: concepto,
             monto_mov: monto,
-            foto_comprimida_b64: imagenFinalB64
+            foto_comprimida_b64: fotoB64
         })
     })
     .then(res => res.json())
@@ -1074,7 +1082,7 @@ function procesarYEnviarGasto() {
             alert("Error al guardar: " + data.message);
         }
     })
-    .catch(err => alert("Error de conexión: " + err));
+    .catch(err => alert("Error de conexión con el servidor: " + err));
 }
 
 function cargarYVerFoto(gastoId) {
