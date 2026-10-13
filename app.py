@@ -1037,24 +1037,23 @@ function procesarImagenEnCaliente() {
 }
 
 function procesarYEnviarGasto(event) {
-    if (event) event.preventDefault(); // Detiene el envío inmediato e inestable del celular
+    if (event) event.preventDefault(); // Detiene cualquier envío prematuro del teléfono
     
     const fileInput = document.getElementById('foto_mov');
     const form = document.getElementById('formBalance');
     
-    // Verificamos si el cobrador seleccionó una foto pero el Canvas sigue procesando
+    // Si el usuario tomó una foto pero el Canvas asíncrono no ha terminado de procesarla
     if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
-        alert("⏳ Procesando imagen de alta definición... Espera un segundo y vuelve a presionar Guardar.");
+        alert("⏳ Comprimiendo imagen para ahorrar datos... Espera un segundo y vuelve a presionar Guardar.");
         return false;
     }
     
-    // 🟢 Aseguramos que el valor comprimido actual se asigne con fuerza antes del submit
+    // 🟢 FIJADO: Forzamos la asignación del Base64 directamente en el campo oculto antes de subirlo
     if (fotoListaParaEnviar && imagenComprimidaB64 !== "") {
         document.getElementById('foto_comprimida_b64').value = imagenComprimidaB64;
     }
     
-    // Enviamos el formulario de forma segura con los datos cargados
-    form.submit();
+    form.submit(); // Despacha el formulario con los datos acoplados de forma segura
 }
 
 function cargarYVerFoto(gastoId) {
