@@ -297,7 +297,7 @@ CONTENIDO_HTML = """
 """
 
 CONTENIDO_HTML += """
-{% elif vista == 'clientes_financieros' or vista == 'clientes' %}
+{% elif vista == 'clientes_financieros' %}
     <div class="section-header-title"><i class="fa-solid fa-users"></i> HISTORIAL GENERAL DE CLIENTES</div>
     <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Listado contable de todas las personas ingresadas en el sistema. Puedes auditar el capital en calle y los saldos reales generales.</p>
     
@@ -1077,26 +1077,23 @@ function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
 </body>
 </html>
 """
+
 @app.route("/login", methods=["GET", "POST"])
 def login_route():
     if request.method == "POST":
         usuario_ingresado = request.form.get("usuario")
         clave_ingresada = request.form.get("clave")
-        
         with get_db() as conn:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT valor FROM configuracion WHERE llave = 'usuario'")
                 usr_row = cursor.fetchone()
                 cursor.execute("SELECT valor FROM configuracion WHERE llave = 'clave'")
                 clv_row = cursor.fetchone()
-                
-        # Validación segura desempaquetando diccionarios para DictCursor
         if usr_row and clv_row:
             if usuario_ingresado == usr_row["valor"] and clave_ingresada == clv_row["valor"]:
                 session["autenticado"] = True
                 session["usuario"] = usuario_ingresado
                 return redirect("/")
-        
         return render_template_string(LOGIN_HTML, error="Credenciales incorrectas.")
     return render_template_string(LOGIN_HTML, error=None)
 
@@ -1109,48 +1106,32 @@ def logout():
 def dashboard_principal():
     if not session.get("autenticado"): 
         return redirect("/login")
-        
     hoy_str = date.today().isoformat()
-    
-    # 📅 FECHA EN TIEMPO REAL: Formateo en español para el badge superior
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     ahora = datetime.now()
     fecha_legible = f"{dias_semana[ahora.weekday()]}, {ahora.day:02d} de {meses[ahora.month - 1]} de {ahora.year}"
-    
     with get_db() as conn:
         with conn.cursor() as cursor:
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s", (hoy_str,))
             total_cobrado_hoy = float(cursor.fetchone()["total"])
-            
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Salida' AND fecha = %s", (hoy_str,))
             total_gastos_hoy = float(cursor.fetchone()["total"])
-            
             cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE fecha_inicio = %s", (hoy_str,))
             creditos_nuevos_hoy = int(cursor.fetchone()["total"])
-
     clientes_ruta = obtener_clientes_ruta_hoy()
     debido_minimo_dia = sum(cl["valor_cuota"] for cl in clientes_ruta)
-    
     debido_total_acumulado = 0.0
     for cl in clientes_ruta:
         for p in cl["pagos"]:
             if not p["pagado"] and p["fecha"] <= hoy_str:
                 debido_total_acumulado += (p["valor"] - p["valor_pagado"])
-
     capital_en_calle = sum(max(0.0, c["monto_total"] - sum(p["valor_pagado"] for p in c["pagos"])) for c in clientes_ruta)
-
     contexto_dash = f"""
     <div class="date-badge"><i class="fa-solid fa-calendar-day"></i> {fecha_legible}</div>
     <div class="grid-kpis">
-        <div class="kpi-card">
-            <div class="kpi-title">Recaudo Hoy / Créditos Hoy</div>
-            <div class="kpi-val">${total_cobrado_hoy:.2f} / {creditos_nuevos_hoy} Créd.</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-title">Capital Total en Calle</div>
-            <div class="kpi-val" style="color:#0f2b5c;">${capital_en_calle:.2f}</div>
-        </div>
+        <div class="kpi-card"><div class="kpi-title">Recaudo Hoy / Créditos Hoy</div><div class="kpi-val">${total_cobrado_hoy:.2f} / {creditos_nuevos_hoy} Créd.</div></div>
+        <div class="kpi-card"><div class="kpi-title">Capital Total en Calle</div><div class="kpi-val" style="color:#0f2b5c;">${capital_en_calle:.2f}</div></div>
     </div>
     <div class="expected-card">
         <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
@@ -1159,65 +1140,47 @@ def dashboard_principal():
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()">
     <div id="clientesContainer">
     """
-
-        # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO EN LA RUTA
     for c in clientes_ruta:
         pagado_acumulado = sum(p["valor_pagado"] for p in c["pagos"])
         saldo_restante = max(0.0, c["monto_total"] - pagado_acumulado)
         cuotas_pagadas = sum(1 for p in c["pagos"] if p["pagado"] == 1)
         cuota_p = next((p for p in c["pagos"] if p["pagado"] == 0), None)
         es_mora_cl = c.get("cuotas_atrasadas", 0) > 0
-        
-        c_id = str(c["id"])
-        c_nombre = str(c["nombre"])
-        c_nombre_lower = str(c["nombre"].lower())
+        c_id, c_nombre, c_nombre_lower = str(c["id"]), str(c["nombre"]), str(c["nombre"].lower())
         c_referencia = str(c["referencia"] or "Comercio")
-        c_valor_cuota = f"{c['valor_cuota']:.2f}"
-        c_cuotas = str(c["cuotas"])
-        c_saldo_restante = f"{saldo_restante:.2f}"
+        c_valor_cuota, c_cuotas, c_saldo_restante = f"{c['valor_cuota']:.2f}", str(c["cuotas"]), f"{saldo_restante:.2f}"
         c_cuotas_pagadas = str(cuotas_pagadas)
-        
         inicial_frecuencia = 'D' if c['frecuencia'] == 'Diaria' else 'S'
-        clase_mora = "mora-leve" if es_mora_cl else "al-dia"
-        clase_mora_badge = "1" if es_mora_cl else "0"
+        clase_mora, clase_mora_badge = ("mora-leve", "1") if es_mora_cl else ("al-dia", "0")
         clase_check = "gestionado" if c['saltado_hoy'] > 0 else ("gestionado-ok" if cuotas_pagadas > 0 else "")
         numero_check = str(c['saltado_hoy'] if c['saltado_hoy'] > 0 else (cuotas_pagadas if cuotas_pagadas > 0 else 1))
-        
         js_num_cuota = str(cuota_p["numero"]) if cuota_p else "1"
         js_pendiente = f"{(cuota_p['valor'] - cuota_p['valor_pagado'])}" if cuota_p else "0"
-        
         contexto_dash += f"""
         <div class="cliente-card-premium" id="cliente-card-{c_id}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}">
             <div class="card-izquierda">
                 <div class="circulo-frecuencia {clase_mora}">{inicial_frecuencia}</div>
                 <div class="info-bloque-texto" style="width:100%;">
-                    <div class="id-alias">{c_id} {c_referencia}</div>
-                    <div class="nombre-real">{c_nombre}</div>
-                    
+                    <div class="id-alias">{c_id} {c_referencia}</div><div class="nombre-real">{c_nombre}</div>
                     <div class="grid-metricas-premium">
                         <div class="metric-col"><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${c_valor_cuota}</span></div>
                         <div class="metric-col"><span class="metric-lbl">Pendiente</span><span class="metric-val">{c_cuotas_pagadas}.0 / {c_cuotas}.0</span></div>
                         <div class="metric-col"><span class="metric-lbl">Pago</span><span class="metric-val">—</span></div>
                     </div>
-                    
                     <div class="fila-utilidades-premium">
                         <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
-                        <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
-                        <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
+                        <div class="circulo-check-cuota {clase_check}">{numero_check}</div><div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
                     </div>
                 </div>
             </div>
-            
             <div class="card-derecha-acciones">
                 <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">💵✔️</button>
                 <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">💵❌</button>
             </div>
         </div>
         """
-        
     contexto_dash += "</div>"
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
-        return render_template_string(contexto_dash)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest": return render_template_string(contexto_dash)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(contexto_dash))
 
 @app.route("/menu/clientes")
@@ -1385,26 +1348,27 @@ def guardar_nuevo_cliente():
                     (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, str(fecha_inicio_dt.isoformat()), str(fecha_vencimiento_dt.isoformat()), latitud, longitud)
                 )
                 
-                # 🔑 FIJADO: Desestructuración posicional por índice para asegurar la captura del ID real en Neon
-                res_id = cursor.fetchone()
-                cliente_id = res_id[0] if res_id else None
-                
-                if cliente_id:
-                    acumulado = 0.0
-                    for num in range(1, cuotas + 1):
-                        valor_cuota_real = float(round(monto_total - acumulado, 2)) if num == cuotas else valor_base_cuota
-                        acumulado += valor_cuota_real
-                        f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
-                        fecha_cuota_str = str(f_cuota.isoformat())
-                        
-                        cursor.execute(
-                            """
-                            INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real) 
-                            VALUES (%s, %s, %s, %s, 0, 0, '')
-                            """, 
-                            (cliente_id, num, fecha_cuota_str, valor_cuota_real)
-                        )
-            conn.commit()
+            # 🟢 FIJADO: Captura el registro atómico nativo de Neon Cloud
+            res_id = cursor.fetchone()
+            cliente_id = res_id[0] if res_id else None
+            
+            if cliente_id:
+                acumulado = 0.0
+                for num in range(1, cuotas + 1):
+                    valor_cuota_real = float(round(monto_total - acumulado, 2)) if num == cuotas else valor_base_cuota
+                    acumulado += valor_cuota_real
+                    f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
+                    fecha_cuota_str = str(f_cuota.isoformat())
+                    
+                    # 🟢 CORREGIDO: (cliente_id, ...) empaquetado de forma estricta como tupla compatible
+                    cursor.execute(
+                        """
+                        INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real) 
+                        VALUES (%s, %s, %s, %s, 0, 0, '')
+                        """, 
+                        (cliente_id, num, fecha_cuota_str, valor_cuota_real)
+                    )
+        conn.commit()
     except Exception as e: 
         print(f"Error crítico en guardar cliente: {e}")
     return redirect("/")
@@ -1644,53 +1608,34 @@ def api_marcar_pago(cliente_id, num_cuota):
             for p in pagos_pendientes:
                 if monto_restante <= 0:
                     break
-                    
                 pendiente_cuota = p["valor"] - p["valor_pagado"]
-                
                 if monto_restante >= pendiente_cuota:
                     monto_restante = round(monto_restante - pendiente_cuota, 2)
-                    cursor.execute(
-                        "UPDATE pagos SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
-                        (p["valor"], hoy_str, p["id"])
-                    )
+                    cursor.execute("UPDATE pagos SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s WHERE id = %s", (p["valor"], hoy_str, p["id"]))
                 else:
                     nuevo_pago_parcial = round(p["valor_pagado"] + monto_restante, 2)
                     monto_restante = 0
-                    cursor.execute(
-                        "UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
-                        (nuevo_pago_parcial, hoy_str, p["id"])
-                    )
+                    cursor.execute("UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s WHERE id = %s", (nuevo_pago_parcial, hoy_str, p["id"]))
             
             # Recalcular saldos para validar si ya liquidó la deuda completa
             cursor.execute("SELECT nombre, telefono, monto_total FROM clientes WHERE id = %s", (cliente_id,))
             c = cursor.fetchone()
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE cliente_id = %s", (cliente_id,))
             total_pagado = float(cursor.fetchone()["total"])
-            
             saldo_restante = max(0.0, c["monto_total"] - total_pagado)
             
-            # 🛡️ FIJADO: Si el saldo llegó a $0.00, el cliente se da por liquidado y pasa a 'Inactivo' de inmediato
+            # 🟢 FIJADO: Registra la fecha de gestión de hoy al cobrar para que el motor visual lo limpie de la pantalla al instante
             if saldo_restante <= 0:
-                cursor.execute("UPDATE clientes SET estado = 'Inactivo', enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
+                cursor.execute("UPDATE clientes SET estado = 'Inactivo', enrutado_forzado = 0, saltado_hoy = 0, fecha_gestion = %s WHERE id = %s", (hoy_str, cliente_id))
             else:
-                cursor.execute("UPDATE clientes SET enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
-                
+                cursor.execute("UPDATE clientes SET enrutado_forzado = 0, saltado_hoy = 0, fecha_gestion = %s WHERE id = %s", (hoy_str, cliente_id))
             conn.commit()
         
-    mensaje_ws = f"🧾 *AVANTA PAGOS*\nRecibo de Pago\nCliente: {c['nombre']}\nMonto Cobrado: ${monto_recaudado:.2f}\nSaldo Restante: ${saldo_restante:.2f}\n"
-    if saldo_restante <= 0:
-        mensaje_ws += "🎉 *¡FELICIDADES! CRÉDITO LIQUIDADO AL 100%*"
-    else:
-        mensaje_ws += "¡Gracias por su pago!"
+    mensaje_ws = f"🧾 *AVANTA PAGOS*\\nRecibo de Pago\\nCliente: {c['nombre']}\\nMonto Cobrado: ${monto_recaudado:.2f}\\nSaldo Restante: ${saldo_restante:.2f}\\n"
+    if saldo_restante <= 0: mensaje_ws += "🎉 *¡FELICIDADES! CRÉDITO LIQUIDADO AL 100%*"
+    else: mensaje_ws += "¡Gracias por su pago!"
     
-    recibo = {
-        "cliente": c["nombre"],
-        "telefono": c["telefono"] or "",
-        "cuota": num_cuota,
-        "monto": monto_recaudado,
-        "saldo": saldo_restante,
-        "mensaje_ws": mensaje_ws
-    }
+    recibo = {"cliente": c["nombre"], "telefono": c["telefono"] or "", "cuota": num_cuota, "monto": monto_recaudado, "saldo": saldo_restante, "mensaje_ws": mensaje_ws}
     return jsonify({"status": "ok", "recibo": recibo})
 
 @app.route("/api/marcar_no_pago/<int:cliente_id>")
