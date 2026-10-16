@@ -245,8 +245,7 @@ CONTENIDO_HTML = """
         <button onclick="filtrarEstado('mora')" class="btn-filtro" id="f-mora">⚠️ Mora</button>
         <button onclick="filtrarEstado('aldia')" class="btn-filtro" id="f-aldia">✅ Al Día</button>
     </div>
-"""
-CONTENIDO_HTML += """
+
     <div class="section-header-title"><i class="fa-solid fa-route"></i> Ruta Principal</div>
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente o referencia..." onkeyup="filtrarClientes()">
 
@@ -285,19 +284,20 @@ CONTENIDO_HTML += """
                     </div>
                 </div>
 
-             <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
-                {% if cuota_pendiente %}
-                    <!-- ⚡ OPTIMIZADO: Botón único "Cobrar / Abonar" capaz de procesar cobros base o múltiples cuotas continuas -->
-                    <button class="btn-accion btn-pagar" style="background:#10b981;" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})"><i class="fa-solid fa-money-bill-wave"></i> Cobrar</button>
-                    <button class="btn-accion btn-nopagar" style="background:#ef4444;" onclick="ejecutarNoPago({{ c.id }})"><i class="fa-solid fa-ban"></i> Saltar</button>
-                {% endif %}
-            </div>
+                <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:10px;">
+                    {% if cuota_pendiente %}
+                        <button class="btn-accion btn-pagar" style="background:#10b981;" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})"><i class="fa-solid fa-money-bill-wave"></i> Cobrar</button>
+                        <button class="btn-accion btn-nopagar" style="background:#ef4444;" onclick="ejecutarNoPago({{ c.id }})"><i class="fa-solid fa-ban"></i> Saltar</button>
+                    {% endif %}
+                </div>
             </div>
         {% endfor %}
     </div>
+{% endif %}
 """
+
 CONTENIDO_HTML += """
-{% elif vista == 'clientes_financieros' %}
+{% elif vista == 'clientes_financieros' or vista == 'clientes' %}
     <div class="section-header-title"><i class="fa-solid fa-users"></i> HISTORIAL GENERAL DE CLIENTES</div>
     <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Listado contable de todas las personas ingresadas en el sistema. Puedes auditar el capital en calle y los saldos reales generales.</p>
     
@@ -342,37 +342,7 @@ CONTENIDO_HTML += """
         {% endif %}
     </div>
 
-{% elif vista == 'embed_creditos_maestros' or vista == 'creditos_maestros' %}
-    <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
-    
-    <div style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
-        <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Activo')">🟢 Activos ({{ total_activos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Inactivo')">⚪ Inactivos ({{ total_inactivos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Lista Negra')">⚫ Bloqueados ({{ total_negra }})</button>
-    </div>
-
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar registro..." onkeyup="filtrarClientes()">
-    <div id="clientesContainer">
-        {% for cl in todos %}
-            <div class="card cliente-card" data-nombre="{{ cl.nombre | lower }}">
-                <div class="flex-between">
-                    <div>
-                        <span style="font-weight:800; color:#0f2b5c; font-size:14px;">{{ cl.nombre }}</span>
-                        <div style="font-size:11px; color:#64748b; margin-top:2px;">Monto Total: ${{ "%.2f"|format(cl.monto_total) }} | Modalidad: {{ cl.frecuencia }}</div>
-                    </div>
-                    <div style="display:flex; gap:6px; align-items:center;">
-                        <button class="btn-accion btn-abono" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="border:none; padding:8px 12px;"><i class="fa-solid fa-rotate"></i> Renovar</button>
-                        {% if cl.estado == 'Activo' %}
-                            <button class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/clientes/lista_negra/{{ cl.id }}'" style="background:#475569; padding:8px 12px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
-                        {% endif %}
-                        <a href="/api/eliminar_cliente/{{ cl.id }}" onclick="return confirm('¿Eliminar de forma permanente?')" class="btn-accion btn-nopagar" style="text-decoration:none; padding:8px 12px; background:#dc2626;"><i class="fa-solid fa-trash-can"></i> Borrar</a>
-                    </div>
-                </div>
-            </div>
-        {% endfor %}
-    </div>
-
-{% elif vista == 'embed_creditos_maestros' or vista == 'creditos_maestros' %}
+{% elif vista == 'embed_creditos_maestros' or vista == 'creditos_maestros' or vista == 'creditos' %}
     <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
     
     <div style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
@@ -449,37 +419,8 @@ CONTENIDO_HTML += """
             </div>
         {% endfor %}
     </div>
-
-{% elif vista == 'clientes' or vista == 'creditos' or vista == 'creditos_maestros' %}
-    <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
-    
-    <div style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
-        <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Activo')">🟢 Activos ({{ total_activos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Inactivo')">⚪ Inactivos ({{ total_inactivos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Lista Negra')">⚫ Bloqueados ({{ total_negra }})</button>
-    </div>
-
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar registro..." onkeyup="filtrarClientes()">
-    <div id="clientesContainer">
-        {% for cl in todos %}
-            <div class="card cliente-card" data-nombre="{{ cl.nombre | lower }}">
-                <div class="flex-between">
-                    <div>
-                        <span style="font-weight:800; color:#0f2b5c; font-size:14px;">{{ cl.nombre }}</span>
-                        <div style="font-size:11px; color:#64748b; margin-top:2px;">Monto Total: ${{ "%.2f"|format(cl.monto_total) }} | Modalidad: {{ cl.frecuencia }}</div>
-                    </div>
-                    <div style="display:flex; gap:6px; align-items:center;">
-                        <button class="btn-accion btn-abono" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="border:none; padding:8px 12px;"><i class="fa-solid fa-rotate"></i> Renovar</button>
-                        {% if cl.estado == 'Activo' %}
-                            <button class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/clientes/lista_negra/{{ cl.id }}'" style="background:#475569; padding:8px 12px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
-                        {% endif %}
-                        <a href="/api/eliminar_cliente/{{ cl.id }}" onclick="return confirm('¿Eliminar de forma permanente?')" class="btn-accion btn-nopagar" style="text-decoration:none; padding:8px 12px; background:#dc2626;"><i class="fa-solid fa-trash-can"></i> Borrar</a>
-                    </div>
-                </div>
-            </div>
-        {% endfor %}
-    </div>
 """
+
 CONTENIDO_HTML += """
 {% elif vista == 'pagos_hoy' %}
     <div class="section-header-title"><i class="fa-solid fa-receipt"></i> Panel de Control - Pagos del Día</div>
@@ -590,13 +531,11 @@ CONTENIDO_HTML += """
 {% elif vista == 'balance' or vista == 'gastos' %}
     <div class="section-header-title"><i class="fa-solid fa-scale-balanced"></i> Control de Caja y Balance Diario</div>
     
-    <!-- 📊 TARJETA DE ESTADO ACTUAL -->
     <div class="expected-card" style="border-left: 5px solid #10b981; background:#ecfdf5; padding:12px; border-radius:12px; margin-bottom:12px; text-align:left;">
         <div class="kpi-title" style="color:#065f46;">Estado Operativo de Ruta</div>
         <div class="kpi-val" style="color:#065f46; font-size:14px;">Abierta | Base Inicial: ${{ "%.2f"|format(caja_base) }}</div>
     </div>
     
-    <!-- 📊 CUADRÍCULA DE VALORES RECOLECTADOS -->
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:12px;">
         <div class="kpi-card" style="border-left:4px solid #10b981; background:white; padding:10px; border-radius:8px; text-align:left;">
             <div class="kpi-title">Cobros (Cuotas)</div>
@@ -612,25 +551,24 @@ CONTENIDO_HTML += """
         </div>
     </div>
 
-    <!-- 💰 TARJETA DEL EFECTIVO TOTAL NETO EN MANO -->
     <div class="card" style="background:#0f2b5c; color:white; text-align:center; padding:14px; margin-bottom:12px; box-shadow:0 4px 12px rgba(15,43,92,0.15);">
         <div class="kpi-title" style="color:white; opacity:0.8; letter-spacing:1px;">TOTAL EFECTIVO A TENER EN MANO</div>
         <div class="kpi-val" style="color:white; font-size:22px; margin-top:4px; font-weight:800;">${{ "%.2f"|format(efectivo_neto) }}</div>
     </div>
 
-    <!-- ⚡ BOTÓN MAESTRO DE REDIRECCIÓN A CIERRE DE CAJA -->
-    <button type="button" onclick="navegarRuta('/menu/configuracion')" class="btn-accion" style="width:100%; background:#7c3aed; color:white; padding:12px; font-size:13px; font-weight:800; border-radius:8px; margin-bottom:16px; border:none; cursor:pointer; box-shadow:0 4px 10px rgba(124,58,237,0.2); display:block;">
+    <button type="button" onclick="navegarRuta('/menu/configuracion')" class="btn-accion" style="width:100%; background:#7c3aed; color:white; padding:12px; font-size:13px; font-weight:800; border-radius:8px; margin-bottom:16px; border:none; cursor:pointer; display:block;">
         🔒 Ir a Cierre de Caja de la Ruta
     </button>
 
-    <!-- 📝 FORMULARIO DE REGISTRO EN CALIENTE -->
     <div class="card" style="padding:16px; text-align:left;">
         <div class="kpi-title" style="margin-bottom:10px; color:#0f2b5c; font-size:11px;">📥 Registrar Gasto o Flujo Extraordinario</div>
         <form id="formBalance" onsubmit="event.preventDefault();">
             <input type="hidden" name="tipo_mov" id="tipo_mov" value="Salida">
+            <!-- 🔑 FIJADO: Input oculto indispensable para mapear el Canvas Base64 de la foto en la calle -->
+            <input type="hidden" id="foto_comprimida_b64" name="foto_comprimida_b64" value="">
             
             <label>Categoría del Gasto</label>
-            <select name="categoria_mov" id="categoria_mov" style="margin-bottom:10px;">
+            <select name="categoria_mov" id="categoria_mov" style="margin-bottom:10px; width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1;">
                 <option value="Gasolina">⛽ Gasolina / Transporte</option>
                 <option value="Almuerzo">🍔 Almuerzo / Alimentación</option>
                 <option value="Mantenimiento">🛠️ Mantenimiento Vehículo</option>
@@ -639,22 +577,22 @@ CONTENIDO_HTML += """
             </select>
             
             <label>Descripción / Detalle</label>
-            <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Parche de llanta" required style="margin-bottom:10px;">
+            <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Parche de llanta" required style="margin-bottom:10px; width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1;">
             
             <label>Monto a Restar ($)</label>
-            <input type="number" step="any" name="monto_mov" id="monto_mov" placeholder="0.00" required style="margin-bottom:12px;">
+            <input type="number" step="any" name="monto_mov" id="monto_mov" placeholder="0.00" required style="margin-bottom:12px; width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1;">
             
             <label>📸 Foto Factura / Comprobante</label>
             <input type="file" id="foto_mov" accept="image/*" capture="environment" style="border:none; padding:4px 0; margin-bottom:12px;" onchange="procesarImagenEnCaliente()">
             
-            <button type="button" onclick="procesarYEnviarGasto()" class="btn-accion btn-pagar" style="width:100%; padding:12px; font-size:13px; font-weight:800; border:none; border-radius:8px;">
+            <button type="button" onclick="procesarYEnviarGasto()" class="btn-accion btn-pagar" style="width:100%; padding:12px; font-size:13px; font-weight:800; border:none; border-radius:8px; background:#10b981; color:white; cursor:pointer;">
                 💾 Guardar Movimiento
             </button>
         </form>
     </div>
 
     <!-- 📋 HISTORIAL DE MOVIMIENTOS -->
-    <div class="card" style="padding:16px; text-align:left;">
+        <div class="card" style="padding:16px; text-align:left;">
         <h4 style="font-size:12px; color:#0f2b5c; margin-bottom:10px;">📋 Historial de Gastos de Hoy</h4>
         {% if gastos_list %}
             {% for g in gastos_list %}
@@ -684,8 +622,8 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>AVANTA PAGOS v1.3</title>
-    <!-- 🌐 FIJADO: Enlaces CDN oficiales para renderizar la tipografía y los iconos vectoriales de la captura -->
+    <title>AVANTA PAGOS v1.3</title>
+    <!-- 🌐 FIJADO: Enlaces CDN y repositorios oficiales que cargan la tipografía Inter y los iconos de FontAwesome -->
     <link href="https://googleapis.com" rel="stylesheet">
     <link rel="stylesheet" href="https://cloudflare.com" crossorigin="anonymous">
     <style>
@@ -1221,8 +1159,8 @@ def dashboard_principal():
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()">
     <div id="clientesContainer">
     """
-    
-    # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO
+
+        # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO EN LA RUTA
     for c in clientes_ruta:
         pagado_acumulado = sum(p["valor_pagado"] for p in c["pagos"])
         saldo_restante = max(0.0, c["monto_total"] - pagado_acumulado)
@@ -1263,7 +1201,6 @@ def dashboard_principal():
                     </div>
                     
                     <div class="fila-utilidades-premium">
-                        <!-- 📸 FIJADO: El botón de la cámara ahora abre directamente la modal de abonos para adjuntar comprobante sin desviar el flujo -->
                         <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
                         <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
@@ -1271,14 +1208,9 @@ def dashboard_principal():
                 </div>
             </div>
             
-            <!-- 🎯 RECAUDO PREMIUM: Botones verticales comerciales optimizados con billetes y marcas de visto/cruz -->
             <div class="card-derecha-acciones">
-                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
-                    💵✔️
-                </button>
-                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">
-                    💵❌
-                </button>
+                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">💵✔️</button>
+                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">💵❌</button>
             </div>
         </div>
         """
