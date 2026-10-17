@@ -251,7 +251,7 @@ CONTENIDO_HTML = """
     <div class="section-header-title"><i class="fa-solid fa-route"></i> Ruta Principal</div>
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente o referencia..." onkeyup="filtrarClientes()">
 
-    <div id="clientesContainer">
+    <div id="clientesContainer" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
         {% for c in clientes %}
             {% set pagado = c.pagos | map(attribute='valor_pagado') | sum %}
             {% set saldo = c.monto_total - pagado %}
