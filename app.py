@@ -1156,12 +1156,10 @@ def dashboard_principal():
                 </div>
             </div>
             
-            # 🟢 RECAUDO PREMIUM: Botones verticales comerciales optimizados con billetes y marcas de visto/cruz
-            <div class="card-derecha-acciones">
+            <div class="card-derecha-acciones" id="acciones-{c_id}">
                 <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">💵✔️</button>
                 <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">💵❌</button>
             </div>
-        </div>
         """
         
     contexto_dash += "</div>"
