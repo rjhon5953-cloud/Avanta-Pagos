@@ -258,13 +258,15 @@ CONTENIDO_HTML = """
             {% set cuota_pendiente = c.pagos | selectattr('pagado', 'equalto', 0) | list | first %}
             {% set es_mora = c.saltado_hoy > 0 or c.cuotas_atrasadas > 0 %}
 
-            <div class="card cliente-card" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}">
+            <div class="card-cliente-card" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}" style="position: relative !important; display: block !important; width: 100% !important; box-sizing: border-box !important; margin-bottom: 10px !important;">
                 <div class="flex-between">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <div style="display:flex; flex-direction:column; gap:2px;">
                             <a href="/mover/{{ c.id }}/subir" style="text-decoration:none; font-size:10px; background:#f1f5f9; padding:2px 4px; border-radius:3px;">⬆️</a>
                             <a href="/mover/{{ c.id }}/bajar" style="text-decoration:none; font-size:10px; background:#f1f5f9; padding:2px 4px; border-radius:3px;">⬇️</a>
                         </div>
+                    </div>
+
                         <div style="cursor:pointer;" onclick="verFichaCliente({{ c.id }})">
                             <div style="display:flex; align-items:center; gap:6px;">
                                 <span style="font-size:14px; font-weight:800; color:#0f2b5c;">{{ c.nombre }}</span>
