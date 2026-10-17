@@ -258,7 +258,7 @@ CONTENIDO_HTML = """
             {% set cuota_pendiente = c.pagos | selectattr('pagado', 'equalto', 0) | list | first %}
             {% set es_mora = c.saltado_hoy > 0 or c.cuotas_atrasadas > 0 %}
 
-            <div class="card-cliente-card" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}" style="position: relative !important; display: block !important; width: 100% !important; box-sizing: border-box !important; margin-bottom: 10px !important;">
+    <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}" style="position: relative !important; display: block !important; width: 100% !important; box-sizing: border-box !important; margin-bottom: 10px !important;">
                 <div class="flex-between">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <div style="display:flex; flex-direction:column; gap:2px;">
