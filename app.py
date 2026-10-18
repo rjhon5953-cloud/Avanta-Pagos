@@ -252,51 +252,53 @@ CONTENIDO_HTML = """
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente o referencia..." onkeyup="filtrarClientes()">
 
     <div id="clientesContainer" style="display: flex !important; flex-direction: column !important; gap: 12px !important; width: 100% !important;">
-        {% for c in clientes %}
+            {% for c in clientes %}
             {% set pagado = c.pagos | map(attribute='valor_pagado') | sum %}
             {% set saldo = c.monto_total - pagado %}
             {% set cuota_pendiente = c.pagos | selectattr('pagado', 'equalto', 0) | list | first %}
+            {% set cuotas_pagadas = c.pagos | selectattr('pagado', 'equalto', 1) | list | length %}
             {% set es_mora = c.saltado_hoy > 0 or c.cuotas_atrasadas > 0 %}
 
-    <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}" style="position: relative !important; display: block !important; width: 100% !important; box-sizing: border-box !important; margin-bottom: 10px !important;">
-                <div class="flex-between">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <div style="display:flex; flex-direction:column; gap:2px;">
-                            <a href="/mover/{{ c.id }}/subir" style="text-decoration:none; font-size:10px; background:#f1f5f9; padding:2px 4px; border-radius:3px;">⬆️</a>
-                            <a href="/mover/{{ c.id }}/bajar" style="text-decoration:none; font-size:10px; background:#f1f5f9; padding:2px 4px; border-radius:3px;">⬇️</a>
+            <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}">
+                <div class="card-izquierda">
+                    <div class="circulo-frecuencia {% if not es_mora %}al-dia{% else %}mora-leve{% endif %}">
+                        {{ 'D' if c.frecuencia == 'Diaria' else 'S' }}
+                    </div>
+                    <div class="info-bloque-texto">
+                        <div class="id-alias">{{ c.id }} {{ c.referencia or 'Comercio' }}</div>
+                        <div class="nombre-real">{{ c.nombre }}</div>
+                        
+                        <div class="grid-metricas-premium">
+                            <div class="metric-col"><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${{ "%.2f"|format(c.valor_cuota) }}</span></div>
+                            <div class="metric-col"><span class="metric-lbl">Pendiente</span><span class="metric-val">{{ cuotas_pagadas }} / {{ c.cuotas }}.0</span></div>
+                            <div class="metric-col"><span class="metric-lbl">Pago</span><span class="metric-val">—</span></div>
                         </div>
-                    </div>
-
-                        <div style="cursor:pointer;" onclick="verFichaCliente({{ c.id }})">
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <span style="font-size:14px; font-weight:800; color:#0f2b5c;">{{ c.nombre }}</span>
-                                {% if es_mora %}
-                                    <span class="badge-mora">MORA</span>
-                                {% else %}
-                                    <span class="badge-al-dia">AL DÍA</span>
-                                {% endif %}
-                            </div>
-                            <div style="font-size:11px; color:#6b7280; margin-top:2px;">
-                                Ref: <b>{{ c.referencia or 'Ninguna' }}</b> | Cuota Base: <b>${{ "%.2f"|format(c.valor_cuota) }}</b>
-                            </div>
+                    <!-- 🛠️ Fila Inferior de Utilidades (Foto, Check de Cuota y Saldo) -->
+                    <div class="fila-utilidades-premium">
+                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero if cuota_pendiente else 1 }}, {{ (cuota_pendiente.valor - cuota_pendiente.valor_pagado) if cuota_pendiente else 0 }}, {{ c.valor_cuota }}); alert('📸 Adjunta el comprobante para la cuota de {{ c.nombre }}');">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
+                        <div class="circulo-check-cuota {% if c.saltado_hoy > 0 %}gestionado{% elif cuotas_pagadas > 0 %}gestionado-ok{% endif %}">
+                            {% if c.saltado_hoy > 0 %}{{ c.saltado_hoy }}{% else %}{{ cuotas_pagadas if cuotas_pagadas > 0 else 1 }}{% endif %}
                         </div>
+                        <div class="badge-saldo-premium">Saldo <b>${{ "%.2f"|format(saldo) }}</b></div>
                     </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:10px; color:#64748b; font-weight:bold;">Métricas:</div>
-                        <div style="font-size:12px; font-weight:700; color:#ef4444; margin-top:2px;">Atraso: <b>{{ c.saltado_hoy }} días</b></div>
-                        <div style="font-size:12px; font-weight:700; color:#0f2b5c;">Saldo: <b>${{ "%.2f"|format(saldo) }}</b></div>
-                    </div>
-                </div>
-
-                <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
-                    {% if cuota_pendiente %}
-                        <button class="btn-accion btn-pagar" style="background:#10b981;" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})"><i class="fa-solid fa-money-bill-wave"></i> Cobrar</button>
-                        <button class="btn-accion btn-nopagar" style="background:#ef4444;" onclick="ejecutarNoPago({{ c.id }})"><i class="fa-solid fa-ban"></i> Saltar</button>
-                    {% endif %}
                 </div>
             </div>
-        {% endfor %}
-    </div>
+            
+            <!-- 🎯 Bloque de Acciones Verticales del Lado Derecho (Cobrar y Saltar) -->
+            <div class="card-derecha-acciones">
+                {% if cuota_pendiente %}
+                    <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})">
+                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                    </button>
+                    <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({{ c.id }})">
+                        <i class="fa-solid fa-hand-fist" style="transform: rotate(90deg); font-size: 21px;"></i>
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
 
 {% elif vista == 'clientes_financieros' %}
     <div class="section-header-title"><i class="fa-solid fa-users"></i> HISTORIAL GENERAL DE CLIENTES</div>
