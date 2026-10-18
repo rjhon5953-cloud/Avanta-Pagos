@@ -1271,18 +1271,26 @@ def seccion_balance_maestro():
     movimientos_limpios = []
     for m in movimientos:
         m_dict = dict(m)
-        if m_dict["comprobante"] and str(m_dict["comprobante"]).strip() != "" and m_dict["comprobante"] != "None":
+        comprobante_puro = ""
+        
+        if m_dict.get("comprobante"):
             try:
-                comprobante_puro = str(m_dict["comprobante"]).replace("\n", "").replace("\r", "").strip()
+                raw_comp = m_dict["comprobante"]
+                # 🧼 Si la base de datos devuelve un objeto binario, lo convertimos limpiamente a texto real
+                if isinstance(raw_comp, memoryview):
+                    raw_comp = raw_comp.tobytes()
+                if isinstance(raw_comp, bytes):
+                    raw_comp = raw_comp.decode('utf-8')
+                
+                # Ahora realizamos la limpieza sobre la cadena purificada
+                comprobante_puro = str(raw_comp).replace("\n", "").replace("\r", "").strip()
                 if "base64," in comprobante_puro:
                     comprobante_puro = comprobante_puro.split("base64,")[-1]
-                m_dict["comprobante"] = comprobante_puro
             except Exception as b64_err:
                 print(f"Error procesando imagen en backend: {b64_err}")
-                m_dict["comprobante"] = ""
-        else:
-            m_dict["comprobante"] = ""
-            
+                comprobante_puro = ""
+                
+        m_dict["comprobante"] = comprobante_puro
         movimientos_limpios.append(m_dict)
         
     contexto = dict(
