@@ -1166,7 +1166,9 @@ def dashboard_principal():
             </div>
         """
         
-    contexto_dash += "</div>"
+        contexto_dash += "</div>"
+    
+    # 🟢 CORREGIDO: Inyectamos tu bloque procesado 'contexto_dash' dentro de la variable global segura para que herede los estilos premium móviles
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(contexto_dash)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(contexto_dash))
