@@ -1,27 +1,44 @@
 import base64
 import os
-import psycopg2
-from psycopg2.extras import DictCursor
 import urllib.parse
+from decimal import Decimal
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 from flask import Flask, jsonify, redirect, render_template_string, request, session, send_file
+import psycopg2
+from psycopg2.extras import DictCursor
+from psycopg2.pool import SimpleConnectionPool
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "avanta_secret_key_1.3_2026")
 
-# 🔌 FIJADO: Extracción limpia directo de la memoria nativa de Render (Evita usar python-dotenv)
 DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("Error crítico: DATABASE_URL no está configurada en las variables de entorno.")
+
+# 🔌 FIJADO: Pool de conexiones para evitar caídas de base de datos en Render/Neon
+db_pool = SimpleConnectionPool(
+    minconn=1,
+    maxconn=20,
+    dsn=DATABASE_URL,
+    cursor_factory=DictCursor
+)
 
 def get_db():
-    if not DATABASE_URL:
-        raise ValueError("Error crítico: DATABASE_URL no está configurada en las variables de entorno.")
-    return psycopg2.connect(DATABASE_URL, cursor_factory=DictCursor)
+    """Obtiene una conexión limpia del Pool de recursos."""
+    return db_pool.getconn()
+
+def release_db(conn):
+    """Devuelve la conexión al Pool para que pueda ser reutilizada."""
+    db_pool.putconn(conn)
 
 def init_db():
-    with get_db() as conn:
+    conn = get_db()
+    try:
         with conn.cursor() as cursor:
+            # 💰 FIJADO: Tipos de datos monetarios migrados a NUMERIC para precisión exacta
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS clientes (
@@ -29,12 +46,12 @@ def init_db():
                     orden INTEGER NOT NULL DEFAULT 0,
                     nombre TEXT NOT NULL,
                     telefono TEXT,
-                    monto REAL NOT NULL,
-                    interes_porcentaje REAL NOT NULL DEFAULT 20,
-                    monto_total REAL NOT NULL DEFAULT 0,
+                    monto NUMERIC(10, 2) NOT NULL,
+                    interes_porcentaje NUMERIC(5, 2) NOT NULL DEFAULT 20.00,
+                    monto_total NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
                     cuotas INTEGER NOT NULL,
                     frecuencia TEXT NOT NULL,
-                    valor_cuota REAL NOT NULL,
+                    valor_cuota NUMERIC(10, 2) NOT NULL,
                     fecha_inicio TEXT NOT NULL,
                     fecha_vencimiento TEXT NOT NULL,
                     saltado_hoy INTEGER NOT NULL DEFAULT 0,
@@ -50,11 +67,12 @@ def init_db():
                 """
             )
         conn.commit()
-
-init_db()
+    finally:
+        release_db(conn)
 
 def init_db_contable():
-    with get_db() as conn:
+    conn = get_db()
+    try:
         with conn.cursor() as cursor:
             cursor.execute(
                 """
@@ -63,15 +81,14 @@ def init_db_contable():
                     cliente_id INTEGER NOT NULL,
                     numero INTEGER NOT NULL,
                     fecha TEXT NOT NULL,
-                    valor REAL NOT NULL,
+                    valor NUMERIC(10, 2) NOT NULL,
                     pagado INTEGER NOT NULL DEFAULT 0,
-                    valor_pagado REAL NOT NULL DEFAULT 0,
+                    valor_pagado NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
                     fecha_pago_real TEXT DEFAULT '',
                     FOREIGN KEY (cliente_id) REFERENCES clientes (id) ON DELETE CASCADE
                 )
                 """
             )
-            # 📸 FIJADO: Columna de tipo TEXT para guardar Base64 plano de forma nativa sin romper Neon
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS balance_movimientos (
@@ -79,7 +96,7 @@ def init_db_contable():
                     tipo TEXT NOT NULL,
                     categoria TEXT NOT NULL,
                     concepto TEXT NOT NULL,
-                    monto REAL NOT NULL,
+                    monto NUMERIC(10, 2) NOT NULL,
                     fecha TEXT NOT NULL,
                     comprobante TEXT DEFAULT ''
                 )
@@ -94,21 +111,26 @@ def init_db_contable():
                 )
                 """
             )
+            
+            # 🔐 FIJADO: Encriptación segura de contraseña administrativa con hash seguro
+            password_encriptada = generate_password_hash("1234")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('usuario', 'admin') ON CONFLICT DO NOTHING")
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('clave', '1234') ON CONFLICT DO NOTHING")
+            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('clave', %s) ON CONFLICT DO NOTHING", (password_encriptada,))
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('empresa_nombre', 'AVANTA PAGOS') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('empresa_telefono', '593991234567') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('ticket_encabezado', '¡BIENVENIDO A AVANTA PAGOS!') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('caja_base', '100.00') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('balance_estado', 'Sin cerrar') ON CONFLICT DO NOTHING")
         conn.commit()
+    finally:
+        release_db(conn)
 
 
 init_db_contable()
-
 def obtener_clientes_ruta_hoy():
     hoy_str = date.today().isoformat()
-    with get_db() as conn:
+    conn = get_db()
+    try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM clientes WHERE estado = 'Activo' ORDER BY orden ASC, id DESC")
             clientes = cursor.fetchall()
@@ -118,6 +140,8 @@ def obtener_clientes_ruta_hoy():
             cliente_ids = [c["id"] for c in clientes]
             cursor.execute("SELECT * FROM pagos WHERE cliente_id = ANY(%s) ORDER BY numero ASC", (cliente_ids,))
             pagos = cursor.fetchall()
+    finally:
+        release_db(conn)
 
     pagos_por_cliente = defaultdict(list)
     for p in pagos:
@@ -126,33 +150,27 @@ def obtener_clientes_ruta_hoy():
     resultado = []
     for c in clientes:
         c_dict = dict(c)
-        
         if c_dict.get("fecha_gestion") == hoy_str:
             continue
             
         c_dict["pagos"] = pagos_por_cliente.get(c["id"], [])
-        
         debe_cobrar_hoy = False
+        
         if c_dict["enrutado_forzado"] == 1:
             debe_cobrar_hoy = True
         else:
             for p in c_dict["pagos"]:
-                if p["fecha"] == hoy_str and p["pagado"] == 0:
-                    debe_cobrar_hoy = True
-                    break
-                if p["fecha"] < hoy_str and p["pagado"] == 0:
+                if p["fecha"] <= hoy_str and p["pagado"] == 0:
                     debe_cobrar_hoy = True
                     break
 
         if debe_cobrar_hoy:
-            atrasadas = 0
-            for p in c_dict["pagos"]:
-                if not p["pagado"] and p["fecha"] < hoy_str:
-                    atrasadas += 1
+            atrasadas = sum(1 for p in c_dict["pagos"] if not p["pagado"] and p["fecha"] < hoy_str)
             c_dict["cuotas_atrasadas"] = atrasadas
             resultado.append(c_dict)
             
     return resultado
+
 
 def calcular_fecha(fecha_inicio, numero, frecuencia, omitir_domingos=True):
     actual = fecha_inicio
@@ -524,7 +542,11 @@ CONTENIDO_HTML = """
             <label>Frecuencia</label>
             <select name="frecuencia"><option value="Diaria">Diaria</option><option value="Semanal">Semanal</option></select>
             <label>Fecha de Inicio</label><input type="date" name="fecha_inicio" value="{{ hoy_str }}" required>
-            <input type="hidden" id="input_latitud" name="latitud"><input type="hidden" id="input_longitud" name="longitud">
+            <input type="hidden" id="latitud_input" name="latitud">
+            <input type="hidden" id="longitud_input" name="longitud">
+            <div style="margin-bottom: 15px;">
+            <button type="button" onclick="obtenerCoordenadasGPS()" style="width: 100%; padding: 12px; background-color: #0284c7; color: white; border: none; border-radius: 8px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px;">📍 Obtener Ubicación GPS</button>
+            <p id="status_gps" style="font-size: 12px; color: #64748b; margin-top: 5px; text-align: center;">Ubicación no registrada aún.</p>
             <!-- ⚡ CORREGIDO: Se cambia 'btn-primary' por 'btn-accion btn-pagar' para heredar el comportamiento de clic prioritario -->
             <button type="submit" class="btn-accion btn-pagar" style="width:100%; padding:12px; margin-top:8px; font-size:13px; font-weight:800;">💾 Guardar e Inicializar Tablas</button>
         </form>
@@ -614,6 +636,8 @@ CONTENIDO_HTML = """
     </div>
 {% endif %}
 """
+
+
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -945,6 +969,43 @@ function ejecutarNoPago(clienteId) {
     }
 }
 
+function obtenerCoordenadasGPS() {
+    const statusText = document.getElementById('status_gps');
+    
+    if (!navigator.geolocation) {
+        alert("❌ Tu dispositivo no soporta geolocalización o el navegador la tiene bloqueada.");
+        return;
+    }
+    
+    statusText.innerText = "🛰️ Buscando señal de satélite GPS...";
+    
+    navigator.geolocation.getCurrentPosition(
+        function (posicion) {
+            const lat = posicion.coords.latitude;
+            const lon = posicion.coords.longitude;
+            
+            // Asignamos las coordenadas a los inputs para guardarlas en Postgres
+            document.getElementById('latitud_input').value = lat;
+            document.getElementById('longitud_input').value = lon;
+            
+            statusText.innerHTML = `✅ Ubicación fijada: <b>${lat.toFixed(5)}, ${lon.toFixed(5)}</b>`;
+            
+            // Abre Google Maps automáticamente con un pin en la ubicación actual
+            const urlMaps = `https://google.com{lat},${lon}`;
+            window.open(urlMaps, '_blank');
+        },
+        function (error) {
+            statusText.innerText = "❌ No se pudo capturar el GPS.";
+            if (error.code === error.PERMISSION_DENIED) {
+                alert("🚫 Permiso denegado. Debes activar el GPS y dar permisos de ubicación a tu navegador.");
+            } else {
+                alert("🛰️ Señal débil. Asegúrate de estar en un lugar con cobertura satelital.");
+            }
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+}
+
 function procesarImagenEnCaliente() {
     const fileInput = document.getElementById('foto_mov');
     const file = fileInput.files ? fileInput.files[0] : null;
@@ -1041,16 +1102,19 @@ def login_route():
         usuario_ingresado = request.form.get("usuario")
         clave_ingresada = request.form.get("clave")
         
-        with get_db() as conn:
+        conn = get_db()
+        try:
             with conn.cursor() as cursor:
                 cursor.execute("SELECT valor FROM configuracion WHERE llave = 'usuario'")
                 usr_row = cursor.fetchone()
                 cursor.execute("SELECT valor FROM configuracion WHERE llave = 'clave'")
                 clv_row = cursor.fetchone()
+        finally:
+            release_db(conn)
                 
-        # Validación segura desempaquetando diccionarios para DictCursor
+        # 🔐 FIJADO: Verificación utilizando hashes seguros criptográficos contra DictCursor
         if usr_row and clv_row:
-            if usuario_ingresado == usr_row["valor"] and clave_ingresada == clv_row["valor"]:
+            if usuario_ingresado == usr_row["valor"] and check_password_hash(clv_row["valor"], clave_ingresada):
                 session["autenticado"] = True
                 session["usuario"] = usuario_ingresado
                 return redirect("/")
@@ -1076,27 +1140,35 @@ def dashboard_principal():
     ahora = datetime.now()
     fecha_legible = f"{dias_semana[ahora.weekday()]}, {ahora.day:02d} de {meses[ahora.month - 1]} de {ahora.year}"
     
-    with get_db() as conn:
+    conn = get_db()
+    try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s", (hoy_str,))
-            total_cobrado_hoy = float(cursor.fetchone()["total"])
+            total_cobrado_hoy = Decimal(str(cursor.fetchone()["total"]))
             
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Salida' AND fecha = %s", (hoy_str,))
-            total_gastos_hoy = float(cursor.fetchone()["total"])
+            total_gastos_hoy = Decimal(str(cursor.fetchone()["total"]))
             
             cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE fecha_inicio = %s", (hoy_str,))
             creditos_nuevos_hoy = int(cursor.fetchone()["total"])
+    finally:
+        release_db(conn)
 
     clientes_ruta = obtener_clientes_ruta_hoy()
-    debido_minimo_dia = sum(cl["valor_cuota"] for cl in clientes_ruta)
+    debido_minimo_dia = sum(Decimal(str(cl["valor_cuota"])) for cl in clientes_ruta)
     
-    debido_total_acumulado = 0.0
+    debido_total_acumulado = Decimal("0.00")
     for cl in clientes_ruta:
         for p in cl["pagos"]:
             if not p["pagado"] and p["fecha"] <= hoy_str:
-                debido_total_acumulado += (p["valor"] - p["valor_pagado"])
+                debido_total_acumulado += (Decimal(str(p["valor"])) - Decimal(str(p["valor_pagado"])))
 
-    capital_en_calle = sum(max(0.0, c["monto_total"] - sum(p["valor_pagado"] for p in c["pagos"])) for c in clientes_ruta)
+    capital_en_calle = Decimal("0.00")
+    for c in clientes_ruta:
+        pagado_cliente = sum(Decimal(str(p["valor_pagado"])) for p in c["pagos"])
+        pendiente = Decimal(str(c["monto_total"])) - pagado_cliente
+        if pendiente > 0:
+            capital_en_calle += pendiente
 
     contexto_dash = f"""
     <div class="date-badge"><i class="fa-solid fa-calendar-day"></i> {fecha_legible}</div>
@@ -1175,8 +1247,8 @@ def dashboard_principal():
         
         contexto_dash += "</div>"
     
-    # 🟢 CORREGIDO: Inyectamos tu bloque procesado 'contexto_dash' dentro de la variable global segura para que herede los estilos premium móviles
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
+        # 🎨 Inyectamos el bloque procesado y controlamos el formato nativo para celulares
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(contexto_dash)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(contexto_dash))
 
@@ -1256,63 +1328,98 @@ def seccion_balance_maestro():
     if not session.get("autenticado"): return "Sesión expirada"
     hoy_str = date.today().isoformat()
     
-    with get_db() as conn:
+    conn = get_db()
+    try:
         with conn.cursor() as cursor:
-            # 🟢 CORREGIDO: Cambiado alias 'val' por 'valor_config' seguro para PostgreSQL
+            # 🏦 1. Recuperamos la Caja Base inicial
             cursor.execute("SELECT valor AS valor_config FROM configuracion WHERE llave = 'caja_base'")
             res_caja = cursor.fetchone()
-            caja_base = float(res_caja["valor_config"]) if res_caja else 100.00
+            caja_base = Decimal(str(res_caja["valor_config"])) if res_caja else Decimal("100.00")
             
             cursor.execute("SELECT valor AS valor_config FROM configuracion WHERE llave = 'balance_estado'")
             res_estado = cursor.fetchone()
             balance_estado = res_estado["valor_config"] if res_estado else "Sin cerrar"
             
-            # 🟢 CORREGIDO: Completada la cláusula ORDER BY id DESC de forma lateral
+            # 🧾 2. Traemos los movimientos manuales de la tabla de flujos
             cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
             movimientos = cursor.fetchall()
             
-    entradas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Entrada")
-    salidas_totales = sum(m["monto"] for m in movimientos if m["tipo"] == "Salida")
+            # 💵 3. Sumamos en tiempo real los abonos en efectivo cobrados en la calle hoy
+            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s", (hoy_str,))
+            total_abonos_hoy = Decimal(str(cursor.fetchone()["total"]))
+            
+            # 👤 4. Sumamos el dinero prestado (capital puro) en créditos nuevos hoy
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM clientes WHERE fecha_inicio = %s", (hoy_str,))
+            total_prestado_hoy = Decimal(str(cursor.fetchone()["total"]))
+    finally:
+        release_db(conn)
+            
+    # 📊 Agrupamos los flujos de la tabla de movimientos manuales
+    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if m["tipo"] == "Entrada")
+    salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if m["tipo"] == "Salida")
+    
+    # 🧮 FÓRMULA CONTABLE EXACTA DE CAJA REAL:
+    # Efectivo = Caja Base + Abonos Cobrados + Entradas Manuales - Gastos Manuales - Créditos Entregados
+    entradas_totales = total_abonos_hoy + entradas_manuales
+    salidas_totales = salidas_manuales + total_prestado_hoy
     efectivo_neto = caja_base + entradas_totales - salidas_totales
     
+    # Clean y purificación de imágenes Base64 de los comprobantes
     movimientos_limpios = []
     for m in movimientos:
         m_dict = dict(m)
         comprobante_puro = ""
-        
         if m_dict.get("comprobante"):
             try:
                 raw_comp = m_dict["comprobante"]
-                
-                # 🧼 FIJADO: Extracción forzada del búfer físico si llega como memoryview o bytes
-                if isinstance(raw_comp, memoryview):
-                    raw_comp = raw_comp.tobytes()
+                if isinstance(raw_comp, memoryview): raw_comp = raw_comp.tobytes()
                 if isinstance(raw_comp, bytes):
                     try:
                         raw_comp = raw_comp.decode('utf-8')
                     except Exception:
-                        # Si no es texto UTF-8, significa que se guardó en binario puro; lo codificamos a Base64 nativo
                         import base64
                         raw_comp = base64.b64encode(raw_comp).decode('utf-8')
-                
                 comprobante_puro = str(raw_comp).replace("\n", "").replace("\r", "").strip()
                 if "base64," in comprobante_puro:
                     comprobante_puro = comprobante_puro.split("base64,")[-1]
-            except Exception as b64_err:
-                print(f"Error procesando imagen en backend: {b64_err}")
+            except Exception:
                 comprobante_puro = ""
-                
         m_dict["comprobante"] = comprobante_puro
+        m_dict["monto"] = float(m_dict["monto"])
         movimientos_limpios.append(m_dict)
+        
+    # Añadimos al desglose visual un registro informativo del capital prestado si hubo créditos hoy
+    if total_prestado_hoy > 0:
+        movimientos_limpios.insert(0, {
+            "id": 0,
+            "tipo": "Salida",
+            "categoria": "Inversión",
+            "concepto": "🔹 CAPITAL ENTREGADO EN CRÉDITOS NUEVOS",
+            "monto": float(total_prestado_hoy),
+            "fecha": hoy_str,
+            "comprobante": ""
+        })
+        
+    # Añadimos al desglose visual un registro informativo de lo recaudado en la calle hoy
+    if total_abonos_hoy > 0:
+        movimientos_limpios.insert(0, {
+            "id": 0,
+            "tipo": "Entrada",
+            "categoria": "Recaudo",
+            "concepto": "🔸 RECAUDACIÓN DE CUOTAS EN RUTA",
+            "monto": float(total_abonos_hoy),
+            "fecha": hoy_str,
+            "comprobante": ""
+        })
         
     contexto = dict(
         vista="balance",
-        caja_base=caja_base,
+        caja_base=float(caja_base),
         balance_estado=balance_estado,
         gastos_list=movimientos_limpios,
-        entradas_totales=entradas_totales,
-        salidas_totales=salidas_totales,
-        efectivo_neto=efectivo_neto
+        entradas_totales=float(entradas_totales),
+        salidas_totales=float(salidas_totales),
+        efectivo_neto=float(efectivo_neto)
     )
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(CONTENIDO_HTML, **contexto)
@@ -1337,33 +1444,38 @@ def seccion_nuevo_credito(cliente_id=None):
 
 @app.route("/guardar", methods=["POST"])
 def guardar_nuevo_cliente():
-    if not session.get("autenticado"): return redirect("/login")
+    if not session.get("autenticado"): 
+        return redirect("/login")
     try:
         nombre = request.form.get("nombre", "").strip()
         telefono = request.form.get("telefono", "").strip()
         identificacion = request.form.get("identificacion", "").strip()
         direccion = request.form.get("direccion", "").strip()
         referencia = request.form.get("referencia", "").strip()
-        monto = float(request.form.get("monto", "0"))
-        interes_porcentaje = float(request.form.get("interes_porcentaje", "20"))
+        
+        # 💰 Captura de datos usando precisión contable Decimal
+        monto = Decimal(request.form.get("monto", "0"))
+        interes_porcentaje = Decimal(request.form.get("interes_porcentaje", "20"))
         cuotas = int(request.form.get("cuotas", "0"))
         frecuencia = request.form.get("frecuencia")
         fecha_inicio_dt = date.fromisoformat(request.form.get("fecha_inicio"))
+        
+        # 📍 Captura nativa de coordenadas geográficas desde el GPS del móvil
         latitud = request.form.get("latitud", "").strip()
         longitud = request.form.get("longitud", "").strip()
         
-        monto_total = float(round(monto * (1 + (interes_porcentaje / 100)), 2))
-        valor_base_cuota = float(round(monto_total / cuotas, 2))
+        # Redondeado matemático estricto a 2 decimales para evitar fugas de centavos
+        monto_total = round(monto * (Decimal("1") + (interes_porcentaje / Decimal("100"))), 2)
+        valor_base_cuota = round(monto_total / cuotas, 2)
         fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas, frecuencia)
         
-        with get_db() as conn:
+        conn = get_db()
+        try:
             with conn.cursor() as cursor:
-                # 🟢 CORREGIDO: Extracción segura por índice para evitar colisiones de DictCursor
-                cursor.execute("SELECT COALESCE(MAX(orden), 0) AS max_o FROM clientes")
+                cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
                 res_orden = cursor.fetchone()
-                max_orden = res_orden[0] if res_orden else 0
+                max_orden = int(res_orden[0]) if res_orden and res_orden[0] is not None else 0
                 
-                # 🟢 CORREGIDO: Consulta parametrizada con la totalidad de variables contables y geográficas
                 cursor.execute(
                     """
                     INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, latitud, longitud, estado)
@@ -1371,44 +1483,59 @@ def guardar_nuevo_cliente():
                     """,
                     (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud)
                 )
-                
                 res_id = cursor.fetchone()
                 cliente_id = res_id[0] if res_id else None
                 
                 if cliente_id:
-                    acumulado = 0.0
+                    acumulado = Decimal("0.00")
                     for num in range(1, cuotas + 1):
-                        valor_cuota_real = float(round(monto_total - acumulado, 2)) if num == cuotas else valor_base_cuota
+                        # Absorción de residuos de centavos en la última cuota
+                        if num == cuotas:
+                            valor_cuota_real = monto_total - acumulado
+                        else:
+                            valor_cuota_real = valor_base_cuota
+                            
                         acumulado += valor_cuota_real
                         f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
-                        fecha_cuota_str = str(f_cuota.isoformat())
                         
                         cursor.execute(
                             """
                             INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real)
                             VALUES (%s, %s, %s, %s, 0, 0, '')
                             """,
-                            (cliente_id, num, fecha_cuota_str, valor_cuota_real)
+                            (cliente_id, num, f_cuota.isoformat(), valor_cuota_real)
                         )
             conn.commit()
+        finally:
+            release_db(conn)
+            
     except Exception as e:
-        print(f"Error crítico en guardar cliente: {e}")
+        print(f"Error crítico en guardar cliente con GPS: {e}")
+        
     return redirect("/")
+
 
 @app.route("/api/balance/guardar_movimiento", methods=["POST"])
 def balance_guardar_movimiento():
-    if not session.get("autenticado"): return redirect("/login")
+    if not session.get("autenticado"): 
+        return redirect("/login")
+        
     tipo = request.form.get("tipo_mov")
     categoria = request.form.get("categoria_mov", "Otros")
     concepto = request.form.get("concepto_mov", "").strip()
-    monto = float(request.form.get("monto_mov", "0"))
     hoy_str = date.today().isoformat()
-    if not concepto: concepto = "Flujo de " + categoria
     
-    # 📸 FIJADO: Captura el string comprimido de la imagen que le envía el nuevo formulario JavaScript
+    # 💰 Captura de dinero con precisión contable exacta Decimal
+    monto = Decimal(request.form.get("monto_mov", "0"))
+    
+    if not concepto: 
+        concepto = f"Flujo de {categoria}"
+    
+    # 📸 Captura de la cadena de imagen comprimida en caliente desde el móvil
     base64_str = request.form.get("foto_comprimida_b64", "").strip()
     
-    with get_db() as conn:
+    conn = get_db()
+    try:
         with conn.cursor() as cursor:
             cursor.execute(
                 """
@@ -1417,6 +1544,11 @@ def balance_guardar_movimiento():
                 """, (tipo, categoria, concepto, monto, hoy_str, base64_str)
             )
         conn.commit()
+    except Exception as e:
+        print(f"Error crítico al guardar movimiento de balance: {e}")
+    finally:
+        release_db(conn)
+        
     return redirect("/menu/balance")
 
 @app.route("/api/eliminar_gasto/<int:gasto_id>")
@@ -1616,13 +1748,14 @@ def api_marcar_pago(cliente_id, num_cuota):
     if not session.get("autenticado"):
         return jsonify({"status": "error", "message": "No autorizado"})
         
-    monto_recaudado = float(request.args.get("monto", 0))
+    monto_recaudado = Decimal(str(request.args.get("monto", 0)))
     hoy_str = date.today().isoformat()
     monto_restante = monto_recaudado
     
-    with get_db() as conn:
+    conn = get_db()
+    try:
         with conn.cursor() as cursor:
-            # 🟢 CORREGIDO: Completada la consulta parametrizada con la totalidad de variables y ordenamiento
+            # 📊 Recuperamos las cuotas pendientes ordenadas cronológicamente por número
             cursor.execute("SELECT id, numero, valor, valor_pagado, pagado FROM pagos WHERE cliente_id = %s AND pagado = 0 ORDER BY numero ASC", (cliente_id,))
             pagos_pendientes = cursor.fetchall()
             
@@ -1630,7 +1763,7 @@ def api_marcar_pago(cliente_id, num_cuota):
                 if monto_restante <= 0:
                     break
                     
-                pendiente_cuota = p["valor"] - p["valor_pagado"]
+                pendiente_cuota = Decimal(str(p["valor"])) - Decimal(str(p["valor_pagado"]))
                 
                 if monto_restante >= pendiente_cuota:
                     monto_restante = round(monto_restante - pendiente_cuota, 2)
@@ -1639,32 +1772,35 @@ def api_marcar_pago(cliente_id, num_cuota):
                         (p["valor"], hoy_str, p["id"])
                     )
                 else:
-                    nuevo_pago_parcial = round(p["valor_pagado"] + monto_restante, 2)
-                    monto_restante = 0
+                    nuevo_pago_parcial = round(Decimal(str(p["valor_pagado"])) + monto_restante, 2)
+                    monto_restante = Decimal("0.00")
                     cursor.execute(
                         "UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
                         (nuevo_pago_parcial, hoy_str, p["id"])
                     )
             
-            # Recalcular saldos para validar si ya liquidó la deuda completa
+            # Recalcular balances reales del cliente para validar si ya liquidó la deuda completa
             cursor.execute("SELECT nombre, telefono, monto_total FROM clientes WHERE id = %s", (cliente_id,))
             c = cursor.fetchone()
-            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE cliente_id = %s", (cliente_id,))
-            total_pagado = float(cursor.fetchone()["total"])
             
-            saldo_restante = max(0.0, c["monto_total"] - total_pagado)
+            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE cliente_id = %s", (cliente_id,))
+            total_pagado = Decimal(str(cursor.fetchone()["total"]))
+            
+            saldo_restante = max(Decimal("0.00"), Decimal(str(c["monto_total"])) - total_pagado)
             
             cursor.execute("UPDATE clientes SET fecha_gestion = %s WHERE id = %s", (hoy_str, cliente_id))
 
-            # 🛡️ FIJADO: Si el saldo llegó a $0.00, el cliente se da por liquidado y pasa a 'Inactivo' de inmediato
+            # 🛡️ Si el saldo llegó a $0.00, el cliente pasa a 'Inactivo' (Liquidado) de manera automática
             if saldo_restante <= 0:
                 cursor.execute("UPDATE clientes SET estado = 'Inactivo', enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
             else:
                 cursor.execute("UPDATE clientes SET enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
                 
             conn.commit()
+    finally:
+        release_db(conn)
         
-    mensaje_ws = f"🧾 *AVANTA PAGOS*\nRecibo de Pago\nCliente: {c['nombre']}\nMonto Cobrado: ${monto_recaudado:.2f}\nSaldo Restante: ${saldo_restante:.2f}\n"
+    mensaje_ws = f"🧾 *AVANTA PAGOS*\nRecibo de Pago\nCliente: {c['nombre']}\nMonto Cobrado: ${float(monto_recaudado):.2f}\nSaldo Restante: ${float(saldo_restante):.2f}\n"
     if saldo_restante <= 0:
         mensaje_ws += "🎉 *¡FELICIDADES! CRÉDITO LIQUIDADO AL 100%*"
     else:
@@ -1674,11 +1810,12 @@ def api_marcar_pago(cliente_id, num_cuota):
         "cliente": c["nombre"],
         "telefono": c["telefono"] or "",
         "cuota": num_cuota,
-        "monto": monto_recaudado,
-        "saldo": saldo_restante,
+        "monto": float(monto_recaudado),
+        "saldo": float(saldo_restante),
         "mensaje_ws": mensaje_ws
     }
     return jsonify({"status": "ok", "recibo": recibo})
+
 
 @app.route("/api/marcar_no_pago/<int:cliente_id>")
 def api_marcar_no_pago(cliente_id):
@@ -1701,8 +1838,33 @@ def api_marcar_no_pago(cliente_id):
 @app.route("/menu/bluetooth")
 @app.route("/menu/configuracion")
 def seccion_configuracion_sistema():
-    html_config = """
+    # 🔐 Traemos los valores actuales para mostrarlos en los campos
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'usuario'")
+            res_usr = cursor.fetchone()
+            usuario_actual = res_usr["valor"] if res_usr else "admin"
+    finally:
+        release_db(conn)
+
+    html_config = f"""
     <div class="section-header-title"><i class="fa-solid fa-sliders"></i> Panel de Configuración y Acciones</div>
+    
+    <!-- 🔐 NUEVO: Formulario interactivo para cambiar credenciales desde la app -->
+    <div class="card" style="text-align:left; margin-bottom:12px;">
+        <h4 style="font-size:13px; color:#0f2b5c; margin-bottom:8px;"><i class="fa-solid fa-user-lock"></i> Credenciales de Acceso</h4>
+        <form action="/api/configuracion/guardar_credenciales" method="POST" onsubmit="alert('💾 Credenciales actualizadas con éxito.');">
+            <label>Usuario Comercial</label>
+            <input type="text" name="nuevo_usuario" value="{usuario_actual}" required placeholder="Ej: admin">
+            
+            <label>Nueva Contraseña</label>
+            <input type="password" name="nueva_clave" placeholder="Ingresa la nueva contraseña" required style="margin-bottom:10px;">
+            
+            <button type="submit" class="btn-accion btn-pagar" style="width:100%; padding:10px; font-weight:bold;">💾 Actualizar Acceso</button>
+        </form>
+    </div>
+
     <div class="card" style="text-align:left;">
         <h4 style="font-size:13px; color:#0f2b5c; margin-bottom:8px;">🛠️ Mantenimiento Base</h4>
         <button type="button" onclick="alert('Estados de ruta diarias reiniciados con éxito.');" style="background:#475569; color:white; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; width:100%; cursor:pointer;">Resetear Estados de Cobro Diarios</button>
@@ -1712,6 +1874,40 @@ def seccion_configuracion_sistema():
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(html_config)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_config))
+
+@app.route("/api/configuracion/guardar_credenciales", methods=["POST"])
+def api_guardar_credenciales():
+    if not session.get("autenticado"): 
+        return redirect("/login")
+        
+    nuevo_usuario = request.form.get("nuevo_usuario", "").strip()
+    nueva_clave = request.form.get("nueva_clave", "").strip()
+    
+    if nuevo_usuario and nueva_clave:
+        # Encriptamos la clave ingresada de forma segura antes de guardarla
+        hash_nueva_clave = generate_password_hash(nueva_clave)
+        
+        conn = get_db()
+        try:
+            with conn.cursor() as cursor:
+                # Actualizamos o insertamos el usuario
+                cursor.execute(
+                    "INSERT INTO configuracion (llave, valor) VALUES ('usuario', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
+                    (nuevo_usuario,)
+                )
+                # Actualizamos o insertamos la nueva contraseña con su hash seguro
+                cursor.execute(
+                    "INSERT INTO configuracion (llave, valor) VALUES ('clave', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
+                    (hash_nueva_clave,)
+                )
+            conn.commit()
+        except Exception as e:
+            print(f"Error al actualizar credenciales: {e}")
+        finally:
+            release_db(conn)
+            
+    return redirect("/")
+
 
 @app.route("/api/clientes/lista_negra/<int:id>")
 def api_lista_negra(id):
