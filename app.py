@@ -996,6 +996,13 @@ function cargarYVerFoto(gastoId) {
         .then(data => {
             if (data.status === 'ok' && data.comprobante) {
                 const img = document.getElementById('imgComprobante');
+                
+                // 🛡️ FIJADO: Verificación de seguridad para evitar caídas en celulares si el elemento tarda en renderizar
+                if (!img) {
+                    alert("⏳ La interfaz se está acomodando, por favor intenta presionar 'Ver' nuevamente.");
+                    return;
+                }
+                
                 img.src = ""; 
                 let textoB64 = data.comprobante.trim();
                 if (!textoB64.startsWith('data:image')) {
