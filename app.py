@@ -1247,7 +1247,7 @@ def dashboard_principal():
         
         contexto_dash += "</div>"
     
-        # 🎨 Inyectamos el bloque procesado y controlamos el formato nativo para celulares
+    # 🎨 Inyectamos el bloque procesado y controlamos el formato nativo para celulares
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(contexto_dash)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(contexto_dash))
@@ -1884,30 +1884,31 @@ def api_guardar_credenciales():
     nueva_clave = request.form.get("nueva_clave", "").strip()
     
     if nuevo_usuario and nueva_clave:
-        # Encriptamos la clave ingresada de forma segura antes de guardarla
         hash_nueva_clave = generate_password_hash(nueva_clave)
         
         conn = get_db()
         try:
             with conn.cursor() as cursor:
-                # Actualizamos o insertamos el usuario
+                # 🛡️ FIJADO: Forzamos el almacenamiento estricto como texto plano legible en Postgres
                 cursor.execute(
                     "INSERT INTO configuracion (llave, valor) VALUES ('usuario', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                    (nuevo_usuario,)
+                    (str(nuevo_usuario),)
                 )
-                # Actualizamos o insertamos la nueva contraseña con su hash seguro
                 cursor.execute(
                     "INSERT INTO configuracion (llave, valor) VALUES ('clave', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                    (hash_nueva_clave,)
+                    (str(hash_nueva_clave),)
                 )
             conn.commit()
+            
+            # Actualizamos los datos de la sesión actual para no perder el acceso dinámico
+            session["usuario"] = nuevo_usuario
         except Exception as e:
             print(f"Error al actualizar credenciales: {e}")
         finally:
             release_db(conn)
             
-    return redirect("/")
-
+    # 🔄 FIJADO: Redireccionamos de vuelta al menú de configuración para evitar colisiones de Jinja en el Dashboard raíz
+    return redirect("/menu/configuracion")
 
 @app.route("/api/clientes/lista_negra/<int:id>")
 def api_lista_negra(id):
