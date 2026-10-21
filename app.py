@@ -5,7 +5,7 @@ from decimal import Decimal
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
-from flask import Flask, jsonify, redirect, render_template_string, request, session, send_file
+from flask import Flask, jsonify, redirect, render_template_string, request, session, send_file, g
 import psycopg2
 from psycopg2.extras import DictCursor
 from psycopg2.pool import SimpleConnectionPool
@@ -21,7 +21,7 @@ if not DATABASE_URL:
 # 🔌 FIJADO: Pool de conexiones para evitar caídas de base de datos en Render/Neon
 db_pool = SimpleConnectionPool(
     minconn=1,
-    maxconn=20,
+    maxconn=5,
     dsn=DATABASE_URL,
     cursor_factory=DictCursor
 )
@@ -31,8 +31,19 @@ def get_db():
     return db_pool.getconn()
 
 def release_db(conn):
-    """Devuelve la conexión al Pool para que pueda ser reutilizada."""
     db_pool.putconn(conn)
+
+@app.teardown_appcontext
+def shutdown_session(error_context=None):
+    """
+    🛡️ FIJADO AUTOMÁTICO: Cierra cualquier conexión residual para evitar el Error 500.
+    """
+    if hasattr(g, 'db_conn') and g.db_conn is not None:
+        try:
+            db_pool.putconn(g.db_conn)
+            g.db_conn = None
+        except Exception as e:
+            print(f"Error al liberar conexión residual: {e}")
 
 def init_db():
     conn = get_db()
@@ -1912,12 +1923,20 @@ def api_guardar_credenciales():
 
 @app.route("/api/clientes/lista_negra/<int:id>")
 def api_lista_negra(id):
-    if not session.get("autenticado"): return "No autorizado"
-    with get_db() as conn:
+    if not session.get("autenticado"): 
+        return "No autorizado"
+    
+    conn = get_db()
+    try:
         with conn.cursor() as cursor:
-                        # 🟢 CORREGIDO: Declaración de tupla limpia y directa para el identificador del cliente
+            # 🛡️ FIJADO: Sintaxis SQL limpia y directa
             cursor.execute("UPDATE clientes SET estado = 'Lista Negra' WHERE id = %s", (id,))
         conn.commit()
+    except Exception as e:
+        print(f"Error al enviar a lista negra: {e}")
+    finally:
+        release_db(conn)
+        
     return redirect("/menu/clientes")
 
 @app.route("/api/gasto_foto/<int:gasto_id>")
