@@ -2312,7 +2312,7 @@ def api_guardar_configuracion_maestra():
     return redirect("/menu/configuracion")
 
 @app.route("/api/configuracion/guardar_maestro", methods=["POST"])
-def api_guardar_configuracion_maestra():
+def api_guardar_configuracion_global():
     if not session.get("autenticado"): 
         return redirect("/login")
         
