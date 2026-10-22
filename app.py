@@ -591,6 +591,27 @@ CONTENIDO_HTML = """
         <div class="kpi-val" style="color:white; font-size:20px; margin-top:2px;">${{ "%.2f"|format(efectivo_neto) }}</div>
     </div>
 
+        <!-- 🔒 CONTROL INTEGRADO DE CIERRE DE JORNADA LABORAL PREMIUM -->
+    <div class="card" style="text-align: left; padding: 14px; border-radius: 12px; margin-bottom: 14px; background: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.02); font-family: sans-serif;">
+        <h4 style="font-size: 13px; color: #0f2b5c; margin: 0 0 8px 0; font-weight: 800;"><i class="fa-solid fa-lock-open"></i> Cierre de Jornada Diaria</h4>
+        <p style="font-size: 11px; color: #64748b; margin-bottom: 12px; line-height: 1.4; margin-top: 0;">
+            Al finalizar el día, ingresa el dinero físico real que tienes en tu bolso o cartera para realizar la auditoría y cerrar la jornada de cobranza de forma profesional. El sistema se cerrará automáticamente.
+        </p>
+
+        {% if balance_estado != 'Abierta' %}
+            <div style="background: #ecfdf5; border: 1px solid #10b981; color: #065f46; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: bold; text-align: center;">
+                🔒 CAJA CERRADA CON ÉXITO:<br>{{ balance_estado }}
+            </div>
+        {% else %}
+            <form action="/api/balance/cerrar_caja" method="POST" style="display: flex; flex-direction: column; gap: 8px;">
+                <input type="hidden" name="efectivo_sistema" value="{{ efectivo_neto }}">
+                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Efectivo Físico Real en Mano ($)</label>
+                <input type="number" step="any" name="efectivo_real" required placeholder="Ej: {{ efectivo_neto }}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
+                <button type="submit" class="btn-accion btn-pagar" style="width: 100%; padding: 12px; font-weight: bold; background: #e11d48; color: white; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 3px 6px rgba(225, 29, 72, 0.2); font-size: 12px;"><i class="fa-solid fa-power-off"></i> Sellar y Cerrar Caja de Hoy</button>
+            </form>
+        {% endif %}
+    </div>
+
     <div class="card" style="padding:16px;">
         <div class="kpi-title" style="margin-bottom:8px;">Registrar Movimiento de Flujo</div>
         <!-- 🔑 FIJADO: Envío tradicional cancelado. Delegado al script asíncrono controlado procesarYEnviarGasto -->
