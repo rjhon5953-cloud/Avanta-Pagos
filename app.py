@@ -271,24 +271,19 @@ CONTENIDO_HTML = """
         <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo de Ruta: <b>${{ "%.2f"|format(debido_minimo_dia) }}</b> | Acumulado Mora: <b>${{ "%.2f"|format(debido_total_acumulado) }}</b></div>
     </div>
 
-    <div style="display:flex; gap:6px; margin-bottom:10px; overflow-x:auto;">
-        <button onclick="filtrarEstado('todos')" class="btn-filtro active" id="f-todos">👥 Por Cobrar ({{ clientes | length }})</button>
-        <button onclick="filtrarEstado('mora')" class="btn-filtro" id="f-mora">⚠️ Mora</button>
-        <button onclick="filtrarEstado('aldia')" class="btn-filtro" id="f-aldia">✅ Al Día</button>
-    </div>
-
     <div class="section-header-title"><i class="fa-solid fa-route"></i> Ruta Principal</div>
-        <!-- CONTENEDOR FLUIDO DEL BUSCADOR Y EL BOTÓN DE TRES RAYAS -->
+    
+    <!-- ☰ BUSCADOR INTELIGENTE Y BOTÓN DE FILTROS FLOTANTES -->
     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 14px; width: 100%;">
         <div style="position: relative; flex: 1;">
-            <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()" style="width: 100%; padding: 10px 10px 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; background: #ffffff;">
+            <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()" style="width: 100%; padding: 12px 12px 12px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; background: #ffffff; margin-bottom: 0px;">
         </div>
-        <button type="button" onclick="toggleMenuFiltros()" style="background: #7c3aed; color: white; border: none; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0;">
+        <button type="button" onclick="toggleMenuFiltros()" style="background: #7c3aed; color: white; border: none; width: 42px; height: 42px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0;">
             ☰
         </button>
     </div>
 
-    <!-- MENÚ DESPLEGABLE RÁPIDO DE FILTROS -->
+    <!-- 🟣 SECTOR DE DESPLIEGUE EXCLUSIVO PARA MENÚ HAMBURGUESA -->
     <div id="menuFiltrosFlotante" style="display: none; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 14px; flex-direction: column; gap: 8px; text-align: left;">
         <div style="font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 4px; padding-left: 4px;">FILTRAR RUTA DE HOY:</div>
         <div onclick="ejecutarFiltroMenu('todos', this)" class="opcion-filtro-menu" style="display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; background: #f5f3ff; color: #7c3aed; font-weight: bold; font-size: 13px; cursor: pointer;">🟣 Ver todos los clientes</div>
@@ -297,56 +292,56 @@ CONTENIDO_HTML = """
         <div onclick="ejecutarFiltroMenu('no_gestionados', this)" class="opcion-filtro-menu" style="display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; color: #475569; font-size: 13px; cursor: pointer;">⚫ Clientes Saltados</div>
     </div>
 
+    <!-- CONTENEDOR FLEX VERTICAL QUE RENDERIZA LAS TARJETAS SIN SOLAPARSE -->
     <div id="clientesContainer" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
-            {% for c in clientes %}
-            {% set pagado = c.pagos | map(attribute='valor_pagado') | sum %}
-            {% set saldo = c.monto_total - pagado %}
+        {% for c in clientes %}
+            <!-- 🔬 CÁLCULOS DINÁMICOS COMPLEMENTARIOS DE JINJA2 INTEGRADOS EN CALIENTE -->
+            {% set total_pagado_c = c.pagos | map(attribute='valor_pagado') | map('float') | sum %}
+            {% set saldo_c = c.monto_total | float - total_pagado_c %}
             {% set cuota_pendiente = c.pagos | selectattr('pagado', 'equalto', 0) | list | first %}
             {% set cuotas_pagadas = c.pagos | selectattr('pagado', 'equalto', 1) | list | length %}
             {% set es_mora = c.saltado_hoy > 0 or c.cuotas_atrasadas > 0 %}
 
-    <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-pagado="{% if cuota_pendiente is none %}1{% else %}0{% endif %}" data-saltado="{% if c.saltado_hoy > 0 %}1{% else %}0{% endif %}" style="display: flex; flex-direction: column; width: 100%; margin-bottom: 12px; background: #ffffff; padding: 14px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); border-left: 4px solid {% if not es_mora %}#10b981{% else %}#ef4444{% endif %};">
-        
-        <!-- PARTE SUPERIOR: INFORMACIÓN E IDENTIFICACIÓN -->
-        <div class="card-izquierda" style="display: flex; width: 100%; gap: 12px; align-items: flex-start;">
-            <div class="circulo-frecuencia {% if not es_mora %}al-dia{% else %}mora-leve{% endif %}" style="flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; background: {% if not es_mora %}#ecfdf5{% else %}#fef2f2{% endif %}; color: {% if not es_mora %}#059669{% else %}#dc2626{% endif %}; border: 1px solid {% if not es_mora %}#a7f3d0{% else %}#fecaca{% endif %};">
-                {{ 'D' if c.frecuencia == 'Diaria' else 'S' }}
-            </div>
-            <div class="info-bloque-texto" style="width: 100%; text-align: left;">
-                <div id="id-alias" style="font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 2px;">#{{ c.id }} ({{ c.referencia if c.referencia else 'Comercio' }})</div>
-                <div class="nombre-real" style="font-size: 15px; font-weight: 800; color: #1e293b; margin-bottom: 8px;">{{ c.nombre }}</div>
-                
-                <!-- CUADRÍCULA DE MÉTRICAS -->
-                <div class="grid-metricas-premium" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #f1f5f9; margin-bottom: 8px;">
-                    <div style="display: flex; flex-direction: column; align-items: center;"><span style="font-size: 10px; color: #64748b; font-weight: 600;">Vr. Cuota</span><span style="font-size: 12px; font-weight: 700; color: #0f172a;">${{ "%.2f"|format(c.valor_cuota) }}</span></div>
-                    <div style="display: flex; flex-direction: column; align-items: center;"><span style="font-size: 10px; color: #64748b; font-weight: 600;">Pendiente</span><span style="font-size: 12px; font-weight: 700; color: #0f172a;">{{ cuotas_pagadas }} / {{ c.cuotas }}</span></div>
-                    <div style="display: flex; flex-direction: column; align-items: center;"><span style="font-size: 10px; color: #64748b; font-weight: 600;">Pago</span><span style="font-size: 12px; font-weight: 700; color: #059669;">-</span></div>
-                </div>
-                
-                <!-- UTILIDADES INFERIORES: FOTO, CONTEO Y SALDO -->
-                <div class="fila-utilidades-premium" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px;">
-                    <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero if cuota_pendiente else 1 }}, {{ (cuota_pendiente.valor - cuota_pendiente.valor_pagado) if cuota_pendiente else 0 }}, {{ c.valor_cuota }})" style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s;">
-                        <i class="fa-solid fa-camera"></i> Foto
-                    </button>
-                    <div class="circulo-check-cuota {% if c.saltado_hoy > 0 %}gestionado{% elif cuotas_pagadas > 0 %}gestionado-ok{% endif %}" style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; background: {% if c.saltado_hoy > 0 %}#fef2f2{% elif cuotas_pagadas > 0 %}#d1fae5{% else %}#f1f5f9{% endif %}; color: {% if c.saltado_hoy > 0 %}#ef4444{% elif cuotas_pagadas > 0 %}#10b981{% else %}#64748b{% endif %};">
-                        {% if c.saltado_hoy > 0 %}X{% else %}{{ cuotas_pagadas + 1 }}{% endif %}
+            <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-pagado="{% if cuota_pendiente is none %}1{% else %}0{% endif %}" data-saltado="{% if c.saltado_hoy > 0 %}1{% else %}0{% endif %}" style="display: flex; flex-direction: column; width: 100%; margin-bottom: 4px; background: #ffffff; padding: 14px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-left: 4px solid {% if not es_mora %}#10b981{% else %}#ef4444{% endif %}; box-sizing: border-box; clear: both;">
+                <div class="card-izquierda" style="display: flex; width: 100%; gap: 12px; align-items: flex-start;">
+                    <div class="circulo-frecuencia {% if not es_mora %}al-dia{% else %}mora-leve{% endif %}" style="flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">
+                        {{ 'D' if c.frecuencia == 'Diaria' else 'S' }}
                     </div>
-                    <div class="badge-saldo-premium" style="font-size: 12px; color: #475569; background: #f8fafc; padding: 4px 8px; border-radius: 6px; border: 1px solid #e2e8f0;">Saldo: <b style="color: #7c3aed;">${{ "%.2f"|format(saldo) }}</b></div>
+                    <div class="info-bloque-texto" style="width: 100%; text-align: left;">
+                        <div style="font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 2px;">#{{ c.id }} ({{ c.referencia if c.referencia else 'Comercio' }})</div>
+                        <div style="font-size: 15px; font-weight: 800; color: #1e293b; margin-bottom: 8px;">{{ c.nombre }}</div>
+                        
+                        <div class="grid-metricas-premium" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #f1f5f9; margin-bottom: 8px; width: 100%; box-sizing: border-box;">
+                            <div style="display: flex; flex-direction: column; align-items: center;"><span style="font-size: 10px; color: #64748b; font-weight: 600;">Vr. Cuota</span><span style="font-size: 12px; font-weight: 700; color: #0f172a;">${{ "%.2f"|format(c.valor_cuota | float) }}</span></div>
+                            <div style="display: flex; flex-direction: column; align-items: center;"><span style="font-size: 10px; color: #64748b; font-weight: 600;">Pendiente</span><span style="font-size: 12px; font-weight: 700; color: #0f172a;">{{ cuotas_pagadas }} / {{ c.cuotas }}</span></div>
+                            <div style="display: flex; flex-direction: column; align-items: center;"><span style="font-size: 10px; color: #64748b; font-weight: 600;">Pago</span><span style="font-size: 12px; font-weight: 700; color: #059669;">-</span></div>
+                        </div>
+                        
+                        <div class="fila-utilidades-premium" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; width: 100%;">
+                            <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero if cuota_pendiente else 1 }}, {{ (cuota_pendiente.valor | float - cuota_pendiente.valor_pagado | float) if cuota_pendiente else 0.0 }}, {{ c.valor_cuota | float }})" style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 4px; width: auto; height: auto;">
+                                📷 Foto
+                            </button>
+                            <div class="circulo-check-cuota {% if c.saltado_hoy > 0 %}gestionado{% elif cuotas_pagadas > 0 %}gestionado-ok{% endif %}" style="width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">
+                                {% if c.saltado_hoy > 0 %}X{% else %}{{ cuotas_pagadas + 1 }}{% endif %}
+                            </div>
+                            <div class="badge-saldo-premium" style="font-size: 12px; color: #475569; background: #f8fafc; padding: 4px 8px; border-radius: 6px; border: 1px solid #e2e8f0;">Saldo: <b style="color: #7c3aed;">${{ "%.2f"|format(saldo_c) }}</b></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 💰 BOTONES MAESTROS: FAJOS DE BILLETES CON VISTOS REINTEGRADOS Y MEJORADOS -->
+                <div class="card-derecha-acciones" id="acciones-{{ c.id }}" style="display: flex; flex-direction: row; gap: 8px; margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 10px; width: 100%; border-left: none; padding-left: 0px;">
+                    {% if cuota_pendiente %}
+                    <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ (cuota_pendiente.valor | float - cuota_pendiente.valor_pagado | float) }}, {{ c.valor_cuota | float }})" style="flex: 1; background: #10b981; color: white; border: none; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; height: 40px;">
+                        💵✅ Cobrar
+                    </button>
+                    <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({{ c.id }})" style="background: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; height: 40px; width: auto;">
+                        💵❌ Saltar
+                    </button>
+                    {% endif %}
                 </div>
             </div>
-        </div>
-        
-        <!-- PARTE INFERIOR: ACCIONES DEL COBRADOR CON ICONOS DE BILLETES RESTAURADOS -->
-        <div class="card-derecha-acciones" id="acciones-{{ c.id }}" style="display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 10px; width: 100%;">
-            {% if cuota_pendiente %}
-            <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ (cuota_pendiente.valor - cuota_pendiente.valor_pagado) }}, {{ c.valor_cuota }})" style="flex: 1; background: #10b981; color: white; border: none; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(16,185,129,0.2);">
-                💵✅ Cobrar
-            </button>
-            <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({{ c.id }})" style="background: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(239,68,68,0.2);">
-                💵❌ Saltar
-            </button>
-            {% endif %}
-        </div>
+        {% endfor %}
     </div>
 
 {% elif vista == 'clientes_financieros' %}
@@ -2703,57 +2698,6 @@ def seccion_configuracion_sistema():
     if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
         return render_template_string(html_config_premium)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_config_premium))
-
-@app.route("/api/configuracion/guardar_maestro", methods=["POST"])
-def api_guardar_configuracion_maestra():
-    if not session.get("autenticado"): 
-        return redirect("/login")
-        
-    # Recolección de variables del formulario avanzado
-    empresa_nombre = request.form.get("empresa_nombre", "").strip()
-    empresa_telefono = request.form.get("empresa_telefono", "").strip()
-    ticket_encabezado = request.form.get("ticket_encabezado", "").strip()
-    interes_defecto = request.form.get("interes_defecto", "20").strip()
-    caja_base = request.form.get("caja_base", "100.00").strip()
-    nuevo_usuario = request.form.get("nuevo_usuario", "").strip()
-    nueva_clave = request.form.get("nueva_clave", "").strip()
-    
-    conn = get_db()
-    try:
-        with conn.cursor() as cursor:
-            # Diccionario de llaves para bucle rápido de guardado masivo en Postgres
-            maestro_datos = {
-                "empresa_nombre": empresa_nombre,
-                "empresa_telefono": empresa_telefono,
-                "ticket_encabezado": ticket_encabezado,
-                "interes_defecto": interes_defecto,
-                "caja_base": caja_base,
-                "usuario": nuevo_usuario
-            }
-            
-            for llave, valor in maestro_datos.items():
-                if valor:
-                    cursor.execute(
-                        "INSERT INTO configuracion (llave, valor) VALUES (%s, %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                        (llave, valor)
-                    )
-            
-            # 🔐 Si escribiste una nueva clave, la encriptamos; si la dejaste vacía, no altera la anterior
-            if nueva_clave:
-                hash_clave = generate_password_hash(nueva_clave)
-                cursor.execute(
-                    "INSERT INTO configuracion (llave, valor) VALUES ('clave', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                    (hash_clave,)
-                )
-                
-            conn.commit()
-            session["usuario"] = nuevo_usuario
-    except Exception as e:
-        print(f"Error crítico al guardar configuración maestra: {e}")
-    finally:
-        release_db(conn)
-        
-    return redirect("/menu/configuracion")
 
 @app.route("/api/configuracion/guardar_maestro", methods=["POST"])
 def api_guardar_configuracion_global():
