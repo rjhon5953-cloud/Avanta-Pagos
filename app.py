@@ -228,7 +228,7 @@ LOGIN_HTML = """
     <div class="login-card">
         <div class="logo-container">
             <div class="logo-icon">🌐 AVANTA PAGOS</div>
-            <div class="logo-subtitle">SISTEMA PRO v1.3</div>
+            <div class="logo-subtitle">SISTEMA PRO v1.3.0</div>
         </div>
         <h2>Control de Acceso</h2>
         {% if error %} <div class="error-msg">⚠️ {{ error }}</div> {% endif %}
