@@ -336,19 +336,19 @@ CONTENIDO_HTML = """
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente en el historial..." onkeyup="filtrarClientes()">
     <!-- 🎛️ BARRA DE FILTROS PREMIUM INSPIRADA EN TRYCONTROLLER -->
     <div style="display: flex; gap: 8px; overflow-x: auto; padding: 6px 4px; margin-bottom: 12px; white-space: nowrap; scrollbar-width: none;">
-    <button type="button" class="try-filter-chip" onclick="aplicarFiltroCobro('todos')" style="background: #7c3aed; color: #ffffff; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
-        🟣 Ver todos
-    </button>
-    <button type="button" class="try-filter-chip" onclick="aplicarFiltroCobro('pagados')" style="background: #ffffff; color: #475569; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
-        🟢 Pagos
-    </button>
-    <button type="button" class="try-filter-chip" onclick="aplicarFiltroCobro('no_pagados')" style="background: #ffffff; color: #475569; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
-        🔴 No pagos
-    </button>
-    <button type="button" class="try-filter-chip" onclick="aplicarFiltroCobro('no_gestionados')" style="background: #ffffff; color: #475569; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
-        ⚫ Saltados
-    </button>
-</div>
+        <button type="button" class="try-filter-chip" onclick="aplicarFiltroCobro('todos')" style="background: #7c3aed; color: #ffffff; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
+            🟣 Ver todos
+        </button>
+        <button type="button" class="try-filter-chip" onclick="aplicarFiltroCobro('pagados')" style="background: #ffffff; color: #475569; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
+            🟢 Pagos
+        </button>
+        <button type="button" class="try-filter-chip" onclick="aplicarFiltroCobro('no_pagados')" style="background: #ffffff; color: #475569; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
+            🔴 No pagos
+        </button>
+        <button type="button" class="try-filter-chip" onclick="aplicarFiltroCobro('no_gestionados')" style="background: #ffffff; color: #475569; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
+            ⚫ Saltados
+        </button>
+    </div>
     <div id="clientesContainer">
         {% if lista_creditos %}
             {% for c in lista_creditos %}
