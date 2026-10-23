@@ -278,7 +278,7 @@ CONTENIDO_HTML = """
     </div>
 
     <div class="section-header-title"><i class="fa-solid fa-route"></i> Ruta Principal</div>
-    <!-- CONTENEDOR FLUIDO DEL BUSCADOR Y EL BOTÓN DE TRES RAYAS -->
+        <!-- CONTENEDOR FLUIDO DEL BUSCADOR Y EL BOTÓN DE TRES RAYAS -->
     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 14px; width: 100%;">
         <div style="position: relative; flex: 1;">
             <input type="text" id="searchFileInput" class="search-box" placeholder="🔍 Buscar cliente o referencia..." onkeyup="filtrarClientes()" style="width: 100%; padding: 10px 10px 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; background: #ffffff;">
@@ -297,7 +297,7 @@ CONTENIDO_HTML = """
         <div onclick="ejecutarFiltroMenu('no_gestionados', this)" class="opcion-filtro-menu" style="display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; color: #475569; font-size: 13px; cursor: pointer;">⚫ Clientes Saltados</div>
     </div>
 
-    <div id="clientesContainer" style="flex-direction: column; gap: 12px; width: 100%;">
+    <div id="clientesContainer" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
             {% for c in clientes %}
             {% set pagado = c.pagos | map(attribute='valor_pagado') | sum %}
             {% set saldo = c.monto_total - pagado %}
@@ -343,8 +343,8 @@ CONTENIDO_HTML = """
                     </button>
                 {% endif %}
             </div>
+            {% endfor %}
         </div>
-    {% endfor %}
 
 {% elif vista == 'clientes_financieros' %}
     <div class="section-header-title"><i class="fa-solid fa-users"></i> HISTORIAL GENERAL DE CLIENTES</div>
@@ -1469,34 +1469,55 @@ def dashboard_principal():
     <div class="grid-kpis">
         <div class="kpi-card">
             <div class="kpi-title">Recaudo Hoy / Créditos Hoy</div>
-            <div class="kpi-val">${recaudo_hoy:.2f} / {creditos_hoy} Créd.</div>
+            <div class="kpi-val">${float(recaudo_hoy):.2f} / {creditos_hoy} Créd.</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-title">Capital Total en Calle</div>
-            <div class="kpi-val" style="color:#0f2b5c;">${capital_en_calle:.2f}</div>
+            <div class="kpi-val" style="color: #0f2b5c;">${float(capital_en_calle):.2f}</div>
         </div>
     </div>
+    
     <div class="expected-card">
         <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
-        <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo de Ruta: <b>${debido_minimo_dia:.2f}</b> | Acumulado Mora: <b>${debido_total_acumulado:.2f}</b></div>
+        <div class="kpi-val" style="color:#0369a1; font-size:13px;">
+            ⚠️ Mínimo de Ruta: <b>${float(debido_minimo_dia):.2f}</b> | Acumulado Mora: <b>${float(debido_total_acumulado):.2f}</b>
+        </div>
     </div>
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()">
-    <div id="clientesContainer">
-    """
     
-    # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO
+    <!-- ☰ CONTENEDOR FLUIDO DEL BUSCADOR Y EL BOTÓN DE TRES RAYAS -->
+    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 14px; width: 100%;">
+        <div style="position: relative; flex: 1;">
+            <input type="text" id="searchFileInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()" style="width: 100%; padding: 10px 10px 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; background: #ffffff;">
+        </div>
+        <button type="button" onclick="toggleMenuFiltros()" style="background: #7c3aed; color: white; border: none; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0;">
+            ☰
+        </button>
+    </div>
+
+    <!-- 🟣 MENÚ DESPLEGABLE RÁPIDO DE FILTROS -->
+    <div id="menuFiltrosFlotante" style="display: none; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 14px; flex-direction: column; gap: 8px; text-align: left;">
+        <div style="font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 4px; padding-left: 4px;">FILTRAR RUTA DE HOY:</div>
+        <div onclick="ejecutarFiltroMenu('todos', this)" class="opcion-filtro-menu" style="display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; background: #f5f3ff; color: #7c3aed; font-weight: bold; font-size: 13px; cursor: pointer;">🟣 Ver todos los clientes</div>
+        <div onclick="ejecutarFiltroMenu('pagados', this)" class="opcion-filtro-menu" style="display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; color: #475569; font-size: 13px; cursor: pointer;">🟢 Clientes que ya Pagaron</div>
+        <div onclick="ejecutarFiltroMenu('no_pagados', this)" class="opcion-filtro-menu" style="display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; color: #475569; font-size: 13px; cursor: pointer;">🔴 Clientes Pendientes</div>
+        <div onclick="ejecutarFiltroMenu('no_gestionados', this)" class="opcion-filtro-menu" style="display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; color: #475569; font-size: 13px; cursor: pointer;">⚫ Clientes Saltados</div>
+    </div>
+
+    <!-- CONTENEDOR PADRE EN COLUMNA (Evita que las tarjetas se encimen horizontalmente) -->
+    <div id="clientesContainer" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+    """
+
+    # PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO
     for c in clientes_ruta:
         pagado_acumulado = sum(Decimal(str(p["valor_pagado"])) for p in c["pagos"])
         saldo_restante = max(Decimal("0.00"), Decimal(str(c["monto_total"])) - pagado_acumulado)
-    
-        # Calculamos de forma exacta cuántas cuotas completas equivalen al dinero abonado
+
         valor_cuota_dec = Decimal(str(c["valor_cuota"]))
         cuotas_pagadas = int(pagado_acumulado // valor_cuota_dec) if valor_cuota_dec > 0 else 0
-    
-        # 🛡️ FIJADO: Operador de comparación exacto (==) para hallar la cuota pendiente en la ruta
+
         cuota_p = next((p for p in c["pagos"] if int(p["pagado"]) == 0), None)
-        es_mora_cl = int(c.get("es_mora_cl", 0)) > 0  # Ajuste seguro de bandera de mora
-    
+        es_mora_cl = int(c.get("es_mora_cl", 0))
+
         c_id = str(c["id"])
         c_nombre = str(c["nombre"])
         c_nombre_lower = c_nombre.lower()
@@ -1510,48 +1531,43 @@ def dashboard_principal():
         clase_mora = "mora-leve" if es_mora_cl else "al-dia"
         clase_mora_badge = "1" if es_mora_cl else "0"
         clase_check = "gestionado" if c['saltado_hoy'] > 0 else ("gestionado-ok" if cuotas_pagadas > 0 else "")
-        numero_check = str(c['saltado_hoy'] if c['saltado_hoy'] > 0 else (cuotas_pagadas if cuotas_pagadas > 0 else 1))
-        
-        js_num_cuota = str(cuota_p["numero"]) if cuota_p else "1"
-        js_pendiente = f"{(cuota_p['valor'] - cuota_p['valor_pagado'])}" if cuota_p else "0"
-        
-        contexto_dash += f"""
-        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}">
-            <div class="cliente-card-premium" 
-                 data-nombre="{{ c_nombre_lower }}" 
-                 data-pagado="{{ '1' if cuota_p is none else '0' }}" 
-                 data-saltado="{{ '1' if c.saltado_hoy > 0 else '0' }}"
-                 style="display: flex; flex-direction: column; ...">
+        numero_check = str(c['saltado_hoy']) if c['saltado_hoy'] > 0 else (str(cuotas_pagadas + 1) if cuotas_pagadas + 1 <= int(c_cuotas) else "1")
 
-            <div class="card-izquierda">
+        js_num_cuota = str(cuota_p["numero"]) if cuota_p else "1"
+        js_pendiente = f"{float(cuota_p['valor'] - cuota_p['valor_pagado']):.2f}" if cuota_p else "0.00"
+
+        # Inyección de cada tarjeta individual con sus banderas de estado
+        contexto_dash += f"""
+        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-nombre="{c_nombre_lower}" data-pagado="{"1" if cuota_p is None else "0"}" data-saltado="{"1" if c['saltado_hoy'] > 0 else "0"}" style="display: flex; flex-direction: column; width: 100%; background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div class="card-izquierda" style="display: flex; width: 100%; gap: 10px;">
                 <div class="circulo-frecuencia {clase_mora}">{inicial_frecuencia}</div>
-                <div class="info-bloque-texto" style="width:100%;">
-                    <div class="id-alias">{c_id} {c_referencia}</div>
-                    <div class="nombre-real">{c_nombre}</div>
+                <div class="info-bloque-texto" style="width: 100%;">
+                    <div id="id-alias">#{c_id} ({c_referencia})</div>
+                    <div class="nombre-real"><b>{c_nombre}</b></div>
                     
-                    <div class="grid-metricas-premium">
+                    <div class="grid-metricas-premium" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px;">
                         <div class="metric-col"><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${c_valor_cuota}</span></div>
                         <div class="metric-col"><span class="metric-lbl">Pendiente</span><span class="metric-val">{c_cuotas_pagadas} / {c_cuotas}</span></div>
-                        <div class="metric-col"><span class="metric-lbl">Pago</span><span class="metric-val">—</span></div>
+                        <div class="metric-col"><span class="metric-lbl">Pago</span><span class="metric-val">-</span></div>
                     </div>
                     
-                    <div class="fila-utilidades-premium">
-                        <!-- 📸 FIJADO: El botón de la cámara ahora abre directamente la modal de abonos para adjuntar comprobante sin desviar el flujo -->
-                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
+                    <div class="fila-utilidades-premium" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono('{c_id}', '{js_num_cuota}', '{js_pendiente}', '{c_valor_cuota}'); alert('📷 Adjuntar comprobante');" style="background: #e2e8f0; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">📷 Foto</button>
                         <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
                     </div>
                 </div>
             </div>
             
-            <div class="card-derecha-acciones" id="acciones-{c_id}">
-                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">💵✔️</button>
-                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">💵❌</button>
+            <div class="card-derecha-acciones" id="acciones-{c_id}" style="display: flex; gap: 8px; margin-top: 10px; border-top: 1px solid #f1f5f9; padding-top: 8px;">
+                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono('{c_id}', '{js_num_cuota}', '{js_pendiente}', '{c_valor_cuota}')" style="flex: 1; background: #10b981; color: white; border: none; padding: 6px; border-radius: 6px; font-weight: bold; cursor: pointer;">Cobrar</button>
+                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago('{c_id}')" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer;">❌ Saltar</button>
             </div>
+        </div>
         """
-        
-        contexto_dash += "</div>"
-    
+
+    contexto_dash += "</div>"
+
     # 🎨 Inyectamos el bloque procesado y controlamos el formato nativo para celulares
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(contexto_dash)
