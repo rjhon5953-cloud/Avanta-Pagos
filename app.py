@@ -280,7 +280,7 @@ CONTENIDO_HTML = """
     <div class="section-header-title"><i class="fa-solid fa-route"></i> Ruta Principal</div>
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente o referencia..." onkeyup="filtrarClientes()">
 
-    <div id="clientesContainer" style="display: flex !important; flex-direction: column !important; gap: 12px !important; width: 100% !important;">
+    <div id="clientesContainer" style="flex-direction: column; gap: 12px; width: 100%;">
             {% for c in clientes %}
             {% set pagado = c.pagos | map(attribute='valor_pagado') | sum %}
             {% set saldo = c.monto_total - pagado %}
@@ -288,7 +288,7 @@ CONTENIDO_HTML = """
             {% set cuotas_pagadas = c.pagos | selectattr('pagado', 'equalto', 1) | list | length %}
             {% set es_mora = c.saltado_hoy > 0 or c.cuotas_atrasadas > 0 %}
 
-            <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}">
+            <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-pagado="{{ '1' if cuota_pendiente is none else '0' }}" data-saltado="{{ '1' if c.saltado_hoy > 0 else '0' }}" style="display: flex; flex-direction: column; width: 100%;">
                 <div class="card-izquierda">
                     <div class="circulo-frecuencia {% if not es_mora %}al-dia{% else %}mora-leve{% endif %}">
                         {{ 'D' if c.frecuencia == 'Diaria' else 'S' }}
