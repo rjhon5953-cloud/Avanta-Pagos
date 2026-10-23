@@ -395,7 +395,7 @@ CONTENIDO_HTML = """
                     <div style="display:flex; gap:6px; align-items:center;">                        
                         <button class="btn-accion btn-abono" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="border:none; padding:8px 12px;"><i class="fa-solid fa-rotate"></i> Renovar</button>                        
                         {% if cl.estado == 'Inactivo' or cl.estado == 'Lista Negra' %}
-                            <button class="btn-accion" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="background: #f97316; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(249, 115, 22, 0.15);">
+                            <button class="btn-accion" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="background: #f97316 !important; color: white !important; opacity: 1 !important; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; display: inline-block !important;">
                                 <i class="fa-solid fa-rotate"></i> Renovar
                             </button>
                         {% endif %}
@@ -987,28 +987,20 @@ function verFichaCliente(id) {
 }
 
 function filtrarClientes() {
-    // 🧠 MOTOR DE BÚSQUEDA INTELIGENTE MULTICRITERIO
     const input = document.getElementById('searchInput');
     if (!input) return;
-    
-    // Normalizamos el texto quitando acentos y mayúsculas para búsquedas fluidas
     const filter = input.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const container = document.getElementById('clientesContainer');
     if (!container) return;
     
-    // Buscamos dentro de todas las tarjetas de clientes (tanto premium como tradicionales)
-    const cardsPremium = container.getElementsByClassName('cliente-card-premium');
-    const cardsTradicionales = container.getElementsByClassName('cliente-card');
-    const todasLasCards = [...cardsPremium, ...cardsTradicionales];
+    // 🛡️ FIJADO: Captura todas las clases de tarjetas para que busque por Cédula, Dirección o ID
+    const cards = container.querySelectorAll('.cliente-card, .cliente-card-premium, [class*="cliente-card"]');
     
-    for (let i = 0; i < todasLasCards.length; i++) {
-        const card = todasLasCards[i];
-        
-        // Extraemos todos los metadatos de la tarjeta para validar el cruce
+    for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
         const nombre = card.getAttribute('data-nombre') || "";
         const textoCompleto = card.innerText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         
-        // El cliente se muestra si el filtro coincide con su nombre, id, dirección o referencia
         if (nombre.includes(filter) || textoCompleto.includes(filter)) {
             card.style.setProperty('display', 'flex', 'important');
         } else {
@@ -1017,34 +1009,28 @@ function filtrarClientes() {
     }
 }
 
-function filtrarEstado(tipo) {
-    // 🧠 MOTOR DE FILTRADO POR ESTADOS DE CARTERA
+function filtrarEstado(estadoSeleccionado) {
     const container = document.getElementById('clientesContainer');
     if (!container) return;
     
-    const cardsPremium = container.getElementsByClassName('cliente-card-premium');
-    const cardsTradicionales = container.getElementsByClassName('cliente-card');
-    const todasLasCards = [...cardsPremium, ...cardsTradicionales];
+    const cards = container.querySelectorAll('.cliente-card, .cliente-card-premium, [class*="cliente-card"]');
+    const busqueda = estadoSeleccionado.toLowerCase().trim();
     
-    for (let i = 0; i < todasLasCards.length; i++) {
-        const card = todasLasCards[i];
+    for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
+        // 🛡️ FIJADO: Lee el estado real enviado por el chip (Activo, Inactivo, Lista Negra)
+        const estadoCard = (card.getAttribute('data-estado') || card.innerText || "").toLowerCase();
         
-        // 🛡️ FIJADO: Comparación limpia con tres signos de igual (===)
-        if (tipo === 'todos') {
+        if (busqueda === 'todos' || estadoCard.includes(busqueda)) {
             card.style.setProperty('display', 'flex', 'important');
-        } else if (tipo === 'mora') {
-            if (card.getAttribute('data-mora') === '1') {
-                card.style.setProperty('display', 'flex', 'important');
-            } else {
-                card.style.setProperty('display', 'none', 'important');
-            }
+        } else {
+            card.style.setProperty('display', 'none', 'important');
         }
     }
     
-    // Cambiar clases activas visuales en los botones superiores
     const buttons = document.querySelectorAll('.filter-chip');
     buttons.forEach(btn => btn.classList.remove('active'));
-    event.currentTarget.classList.add('active');
+    if(event) event.currentTarget.classList.add('active');
 }
 
 function calcularCuota() {
@@ -1928,10 +1914,10 @@ def seccion_reordenar_ruta():
             <!-- ⚡ BOTONES INTERACTIVOS CIRCULARES DE FLECHAS TÁCTILES PREMIUM -->
             <div style="display:flex; gap:8px; flex-shrink: 0; margin-left: 10px;">
                 <a href="/mover/{cl['id']}/subir" style="text-decoration:none; width:36px; height:36px; background:#f1f5f9; color:#0284c7; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; transition: background 0.2s;" title="Subir">
-                    <i class="fa-solid fa-chevron-up"></i>
+                    <i class="fa-solid fa-chevron-up">🔼</i>
                 </a>
                 <a href="/mover/{cl['id']}/bajar" style="text-decoration:none; width:36px; height:36px; background:#f1f5f9; color:#e11d48; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; transition: background 0.2s;" title="Bajar">
-                    <i class="fa-solid fa-chevron-down"></i>
+                    <i class="fa-solid fa-chevron-down">🔽</i>
                 </a>
             </div>
         </div>
