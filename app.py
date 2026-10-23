@@ -281,7 +281,7 @@ CONTENIDO_HTML = """
         <!-- CONTENEDOR FLUIDO DEL BUSCADOR Y EL BOTÓN DE TRES RAYAS -->
     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 14px; width: 100%;">
         <div style="position: relative; flex: 1;">
-            <input type="text" id="searchFileInput" class="search-box" placeholder="🔍 Buscar cliente o referencia..." onkeyup="filtrarClientes()" style="width: 100%; padding: 10px 10px 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; background: #ffffff;">
+            <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()" style="width: 100%; padding: 10px 10px 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; background: #ffffff;">
         </div>
         <button type="button" onclick="toggleMenuFiltros()" style="background: #7c3aed; color: white; border: none; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0;">
             ☰
@@ -305,46 +305,49 @@ CONTENIDO_HTML = """
             {% set cuotas_pagadas = c.pagos | selectattr('pagado', 'equalto', 1) | list | length %}
             {% set es_mora = c.saltado_hoy > 0 or c.cuotas_atrasadas > 0 %}
 
-            <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-pagado="{{ '1' if cuota_pendiente is none else '0' }}" data-saltado="{{ '1' if c.saltado_hoy > 0 else '0' }}" style="display: flex; flex-direction: column; width: 100%;">
-                <div class="card-izquierda">
-                    <div class="circulo-frecuencia {% if not es_mora %}al-dia{% else %}mora-leve{% endif %}">
-                        {{ 'D' if c.frecuencia == 'Diaria' else 'S' }}
+    <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-pagado="{% if cuota_pendiente is none %}1{% else %}0{% endif %}" data-saltado="{% if c.saltado_hoy > 0 %}1{% else %}0{% endif %}" style="display: flex; flex-direction: column; width: 100%; margin-bottom: 12px; background: #ffffff; padding: 14px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); border-left: 4px solid {% if not es_mora %}#10b981{% else %}#ef4444{% endif %};">
+        
+        <!-- PARTE SUPERIOR: INFORMACIÓN E IDENTIFICACIÓN -->
+        <div class="card-izquierda" style="display: flex; width: 100%; gap: 12px; align-items: flex-start;">
+            <div class="circulo-frecuencia {% if not es_mora %}al-dia{% else %}mora-leve{% endif %}" style="flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; background: {% if not es_mora %}#ecfdf5{% else %}#fef2f2{% endif %}; color: {% if not es_mora %}#059669{% else %}#dc2626{% endif %}; border: 1px solid {% if not es_mora %}#a7f3d0{% else %}#fecaca{% endif %};">
+                {{ 'D' if c.frecuencia == 'Diaria' else 'S' }}
+            </div>
+            <div class="info-bloque-texto" style="width: 100%; text-align: left;">
+                <div id="id-alias" style="font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 2px;">#{{ c.id }} ({{ c.referencia if c.referencia else 'Comercio' }})</div>
+                <div class="nombre-real" style="font-size: 15px; font-weight: 800; color: #1e293b; margin-bottom: 8px;">{{ c.nombre }}</div>
+                
+                <!-- CUADRÍCULA DE MÉTRICAS -->
+                <div class="grid-metricas-premium" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #f1f5f9; margin-bottom: 8px;">
+                    <div style="display: flex; flex-direction: column; align-items: center;"><span style="font-size: 10px; color: #64748b; font-weight: 600;">Vr. Cuota</span><span style="font-size: 12px; font-weight: 700; color: #0f172a;">${{ "%.2f"|format(c.valor_cuota) }}</span></div>
+                    <div style="display: flex; flex-direction: column; align-items: center;"><span style="font-size: 10px; color: #64748b; font-weight: 600;">Pendiente</span><span style="font-size: 12px; font-weight: 700; color: #0f172a;">{{ cuotas_pagadas }} / {{ c.cuotas }}</span></div>
+                    <div style="display: flex; flex-direction: column; align-items: center;"><span style="font-size: 10px; color: #64748b; font-weight: 600;">Pago</span><span style="font-size: 12px; font-weight: 700; color: #059669;">-</span></div>
+                </div>
+                
+                <!-- UTILIDADES INFERIORES: FOTO, CONTEO Y SALDO -->
+                <div class="fila-utilidades-premium" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px;">
+                    <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero if cuota_pendiente else 1 }}, {{ (cuota_pendiente.valor - cuota_pendiente.valor_pagado) if cuota_pendiente else 0 }}, {{ c.valor_cuota }})" style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; color: #475569; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s;">
+                        <i class="fa-solid fa-camera"></i> Foto
+                    </button>
+                    <div class="circulo-check-cuota {% if c.saltado_hoy > 0 %}gestionado{% elif cuotas_pagadas > 0 %}gestionado-ok{% endif %}" style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; background: {% if c.saltado_hoy > 0 %}#fef2f2{% elif cuotas_pagadas > 0 %}#d1fae5{% else %}#f1f5f9{% endif %}; color: {% if c.saltado_hoy > 0 %}#ef4444{% elif cuotas_pagadas > 0 %}#10b981{% else %}#64748b{% endif %};">
+                        {% if c.saltado_hoy > 0 %}X{% else %}{{ cuotas_pagadas + 1 }}{% endif %}
                     </div>
-                    <div class="info-bloque-texto">
-                        <div class="id-alias">{{ c.id }} {{ c.referencia or 'Comercio' }}</div>
-                        <div class="nombre-real">{{ c.nombre }}</div>
-                        
-                        <div class="grid-metricas-premium">
-                            <div class="metric-col"><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${{ "%.2f"|format(c.valor_cuota) }}</span></div>
-                            <div class="metric-col"><span class="metric-lbl">Pendiente</span><span class="metric-val">{{ cuotas_pagadas }} / {{ c.cuotas }}.0</span></div>
-                            <div class="metric-col"><span class="metric-lbl">Pago</span><span class="metric-val">—</span></div>
-                        </div>
-                    <!-- 🛠️ Fila Inferior de Utilidades (Foto, Check de Cuota y Saldo) -->
-                    <div class="fila-utilidades-premium">
-                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero if cuota_pendiente else 1 }}, {{ (cuota_pendiente.valor - cuota_pendiente.valor_pagado) if cuota_pendiente else 0 }}, {{ c.valor_cuota }}); alert('📸 Adjunta el comprobante para la cuota de {{ c.nombre }}');">
-                            <i class="fa-solid fa-camera"></i>
-                        </button>
-                        <div class="circulo-check-cuota {% if c.saltado_hoy > 0 %}gestionado{% elif cuotas_pagadas > 0 %}gestionado-ok{% endif %}">
-                            {% if c.saltado_hoy > 0 %}{{ c.saltado_hoy }}{% else %}{{ cuotas_pagadas if cuotas_pagadas > 0 else 1 }}{% endif %}
-                        </div>
-                        <div class="badge-saldo-premium">Saldo <b>${{ "%.2f"|format(saldo) }}</b></div>
-                    </div>
+                    <div class="badge-saldo-premium" style="font-size: 12px; color: #475569; background: #f8fafc; padding: 4px 8px; border-radius: 6px; border: 1px solid #e2e8f0;">Saldo: <b style="color: #7c3aed;">${{ "%.2f"|format(saldo) }}</b></div>
                 </div>
             </div>
-            
-            <!-- 🎯 Bloque de Acciones Verticales del Lado Derecho (Cobrar y Saltar) -->
-            <div class="card-derecha-acciones">
-                {% if cuota_pendiente %}
-                    <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})">
-                        <i class="fa-solid fa-hand-holding-dollar"></i>
-                    </button>
-                    <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({{ c.id }})">
-                        <i class="fa-solid fa-hand-fist" style="transform: rotate(90deg); font-size: 21px;"></i>
-                    </button>
-                {% endif %}
-            </div>
-            {% endfor %}
         </div>
+        
+        <!-- PARTE INFERIOR: ACCIONES DEL COBRADOR CON ICONOS DE BILLETES RESTAURADOS -->
+        <div class="card-derecha-acciones" id="acciones-{{ c.id }}" style="display: flex; gap: 8px; margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 10px; width: 100%;">
+            {% if cuota_pendiente %}
+            <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ (cuota_pendiente.valor - cuota_pendiente.valor_pagado) }}, {{ c.valor_cuota }})" style="flex: 1; background: #10b981; color: white; border: none; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(16,185,129,0.2);">
+                💵✅ Cobrar
+            </button>
+            <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({{ c.id }})" style="background: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(239,68,68,0.2);">
+                💵❌ Saltar
+            </button>
+            {% endif %}
+        </div>
+    </div>
 
 {% elif vista == 'clientes_financieros' %}
     <div class="section-header-title"><i class="fa-solid fa-users"></i> HISTORIAL GENERAL DE CLIENTES</div>
