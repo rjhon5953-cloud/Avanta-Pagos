@@ -278,7 +278,24 @@ CONTENIDO_HTML = """
     </div>
 
     <div class="section-header-title"><i class="fa-solid fa-route"></i> Ruta Principal</div>
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente o referencia..." onkeyup="filtrarClientes()">
+    <!-- CONTENEDOR FLUIDO DEL BUSCADOR Y EL BOTÓN DE TRES RAYAS -->
+    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 14px; width: 100%;">
+        <div style="position: relative; flex: 1;">
+            <input type="text" id="searchFileInput" class="search-box" placeholder="🔍 Buscar cliente o referencia..." onkeyup="filtrarClientes()" style="width: 100%; padding: 10px 10px 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; background: #ffffff;">
+        </div>
+        <button type="button" onclick="toggleMenuFiltros()" style="background: #7c3aed; color: white; border: none; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0;">
+            ☰
+        </button>
+    </div>
+
+    <!-- MENÚ DESPLEGABLE RÁPIDO DE FILTROS -->
+    <div id="menuFiltrosFlotante" style="display: none; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 14px; flex-direction: column; gap: 8px; text-align: left;">
+        <div style="font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 4px; padding-left: 4px;">FILTRAR RUTA DE HOY:</div>
+        <div onclick="ejecutarFiltroMenu('todos', this)" class="opcion-filtro-menu" style="display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; background: #f5f3ff; color: #7c3aed; font-weight: bold; font-size: 13px; cursor: pointer;">🟣 Ver todos los clientes</div>
+        <div onclick="ejecutarFiltroMenu('pagados', this)" class="opcion-filtro-menu" style="display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; color: #475569; font-size: 13px; cursor: pointer;">🟢 Clientes que ya Pagaron</div>
+        <div onclick="ejecutarFiltroMenu('no_pagados', this)" class="opcion-filtro-menu" style="display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; color: #475569; font-size: 13px; cursor: pointer;">🔴 Clientes Pendientes</div>
+        <div onclick="ejecutarFiltroMenu('no_gestionados', this)" class="opcion-filtro-menu" style="display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; color: #475569; font-size: 13px; cursor: pointer;">⚫ Clientes Saltados</div>
+    </div>
 
     <div id="clientesContainer" style="flex-direction: column; gap: 12px; width: 100%;">
             {% for c in clientes %}
@@ -334,21 +351,6 @@ CONTENIDO_HTML = """
     <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Listado contable de todas las personas ingresadas en el sistema. Puedes auditar el capital en calle y los saldos reales generales.</p>
     
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente en el historial..." onkeyup="filtrarClientes()">
-    <!-- 🎛️ BARRA DE FILTROS PREMIUM INSPIRADA EN TRYCONTROLLER -->
-    <div style="display: flex; gap: 8px; overflow-x: auto; padding: 6px 4px; margin-bottom: 12px; white-space: nowrap; scrollbar-width: none;">
-        <button type="button" class="try-filter-chip" onclick="aplicarFiltroCobro('todos')" style="background: #7c3aed; color: #ffffff; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
-            🟣 Ver todos
-        </button>
-        <button type="button" class="try-filter-chip" onclick="aplicarFiltroCobro('pagados')" style="background: #ffffff; color: #475569; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
-            🟢 Pagos
-        </button>
-        <button type="button" class="try-filter-chip" onclick="aplicarFiltroCobro('no_pagados')" style="background: #ffffff; color: #475569; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
-            🔴 No pagos
-        </button>
-        <button type="button" class="try-filter-chip" onclick="aplicarFiltroCobro('no_gestionados')" style="background: #ffffff; color: #475569; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
-            ⚫ Saltados
-        </button>
-    </div>
     <div id="clientesContainer">
         {% if lista_creditos %}
             {% for c in lista_creditos %}
