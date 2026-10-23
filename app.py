@@ -1366,6 +1366,52 @@ function cargarYVerFoto(gastoId) {
         }).catch(err => alert("Error al conectar con el servidor: " + err));
 }
 
+function toggleMenuFiltros() {
+    const menu = document.getElementById('menuFiltrosFlotante');
+    if (menu.style.display === 'none' || menu.style.display === '') {
+        menu.style.display = 'flex';
+    } else {
+        menu.style.display = 'none';
+    }
+}
+
+function ejecutarFiltroMenu(criterio, elementoSeleccionado) {
+    const container = document.getElementById('clientesContainer');
+    if (!container) return;
+    
+    const cards = container.querySelectorAll('.cliente-card-premium');
+    const busqueda = criterio.toLowerCase().trim();
+    
+    for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
+        const estaPagado = card.getAttribute('data-pagado') === '1';
+        const estaSaltado = card.getAttribute('data-saltado') === '1';
+        
+        if (busqueda === 'todos') {
+            card.style.setProperty('display', 'flex', 'important');
+        } else if (busqueda === 'pagados') {
+            card.style.setProperty('display', estaPagado ? 'flex' : 'none', 'important');
+        } else if (busqueda === 'no_pagados') {
+            card.style.setProperty('display', (!estaPagado && !estaSaltado) ? 'flex' : 'none', 'important');
+        } else if (busqueda === 'no_gestionados') {
+            card.style.setProperty('display', estaSaltado ? 'flex' : 'none', 'important');
+        }
+    }
+    
+    const opciones = document.querySelectorAll('.opcion-filtro-menu');
+    opciones.forEach(opc => {
+        opc.style.background = 'transparent';
+        opc.style.color = '#475569';
+        opc.style.fontWeight = 'normal';
+    });
+    
+    elementoSeleccionado.style.background = '#f5f3ff';
+    elementoSeleccionado.style.color = '#7c3aed';
+    elementoSeleccionado.style.fontWeight = 'bold';
+    
+    setTimeout(toggleMenuFiltros, 300);
+}
+
 function revertirGestionDia(tipo, id) {
     if (confirm('¿Está seguro de que desea deshacer esta gestión y regresar al cliente a la Ruta del Día?')) {
         fetch('/api/revertir_gestion/' + tipo + '/' + id)
