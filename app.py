@@ -384,7 +384,6 @@ CONTENIDO_HTML = """
     <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
     
     <div style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
-        <!-- 🎯 FIJADO: Aquí corregimos 'filtro' por 'filter' para que el backend responda, y arreglamos las llaves triples sin romper nada más -->
         <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filter=Activo')">🟢 Activos ({{ total_activos }})</button>
         <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filter=Inactivo')">⚪ Inactivos ({{ total_inactivos }})</button>
         <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filter=Lista Negra')">⚫ Bloqueados ({{ total_negra }})</button>
@@ -393,7 +392,6 @@ CONTENIDO_HTML = """
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar registro..." onkeyup="filtrarClientes()">
     
     <div id="clientesContainer">
-        <!-- 📱 CONSERVADO: Tu diseño de Tarjeta Premium impecable para celulares -->
         {% for c in todos %}
             {% set pagado_acumulado = c.pagos | map(attribute='valor_pagado') | sum if c.pagos else 0 %}
             {% set saldo_restante = c.monto_total - pagado_acumulado %}
@@ -405,7 +403,8 @@ CONTENIDO_HTML = """
                     <div class="circulo-frecuencia al-dia">{{ 'D' if c.frecuencia == 'Diaria' else 'S' }}</div>
                     
                     <div class="info-bloque-texto" style="width:100%;">
-                        <div class="id-alias">{{ c.id }} {{ c.referencia or 'Comercio' }}</div>
+                        <!-- 🛡️ FIJADO: Muestra la Modalidad si no hay una referencia para evitar que todo sea 'Comercio' -->
+                        <div class="id-alias">{{ c.id }} — {{ c.referencia or c.frecuencia }}</div>
                         <div class="nombre-real">{{ c.nombre }}</div>
                         
                         <div class="grid-metricas-premium">
@@ -415,12 +414,20 @@ CONTENIDO_HTML = """
                         </div>
                         
                         <div class="fila-utilidades-premium">
-                            <!-- 🛠️ FIJADO ACCIÓN DE RENOVACIÓN/GESTIÓN INTEGRADA -->
-                            {% if c.estado == 'Inactivo' or c.estado == 'Lista Negra' %}
+                            <!-- 🔄 BOTÓN DE RENOVAR: Exclusivo para clientes Inactivos (Liquidados) -->
+                            {% if c.estado == 'Inactivo' %}
                                 <button type="button" class="btn-accion" onclick="navegarRuta('/mover_renovacion/{{ c.id }}')" style="background: #f97316; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px;">
                                     <i class="fa-solid fa-rotate"></i> Renovar
                                 </button>
                             {% endif %}
+                            
+                            <!-- ⚡ BOTÓN DE REACTIVAR: Exclusivo para regresar Bloqueados a la ruta con su saldo pendiente -->
+                            {% if c.estado == 'Lista Negra' %}
+                                <button type="button" class="btn-accion" onclick="if(confirm('¿Desea reactivar a este cliente y regresarlo a la ruta con su saldo restante?')) window.location.href='/api/clientes/reactivar/{{ c.id }}'" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px;">
+                                    <i class="fa-solid fa-bolt"></i> Reactivar
+                                </button>
+                            {% endif %}
+                            
                             {% if c.estado == 'Activo' %}
                                 <button type="button" class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/clientes/lista_negra/{{ c.id }}'" style="background:#475569; padding: 6px 12px; font-size: 11px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
                             {% endif %}
@@ -431,12 +438,13 @@ CONTENIDO_HTML = """
                     </div>
                 </div>
                 
+                <!-- 🎯 FIJADO: Las opciones de cobrar y saltar del bolso lateral SOLO se muestran si el cliente está Activo -->
+                {% if c.estado == 'Activo' and cuota_pendiente %}
                 <div class="card-derecha-acciones">
-                    {% if cuota_pendiente %}
-                        <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})">💵✔️</button>
-                        <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({{ c.id }})">💵❌</button>
-                    {% endif %}
+                    <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})">💵✔️</button>
+                    <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({{ c.id }})">💵❌</button>
                 </div>
+                {% endif %}
             </div>
         {% endfor %}
     </div>
