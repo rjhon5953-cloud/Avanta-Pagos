@@ -141,7 +141,9 @@ def init_db_contable():
         release_db(conn)
 
 
-init_db_contable()
+with app.app_context():
+    init_db()
+    init_db_contable()
 def obtener_clientes_ruta_hoy():
     hoy_str = date.today().isoformat()
     conn = get_db()
