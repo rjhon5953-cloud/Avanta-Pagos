@@ -762,6 +762,28 @@ HTML_TEMPLATE = """
         </div>
         
         <ul class="drawer-menu" style="list-style: none; padding: 14px 10px; margin: 0; display: flex; flex-direction: column; gap: 7px;">
+            <!-- 💵 PAGOS HOY -->
+            <li style="margin: 0;">
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/pagos_hoy')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; text-decoration: none;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 15px;">💰</span>
+                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Pagos de Hoy</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
+                </a>
+            </li>
+
+            <!-- 👤 PERFIL COBRADOR -->
+            <li style="margin: 0;">
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/perfil')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; text-decoration: none;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 15px;">👤</span>
+                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Mi Perfil</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
+                </a>
+            </li>
+
             <!-- 👥 CLIENTES -->
             <li style="margin: 0;">
                 <a href="javascript:void(0)" onclick="navegarRuta('/menu/clientes')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #2563eb;">
@@ -2652,6 +2674,81 @@ def api_gasto_foto(gasto_id):
         release_db(conn)
         
     return jsonify({"status": "error", "message": "No encontrado"})
+
+@app.route("/menu/perfil")
+def seccion_perfil():
+    if not session.get("autenticado"): 
+        return "Sesión expirada"
+    
+    conn = get_db()
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT valor FROM configuracion WHERE llave = 'usuario'")
+        usuario_actual = cursor.fetchone()["valor"]
+        
+    html_perfil = f"""
+    <div class="section-header-title"><i class="fa-solid fa-user-gear"></i> CONFIGURACIÓN DE PERFIL</div>
+    <div class="card" style="padding: 20px; text-align: left; background: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <form id="formPerfil" onsubmit="actualizarPerfil(event)">
+            <div style="margin-bottom: 14px;">
+                <label>Usuario Comercial Actual</label>
+                <input type="text" id="perfilUsuario" value="{usuario_actual}" required>
+            </div>
+            <div style="margin-bottom: 14px;">
+                <label>Nueva Contraseña (Dejar en blanco si no desea cambiarla)</label>
+                <input type="password" id="perfilClave" placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn-pagar" style="width: 100%; border: none; padding: 12px; border-radius: 8px; font-weight: bold; color: white; cursor: pointer; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+            </button>
+        </form>
+    </div>
+
+    <script>
+    function actualizarPerfil(e) {{
+        e.preventDefault();
+        const usr = document.getElementById('perfilUsuario').value;
+        const clv = document.getElementById('perfilClave').value;
+        
+        fetch('/api/perfil/guardar?usuario=' + encodeURIComponent(usr) + '&clave=' + encodeURIComponent(clv))
+            .then(res => res.json())
+            .then(data => {{
+                if(data.status === 'ok') {{
+                    alert('🌐 Perfil actualizado correctamente.');
+                    window.location.reload();
+                }} else {{
+                    alert('⚠️ Error al actualizar el perfil.');
+                }}
+            }});
+    }}
+    </script>
+    """
+    contexto = dict(vista="perfil_cobrador", usuario_actual=usuario_actual)
+    
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return render_template_string(CONTENIDO_HTML, **contexto)
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
+
+@app.route("/api/perfil/guardar")
+def api_guardar_perfil():
+    if not session.get("autenticado"): 
+        return jsonify({"status": "error"})
+        
+    nuevo_usuario = request.args.get("usuario")
+    nueva_clave = request.args.get("clave")
+    
+    if not nuevo_usuario:
+        return jsonify({"status": "error"})
+        
+    conn = get_db()
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = 'usuario'", (nuevo_usuario,))
+        if nueva_clave and nueva_clave.strip() != "":
+            clave_encriptada = generate_password_hash(nueva_clave)
+            cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = 'clave'", (clave_encriptada,))
+    conn.commit()
+    
+    session["usuario"] = nuevo_usuario
+    return jsonify({"status": "ok"})
 
 @app.route("/menu/pagos_hoy")
 def seccion_pagos_hoy():
