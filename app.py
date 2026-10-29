@@ -1488,7 +1488,7 @@ def seccion_creditos_activos():
         with conn.cursor() as cursor:
             # 📊 Optimizamos la consulta principal de todos los clientes bajo el filtro seleccionado
             cursor.execute(
-                "SELECT id, nombre, frecuencia, monto_total, estado, saltado_hoy FROM clientes WHERE estado = %s ORDER BY nombre ASC", 
+                "SELECT id, nombre, frecuencia, monto_total, estado, saltado_hoy, valor_cuota FROM clientes WHERE estado = %s ORDER BY nombre ASC", 
                 (filtro_estado,)
             )
             todos = cursor.fetchall()
@@ -1505,10 +1505,11 @@ def seccion_creditos_activos():
                 for p in todos_los_pagos:
                     pagos_por_cliente[p["cliente_id"]].append(dict(p))
                     
-                for cl in todos:
-                    t_dict = dict(cl)
-                    t_dict["pagos"] = pagos_por_cliente.get(cl["id"], [])
-                    clientes_completos.append(t_dict)
+            for cl in todos:
+                t_dict = dict(cl)
+                t_dict["valor_cuota"] = float(cl["valor_cuota"]) if cl["valor_cuota"] is not None else 0.00
+                t_dict["pagos"] = pagos_por_cliente.get(cl["id"], [])
+                clientes_completos.append(t_dict)
             
             # Consultas de conteo rápidas para los badges superiores
             cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE estado = 'Activo'")
