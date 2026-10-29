@@ -384,50 +384,17 @@ CONTENIDO_HTML = """
     <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
     
     <div style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
-        <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Activo')">🟢 Activos ({{ total_activos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Inactivo')">⚪ Inactivos ({{ total_inactivos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Lista Negra')">⚫ Bloqueados ({{ total_negra }})</button>
-    </div>
-
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar registro..." onkeyup="filtrarClientes()">
-    <div id="clientesContainer">
-        {% for cl in todos %}
-            <div class="card cliente-card" data-nombre="{{ cl.nombre | lower }}">
-                <div class="flex-between">
-                    <div>
-                        <span style="font-weight:800; color:#0f2b5c; font-size:14px;">{{ cl.nombre }}</span>
-                        <div style="font-size:11px; color:#64748b; margin-top:2px;">Monto Total: ${{ "%.2f"|format(cl.monto_total) }} | Modalidad: {{ cl.frecuencia }}</div>
-                    </div>
-                    <div style="display:flex; gap:6px; align-items:center;">                        
-                        <button class="btn-accion btn-abono" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="border:none; padding:8px 12px;"><i class="fa-solid fa-rotate"></i> Renovar</button>                        
-                        {% if cl.estado == 'Inactivo' or cl.estado == 'Lista Negra' %}
-                            <button class="btn-accion" onclick="navegarRuta('/mover_renovacion/{{ cl.id }}')" style="background: #f97316; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(249, 115, 22, 0.15);">
-                                <i class="fa-solid fa-rotate"></i> Renovar
-                            </button>
-                        {% endif %}
-                        {% if cl.estado == 'Activo' %}
-                            <button class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/clientes/lista_negra/{{ cl.id }}'" style="background:#475569; padding:8px 12px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
-                        {% endif %}
-                        <a href="/api/eliminar_cliente/{{ cl.id }}" onclick="return confirm('¿Eliminar de forma permanente?')" class="btn-accion btn-nopagar" style="text-decoration:none; padding:8px 12px; background:#dc2626;"><i class="fa-solid fa-trash-can"></i> Borrar</a>
-                    </div>
-                </div>
-            </div>
-        {% endfor %}
-    </div>
-
-{% elif vista == 'embed_creditos_maestros' or vista == 'creditos_maestros' %}
-    <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
-    
-    <div style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
-        <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Activo')">🟢 Activos ({{ total_activos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Inactivo')">⚪ Inactivos ({{ total_inactivos }})</button>
-        <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filtro=Lista Negra')">⚫ Bloqueados ({{ total_negra }})</button>
+        <!-- 🎯 FIJADO: Aquí corregimos 'filtro' por 'filter' para que el backend responda, y arreglamos las llaves triples sin romper nada más -->
+        <button class="btn-filtro {% if filtro_estado == 'Activo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filter=Activo')">🟢 Activos ({{ total_activos }})</button>
+        <button class="btn-filtro {% if filtro_estado == 'Inactivo' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filter=Inactivo')">⚪ Inactivos ({{ total_inactivos }})</button>
+        <button class="btn-filtro {% if filtro_estado == 'Lista Negra' %}active{% endif %}" onclick="navegarRuta('/menu/creditos?filter=Lista Negra')">⚫ Bloqueados ({{ total_negra }})</button>
     </div>
 
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar registro..." onkeyup="filtrarClientes()">
     
     <div id="clientesContainer">
-        {% for c in clientes %}
+        <!-- 📱 CONSERVADO: Tu diseño de Tarjeta Premium impecable para celulares -->
+        {% for c in todos %}
             {% set pagado_acumulado = c.pagos | map(attribute='valor_pagado') | sum if c.pagos else 0 %}
             {% set saldo_restante = c.monto_total - pagado_acumulado %}
             {% set cuota_pendiente = c.pagos | selectattr('pagado', 'equalto', 0) | list | first if c.pagos else None %}
@@ -448,8 +415,18 @@ CONTENIDO_HTML = """
                         </div>
                         
                         <div class="fila-utilidades-premium">
-                            <button type="button" class="btn-utilidad-foto" onclick="navegarRuta('/menu/balance')"><i class="fa-solid fa-camera"></i></button>
-                            <div class="badge-saldo-premium">Saldo <b>${{ "%.2f"|format(saldo_restante) }}</b></div>
+                            <!-- 🛠️ FIJADO ACCIÓN DE RENOVACIÓN/GESTIÓN INTEGRADA -->
+                            {% if c.estado == 'Inactivo' or c.estado == 'Lista Negra' %}
+                                <button type="button" class="btn-accion" onclick="navegarRuta('/mover_renovacion/{{ c.id }}')" style="background: #f97316; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px;">
+                                    <i class="fa-solid fa-rotate"></i> Renovar
+                                </button>
+                            {% endif %}
+                            {% if c.estado == 'Activo' %}
+                                <button type="button" class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/clientes/lista_negra/{{ c.id }}'" style="background:#475569; padding: 6px 12px; font-size: 11px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
+                            {% endif %}
+                            <a href="/api/eliminar_cliente/{{ c.id }}" onclick="return confirm('¿Eliminar de forma permanente?')" class="btn-accion btn-nopagar" style="text-decoration:none; padding: 6px 12px; background:#dc2626; font-size: 11px;"><i class="fa-solid fa-trash-can"></i> Borrar</a>
+                            
+                            <div class="badge-saldo-premium" style="margin-left: auto;">Saldo <b>${{ "%.2f"|format(saldo_restante) }}</b></div>
                         </div>
                     </div>
                 </div>
