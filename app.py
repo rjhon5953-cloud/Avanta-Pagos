@@ -662,6 +662,42 @@ CONTENIDO_HTML = """
             <p style="font-size:11px; color:#64748b; text-align:center;">No hay flujos asentados hoy.</p>
         {% endif %}
     </div>
+    
+{% elif vista == 'perfil_cobrador' %}
+    <div class="section-header-title"><i class="fa-solid fa-user-gear"></i> CONFIGURACIÓN DE PERFIL</div>
+    <div class="card" style="padding: 20px; text-align: left; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+        <form id="formPerfil" onsubmit="actualizarPerfil(event)">
+            <div style="margin-bottom: 14px;">
+                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 6px;">Usuario Comercial Actual</label>
+                <input type="text" id="perfilUsuario" value="{{ usuario_actual }}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none;" required>
+            </div>
+            <div style="margin-bottom: 14px;">
+                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 6px;">Nueva Contraseña (Dejar en blanco para no cambiar)</label>
+                <input type="password" id="perfilClave" placeholder="••••••••" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none;">
+            </div>
+            <button type="submit" style="width: 100%; border: none; padding: 12px; background: #10b981; border-radius: 8px; font-weight: bold; color: white; cursor: pointer; font-size: 13px;">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+            </button>
+        </form>
+    </div>
+
+    <script>
+    function actualizarPerfil(e) {
+        e.preventDefault();
+        const usr = document.getElementById('perfilUsuario').value;
+        const clv = document.getElementById('perfilClave').value;
+        fetch('/api/perfil/guardar?usuario=' + encodeURIComponent(usr) + '&clave=' + encodeURIComponent(clv))
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'ok') {
+                    alert('🌐 Perfil actualizado correctamente.');
+                    window.location.reload();
+                } else {
+                    alert('⚠️ Error al actualizar el perfil.');
+                }
+            });
+    }
+    </script>
 {% endif %}
 """
 
@@ -762,23 +798,23 @@ HTML_TEMPLATE = """
         </div>
         
         <ul class="drawer-menu" style="list-style: none; padding: 14px 10px; margin: 0; display: flex; flex-direction: column; gap: 7px;">
-            <!-- 💵 PAGOS HOY -->
-            <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/pagos_hoy')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; text-decoration: none;">
+            <!-- 💵 PAGOS HOY PREMIUM -->
+            <li style="margin: 0 0 10px 0; background: white; border-radius: 12px; border: 1px solid #e2e8f0; border-left: 4px solid #f59e0b; box-shadow: 0 1px 3px rgba(0,0,0,0.02); overflow: hidden;">
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/pagos_hoy')" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; text-decoration: none;">
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <span style="font-size: 15px;">💰</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Pagos de Hoy</span>
+                        <span style="font-size: 13px; font-weight: 700; color: #1e293b;">Pagos de Hoy</span>
                     </div>
                     <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
                 </a>
             </li>
 
-            <!-- 👤 PERFIL COBRADOR -->
-            <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/perfil')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; text-decoration: none;">
+            <!-- 👤 MI PERFIL PREMIUM -->
+            <li style="margin: 0 0 10px 0; background: white; border-radius: 12px; border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.02); overflow: hidden;">
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/perfil')" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; text-decoration: none;">
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <span style="font-size: 15px;">👤</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Mi Perfil</span>
+                        <span style="font-size: 13px; font-weight: 700; color: #1e293b;">Mi Perfil</span>
                     </div>
                     <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
                 </a>
