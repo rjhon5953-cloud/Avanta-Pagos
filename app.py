@@ -404,7 +404,7 @@ CONTENIDO_HTML = """
                     
                     <div class="info-bloque-texto" style="width:100%;">
                         <!-- 🛡️ FIJADO: Muestra la Modalidad si no hay una referencia para evitar que todo sea 'Comercio' -->
-                        <div class="id-alias">{{ c.id }} — {{ c.referencia or c.frecuencia }}</div>
+                        <div class="id-alias">{{ c.id }} — {{ c.referencia }}</div>
                         <div class="nombre-real">{{ c.nombre }}</div>
                         
                         <div class="grid-metricas-premium">
