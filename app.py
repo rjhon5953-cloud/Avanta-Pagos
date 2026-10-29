@@ -27,23 +27,27 @@ db_pool = SimpleConnectionPool(
 )
 
 def get_db():
-    """Obtiene una conexión limpia del Pool de recursos."""
-    return db_pool.getconn()
+    """🛡️ FIJADO: Registra la conexión en el contexto 'g' de Flask"""
+    if 'db_conn' not in g:
+        g.db_conn = db_pool.getconn()
+    return g.db_conn
 
 def release_db(conn):
-    db_pool.putconn(conn)
+    """Debe quedar vacío, el context manager se encarga abajo"""
+    pass
 
 @app.teardown_appcontext
 def shutdown_session(error_context=None):
     """
-    🛡️ FIJADO AUTOMÁTICO: Cierra cualquier conexión residual para evitar el Error 500.
+    🛡️ FIJADO AUTOMÁTICO: Saca la conexión de 'g' y la libera de verdad
+    al terminar cada petición HTTP, evitando colgar el inicio de sesión.
     """
-    if hasattr(g, 'db_conn') and g.db_conn is not None:
+    conn = g.pop('db_conn', None)
+    if conn is not None:
         try:
-            db_pool.putconn(g.db_conn)
-            g.db_conn = None
+            db_pool.putconn(conn)
         except Exception as e:
-            print(f"Error al liberar conexión residual: {e}")
+            print(f"Error al liberar conexión en el pool: {e}")
 
 def init_db():
     conn = get_db()
