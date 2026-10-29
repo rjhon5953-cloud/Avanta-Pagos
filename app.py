@@ -136,6 +136,11 @@ def init_db_contable():
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('ticket_encabezado', '¡BIENVENIDO A AVANTA PAGOS!') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('caja_base', '100.00') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('balance_estado', 'Sin cerrar') ON CONFLICT DO NOTHING")
+            # Inicialización de campos extendidos para el Perfil del Cobrador de la Ruta
+            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('cobrador_nombre', 'Cobrador Principal') ON CONFLICT DO NOTHING")
+            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('cobrador_cedula', '') ON CONFLICT DO NOTHING")
+            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('cobrador_celular', '') ON CONFLICT DO NOTHING")
+            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('cobrador_correo', '') ON CONFLICT DO NOTHING")
         conn.commit()
     finally:
         release_db(conn)
@@ -450,45 +455,75 @@ CONTENIDO_HTML = """
     </div>
 
 {% elif vista == 'pagos_hoy' %}
-    <div class="section-header-title"><i class="fa-solid fa-receipt"></i> Panel de Control - Pagos del Día</div>
-    <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Audita los movimientos ejecutados hoy. Si el cobrador cometió un error o saltó a alguien por accidente, usa el botón de deshacer para regresarlo a la ruta activa.</p>
-    
-    <!-- Tab 1: Clientes que SÍ pagaron hoy con empaquetamiento limpio -->
-    <div class="card" style="text-align:left; padding:16px;">
-        <h4 style="font-size:13px; color:#10b981; margin-bottom:10px;"><i class="fa-solid fa-circle-check"></i> Clientes que SÍ Pagaron Hoy</h4>
-        {% if pagados_list %}
+    <div class="section-header-title"><i class="fa-solid fa-money-bill-trend-up"></i> GESTIÓN DE COBROS DE HOY</div>
+
+    <!-- 🟢 SECCIÓN DE ABONOS REALIZADOS -->
+    <div style="margin-bottom: 20px; padding: 0 4px;">
+        <h4 style="font-size: 12px; color: #10b981; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; text-align: left; border-left: 3px solid #10b981; padding-left: 6px;">
+            💰 Abonos / Pagos Recibidos
+        </h4>
+        <div id="containerPagados" style="display: flex; flex-direction: column; gap: 8px;">
             {% for p in pagados_list %}
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding:10px 0; font-size:12px;">
-                    <div>
-                        <!-- 🔥 FIJADO: Muestra el nombre y el rango de cuotas agrupadas de forma elegante sin repetir líneas -->
-                        <b>{{ p.nombre }}</b> <span style="color:#64748b; font-size:11px; margin-left:4px;">(Cuotas {{ p.rango_cuotas }})</span>
-                        <div style="color:#10b981; font-weight:800; margin-top:2px;">Total Recaudado: ${{ "%.2f"|format(p.total_abonado) }}</div>
+                <div class="card" style="padding: 12px; margin-bottom: 0; background: white; text-align: left; border: 1px solid #e2e8f0; border-radius: 10px;">
+                    <div class="flex-between">
+                        <div>
+                            <span style="font-weight: 800; color: #0f2b5c; font-size: 13px; display: block;">{{ p.nombre }}</span>
+                            <span style="font-size: 11px; color: #64748b;">Cuotas: <b>{{ p.rango_cuotas }}</b></span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-weight: 800; color: #10b981; font-size: 14px;">${{ "%.2f"|format(p.total_abonado) }}</span>
+                            <button type="button" class="btn-accion btn-nopagar" onclick="if(confirm('¿Revertir este pago completo?')) revertirGestionDia('pago', '{{ p.pago_ids_str }}')" style="padding: 6px 10px; font-size: 11px; background: #ef4444; border-radius: 6px; border: none; color: white; cursor: pointer;">
+                                <i class="fa-solid fa-arrow-rotate-left"></i>
+                            </button>
+                        </div>
                     </div>
-                    <button type="button" onclick="revertirGestionDia('pago', '{{ p.pago_ids_str }}')" class="btn-accion btn-nopagar" style="background:#ef4444; padding:6px 10px;"><i class="fa-solid fa-arrow-rotate-left"></i> Deshacer</button>
                 </div>
+            {% else %}
+                <div style="font-size: 12px; color: #94a3b8; text-align: center; padding: 14px; background: #ffffff; border-radius: 10px; border: 1px dashed #cbd5e1;">Ningún recaudo asentado hoy todavía.</div>
             {% endfor %}
-        {% else %}
-            <p style="font-size:11px; color:#64748b; text-align:center; padding:10px;">Ningún recaudo asentado hoy todavía.</p>
-        {% endif %}
+        </div>
     </div>
 
-    <!-- Tab 2: Clientes SALTADOS hoy -->
-    <div class="card" style="text-align:left; padding:16px; margin-top:12px;">
-        <h4 style="font-size:13px; color:#f59e0b; margin-bottom:10px;"><i class="fa-solid fa-circle-exclamation"></i> Clientes Saltados / No Pago Hoy</h4>
-        {% if saltados_list or saltados_list %}
+    <!-- 🔴 SECCIÓN DE CLIENTES SALTADOS -->
+    <div style="padding: 0 4px;">
+        <h4 style="font-size: 12px; color: #ef4444; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; text-align: left; border-left: 3px solid #ef4444; padding-left: 6px;">
+            ❌ Clientes Saltados (No Pagó)
+        </h4>
+        <div id="containerSaltados" style="display: flex; flex-direction: column; gap: 8px;">
             {% for s in saltados_list %}
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding:10px 0; font-size:12px;">
-                    <div>
-                        <b>{{ s.nombre }}</b>
-                        <div style="color:#64748b; font-size:11px; margin-top:2px;">Total días saltado: {{ s.saltado_hoy }}</div>
+                <div class="card" style="padding: 12px; margin-bottom: 0; background: white; text-align: left; border: 1px solid #e2e8f0; border-radius: 10px;">
+                    <div class="flex-between">
+                        <div>
+                            <span style="font-weight: 800; color: #0f2b5c; font-size: 13px; display: block;">{{ s.nombre }}</span>
+                            <span style="font-size: 11px; color: #64748b;">Total días saltado: <b>{{ s.saltado_hoy }}</b></span>
+                        </div>
+                        <button type="button" class="btn-accion btn-nopagar" onclick="if(confirm('¿Revertir el salto de este cliente?')) revertirGestionDia('salto', '{{ s.cliente_id }}')" style="padding: 6px 10px; font-size: 11px; background: #475569; border-radius: 6px; border: none; color: white; cursor: pointer;">
+                            <i class="fa-solid fa-arrow-rotate-left"></i>
+                        </button>
                     </div>
-                    <button type="button" onclick="revertirGestionDia('salto', {{ s.cliente_id }})" class="btn-accion btn-nopagar" style="background:#ef4444; padding:6px 10px;"><i class="fa-solid fa-arrow-rotate-left"></i> Deshacer</button>
                 </div>
+            {% else %}
+                <div style="font-size: 12px; color: #94a3b8; text-align: center; padding: 14px; background: #ffffff; border-radius: 10px; border: 1px dashed #cbd5e1;">Ningún cliente saltado hoy.</div>
             {% endfor %}
-        {% else %}
-            <p style="font-size:11px; color:#64748b; text-align:center; padding:10px;">Ningún cliente saltado hoy.</p>
-        {% endif %}
+        </div>
     </div>
+
+    <!-- 🧠 CONTROLADOR ASÍNCRONO DE ACCIONES -->
+    <script>
+    function revertirGestionDia(tipo, idStr) {
+        fetch('/api/revertir_gestion/' + tipo + '/' + idStr)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    alert('🔄 Gestión revertida con éxito.');
+                    navegarRuta('/menu/pagos_hoy');
+                } else {
+                    alert('⚠️ No se pudo revertir: ' + (data.message || 'Error en el servidor'));
+                }
+            })
+            .catch(err => console.error('Error:', err));
+    }
+    </script>
 
 {% elif vista == 'creditos_financieros' %}
     <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL FINANCIERO DE CRÉDITOS</div>
@@ -662,38 +697,63 @@ CONTENIDO_HTML = """
             <p style="font-size:11px; color:#64748b; text-align:center;">No hay flujos asentados hoy.</p>
         {% endif %}
     </div>
-    
+
 {% elif vista == 'perfil_cobrador' %}
-    <div class="section-header-title"><i class="fa-solid fa-user-gear"></i> CONFIGURACIÓN DE PERFIL</div>
+    <div class="section-header-title"><i class="fa-solid fa-user-gear"></i> PERFIL DEL COBRADOR ASIGNADO</div>
     <div class="card" style="padding: 20px; text-align: left; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-        <form id="formPerfil" onsubmit="actualizarPerfil(event)">
-            <div style="margin-bottom: 14px;">
-                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 6px;">Usuario Comercial Actual</label>
-                <input type="text" id="perfilUsuario" value="{{ usuario_actual }}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none;" required>
+        <form id="formPerfil" onsubmit="actualizarPerfilCompleto(event)">
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Nombre del Cobrador</label>
+                <input type="text" id="perfilNombre" value="{{ nombre }}" placeholder="Ej: Juan Pérez" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;" required>
             </div>
-            <div style="margin-bottom: 14px;">
-                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 6px;">Nueva Contraseña (Dejar en blanco para no cambiar)</label>
-                <input type="password" id="perfilClave" placeholder="••••••••" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none;">
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Cédula de Identidad</label>
+                <input type="text" id="perfilCedula" value="{{ cedula }}" placeholder="Ej: 0999999999" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;">
             </div>
-            <button type="submit" style="width: 100%; border: none; padding: 12px; background: #10b981; border-radius: 8px; font-weight: bold; color: white; cursor: pointer; font-size: 13px;">
-                <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Número de Celular</label>
+                <input type="text" id="perfilCelular" value="{{ celular }}" placeholder="Ej: 0987654321" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;">
+            </div>
+            <div style="margin-bottom: 12px;">
+                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Correo Electrónico</label>
+                <input type="email" id="perfilCorreo" value="{{ correo }}" placeholder="correo@empresa.com" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;">
+            </div>
+            <div style="margin-bottom: 12px; border-top: 1px dashed #e2e8f0; padding-top: 12px;">
+                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Usuario de Acceso al Sistema</label>
+                <input type="text" id="perfilUsuario" value="{{ usuario_actual }}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;" required>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Nueva Contraseña (Dejar en blanco para no cambiar)</label>
+                <input type="password" id="perfilClave" placeholder="••••••••" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;">
+            </div>
+            <button type="submit" style="width: 100%; border: none; padding: 12px; background: #3b82f6; border-radius: 8px; font-weight: bold; color: white; cursor: pointer; font-size: 13px;">
+                <i class="fa-solid fa-floppy-disk"></i> Actualizar Ficha de Cobrador
             </button>
         </form>
     </div>
 
     <script>
-    function actualizarPerfil(e) {
+    function actualizarPerfilCompleto(e) {
         e.preventDefault();
+        const nom = document.getElementById('perfilNombre').value;
+        const ced = document.getElementById('perfilCedula').value;
+        const cel = document.getElementById('perfilCelular').value;
+        const cor = document.getElementById('perfilCorreo').value;
         const usr = document.getElementById('perfilUsuario').value;
         const clv = document.getElementById('perfilClave').value;
-        fetch('/api/perfil/guardar?usuario=' + encodeURIComponent(usr) + '&clave=' + encodeURIComponent(clv))
+        
+        const params = new URLSearchParams({
+            nombre: nom, cedula: ced, celular: cel, correo: cor, usuario: usr, clave: clv
+        });
+
+        fetch('/api/perfil/guardar?' + params.toString())
             .then(res => res.json())
             .then(data => {
                 if(data.status === 'ok') {
-                    alert('🌐 Perfil actualizado correctamente.');
+                    alert('👤 Datos del cobrador actualizados con éxito en la ruta.');
                     window.location.reload();
                 } else {
-                    alert('⚠️ Error al actualizar el perfil.');
+                    alert('⚠️ Error al guardar los cambios.');
                 }
             });
     }
@@ -798,7 +858,7 @@ HTML_TEMPLATE = """
         </div>
         
         <ul class="drawer-menu" style="list-style: none; padding: 14px 10px; margin: 0; display: flex; flex-direction: column; gap: 7px;">
-            <!-- 💵 PAGOS HOY PREMIUM -->
+            <!-- 💵 PAGOS HOY PREMIUM CORREGIDO -->
             <li style="margin: 0 0 10px 0; background: white; border-radius: 12px; border: 1px solid #e2e8f0; border-left: 4px solid #f59e0b; box-shadow: 0 1px 3px rgba(0,0,0,0.02); overflow: hidden;">
                 <a href="javascript:void(0)" onclick="navegarRuta('/menu/pagos_hoy')" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; text-decoration: none;">
                     <div style="display: flex; align-items: center; gap: 12px;">
@@ -809,7 +869,7 @@ HTML_TEMPLATE = """
                 </a>
             </li>
 
-            <!-- 👤 MI PERFIL PREMIUM -->
+            <!-- 👤 MI PERFIL PREMIUM CORREGIDO -->
             <li style="margin: 0 0 10px 0; background: white; border-radius: 12px; border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.02); overflow: hidden;">
                 <a href="javascript:void(0)" onclick="navegarRuta('/menu/perfil')" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; text-decoration: none;">
                     <div style="display: flex; align-items: center; gap: 12px;">
@@ -2718,47 +2778,19 @@ def seccion_perfil():
     
     conn = get_db()
     with conn.cursor() as cursor:
-        cursor.execute("SELECT valor FROM configuracion WHERE llave = 'usuario'")
-        usuario_actual = cursor.fetchone()["valor"]
+        cursor.execute("SELECT llave, valor FROM configuracion WHERE llave IN ('usuario', 'cobrador_nombre', 'cobrador_cedula', 'cobrador_celular', 'cobrador_correo')")
+        filas = cursor.fetchall()
         
-    html_perfil = f"""
-    <div class="section-header-title"><i class="fa-solid fa-user-gear"></i> CONFIGURACIÓN DE PERFIL</div>
-    <div class="card" style="padding: 20px; text-align: left; background: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-        <form id="formPerfil" onsubmit="actualizarPerfil(event)">
-            <div style="margin-bottom: 14px;">
-                <label>Usuario Comercial Actual</label>
-                <input type="text" id="perfilUsuario" value="{usuario_actual}" required>
-            </div>
-            <div style="margin-bottom: 14px;">
-                <label>Nueva Contraseña (Dejar en blanco si no desea cambiarla)</label>
-                <input type="password" id="perfilClave" placeholder="••••••••">
-            </div>
-            <button type="submit" class="btn-pagar" style="width: 100%; border: none; padding: 12px; border-radius: 8px; font-weight: bold; color: white; cursor: pointer; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);">
-                <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
-            </button>
-        </form>
-    </div>
-
-    <script>
-    function actualizarPerfil(e) {{
-        e.preventDefault();
-        const usr = document.getElementById('perfilUsuario').value;
-        const clv = document.getElementById('perfilClave').value;
-        
-        fetch('/api/perfil/guardar?usuario=' + encodeURIComponent(usr) + '&clave=' + encodeURIComponent(clv))
-            .then(res => res.json())
-            .then(data => {{
-                if(data.status === 'ok') {{
-                    alert('🌐 Perfil actualizado correctamente.');
-                    window.location.reload();
-                }} else {{
-                    alert('⚠️ Error al actualizar el perfil.');
-                }}
-            }});
-    }}
-    </script>
-    """
-    contexto = dict(vista="perfil_cobrador", usuario_actual=usuario_actual)
+    datos = {f["llave"]: f["valor"] for f in filas}
+    
+    contexto = dict(
+        vista="perfil_cobrador",
+        usuario_actual=datos.get("usuario", "admin"),
+        nombre=datos.get("cobrador_nombre", ""),
+        cedula=datos.get("cobrador_cedula", ""),
+        celular=datos.get("cobrador_celular", ""),
+        correo=datos.get("cobrador_correo", "")
+    )
     
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(CONTENIDO_HTML, **contexto)
@@ -2771,13 +2803,19 @@ def api_guardar_perfil():
         
     nuevo_usuario = request.args.get("usuario")
     nueva_clave = request.args.get("clave")
+    nom = request.args.get("nombre")
+    ced = request.args.get("cedula")
+    cel = request.args.get("celular")
+    cor = request.args.get("correo")
     
-    if not nuevo_usuario:
-        return jsonify({"status": "error"})
-        
     conn = get_db()
     with conn.cursor() as cursor:
         cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = 'usuario'", (nuevo_usuario,))
+        cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = 'cobrador_nombre'", (nom,))
+        cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = 'cobrador_cedula'", (ced,))
+        cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = 'cobrador_celular'", (cel,))
+        cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = 'cobrador_correo'", (cor,))
+        
         if nueva_clave and nueva_clave.strip() != "":
             clave_encriptada = generate_password_hash(nueva_clave)
             cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = 'clave'", (clave_encriptada,))
