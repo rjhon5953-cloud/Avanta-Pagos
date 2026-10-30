@@ -953,10 +953,15 @@ HTML_TEMPLATE = """
                 </a>
             </li>
 
-            <!-- ⏻ CERRAR SESIÓN (BOTÓN DE APAGADO DIGITAL) -->
+            <!-- ⏻ CERRAR SESIÓN CORREGIDO -->
             <li style="margin: 10px 0 0 0; padding-top: 8px; border-top: 1px solid #f1f5f9;">
                 <a href="/logout" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; background: #e11d48; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 13px; box-shadow: 0 4px 6px rgba(225, 29, 72, 0.12);">
-                    <span style="font-size: 14px;">⏻</span> Apagar Sesión
+                    <svg xmlns="http://w3.org" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block;">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    Cerrar Sesión
                 </a>
             </li>
         </ul>
