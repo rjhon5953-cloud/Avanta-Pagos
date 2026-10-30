@@ -321,21 +321,17 @@ CONTENIDO_HTML = """
                 </div>
             </div>
             
-            <!-- Bloque de Acciones Verticales del Lado Derecho (Cobrar y Saltar) -->
             <div class="card-derecha-acciones">
                 {% if cuota_pendiente %}
-                    <!-- Botón Profesional de Registrar Pago -->
                     <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})">
-                        <svg xmlns="http://w3.org" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="20 6 9 17 4 12"></polyline>
+                        <svg xmlns='http://w3.org' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'>
+                            <polyline points='20 6 9 17 4 12'></polyline>
                         </svg>
                     </button>
-                    
-                    <!-- Botón Profesional de Saltar Cliente (No Pago) -->
                     <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({{ c.id }})">
-                        <svg xmlns="http://w3.org" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        <svg xmlns='http://w3.org' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'>
+                            <line x1='18' y1='6' x2='6' y2='18'></line>
+                            <line x1='6' y1='6' x2='18' y2='18'></line>
                         </svg>
                     </button>
                 {% endif %}
@@ -1557,19 +1553,16 @@ def dashboard_principal():
                 </div>
             </div>
             
-            <div class="card-derecha-acciones" id="acciones-{c_id}">
-            <!-- Botón Profesional de Registrar Pago -->
+        <div class="card-derecha-acciones" id="acciones-{c_id}">
             <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
-                <svg xmlns="http://w3.org" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
+                <svg xmlns='http://w3.org' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'>
+                    <polyline points='20 6 9 17 4 12'></polyline>
                 </svg>
             </button>
-            
-            <!-- Botón Profesional de Saltar Cliente (No Pago) -->
             <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">
-                <svg xmlns="http://w3.org" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                <svg xmlns='http://w3.org' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'>
+                    <line x1='18' y1='6' x2='6' y2='18'></line>
+                    <line x1='6' y1='6' x2='18' y2='18'></line>
                 </svg>
             </button>
         </div>
