@@ -2812,13 +2812,18 @@ def api_guardar_perfil():
     
     conn = get_db()
     with conn.cursor() as cursor:
-        # 🛡️ MODO BLINDADO: Inserta si no existe o actualiza si ya existe (Evita campos fantasmas)
-        cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('usuario', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor", (nuevo_usuario,))
-        cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('cobrador_nombre', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor", (nom,))
-        cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('cobrador_cedula', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor", (ced,))
-        cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('cobrador_celular', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor", (cel,))
-        cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('cobrador_correo', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor", (cor,))
-        
+        # 🛡️ MODO COMPATIBLE POSTGRESQL: Intenta actualizar, si no existe inserta desde cero
+        for llave_conf, valor_conf in [
+            ('usuario', nuevo_usuario),
+            ('cobrador_nombre', nom),
+            ('cobrador_cedula', ced),
+            ('cobrador_celular', cel),
+            ('cobrador_correo', cor)
+        ]:
+            cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = %s", (valor_conf, llave_conf))
+            if cursor.rowcount == 0:
+                cursor.execute("INSERT INTO configuracion (llave, valor) VALUES (%s, %s)", (llave_conf, valor_conf))
+
         if nueva_clave and nueva_clave.strip() != "":
             clave_encriptada = generate_password_hash(nueva_clave)
             cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = 'clave'", (clave_encriptada,))
