@@ -726,40 +726,6 @@ CONTENIDO_HTML = """
             </button>
         </form>
     </div>
-
-    <!-- 🧠 SCRIPT CORREGIDO: Mapea y transmite todos los inputs de la ficha completa -->
-    <script>
-    function actualizarPerfilCompleto(e) {
-        e.preventDefault();
-        const nom = document.getElementById('perfilNombre').value;
-        const ced = document.getElementById('perfilCedula').value;
-        const cel = document.getElementById('perfilCelular').value;
-        const cor = document.getElementById('perfilCorreo').value;
-        const usr = document.getElementById('perfilUsuario').value;
-        const clv = document.getElementById('perfilClave').value;
-        
-        const params = new URLSearchParams({
-            nombre: nom,
-            cedula: ced,
-            celular: cel,
-            correo: cor,
-            usuario: usr,
-            clave: clv
-        });
-
-        fetch('/api/perfil/guardar?' + params.toString())
-            .then(res => res.json())
-            .then(data => {
-                if(data.status === 'ok') {
-                    alert('👤 Datos del cobrador actualizados con éxito en la ruta.');
-                    window.location.reload();
-                } else {
-                    alert('⚠️ Error al guardar los cambios.');
-                }
-            })
-            .catch(err => console.error('Error:', err));
-    }
-    </script>
 {% endif %}
 """
 
@@ -1378,6 +1344,37 @@ function revertirGestionDia(tipo, id) {
 
 function imprimirTicket() { window.print(); }
 function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function actualizarPerfilCompleto(e) {
+    e.preventDefault();
+    const nom = document.getElementById('perfilNombre').value;
+    const ced = document.getElementById('perfilCedula').value;
+    const cel = document.getElementById('perfilCelular').value;
+    const cor = document.getElementById('perfilCorreo').value;
+    const usr = document.getElementById('perfilUsuario').value;
+    const clv = document.getElementById('perfilClave').value;
+    
+    const params = new URLSearchParams({
+        nombre: nom,
+        cedula: ced,
+        celular: cel,
+        correo: cor,
+        usuario: usr,
+        clave: clv
+    });
+
+    fetch('/api/perfil/guardar?' + params.toString())
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'ok') {
+                alert('👤 Datos del cobrador actualizados con éxito en la ruta.');
+                window.location.reload();
+            } else {
+                alert('⚠️ Error al guardar los cambios.');
+            }
+        })
+        .catch(err => console.error('Error:', err));
+}
 </script>
 </body>
 </html>
