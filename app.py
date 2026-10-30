@@ -727,6 +727,7 @@ CONTENIDO_HTML = """
         </form>
     </div>
 
+    <!-- 🧠 SCRIPT CORREGIDO: Mapea y transmite todos los inputs de la ficha completa -->
     <script>
     function actualizarPerfilCompleto(e) {
         e.preventDefault();
@@ -738,7 +739,12 @@ CONTENIDO_HTML = """
         const clv = document.getElementById('perfilClave').value;
         
         const params = new URLSearchParams({
-            nombre: nom, cedula: ced, celular: cel, correo: cor, usuario: usr, clave: clv
+            nombre: nom,
+            cedula: ced,
+            celular: cel,
+            correo: cor,
+            usuario: usr,
+            clave: clv
         });
 
         fetch('/api/perfil/guardar?' + params.toString())
@@ -750,7 +756,8 @@ CONTENIDO_HTML = """
                 } else {
                     alert('⚠️ Error al guardar los cambios.');
                 }
-            });
+            })
+            .catch(err => console.error('Error:', err));
     }
     </script>
 {% endif %}
