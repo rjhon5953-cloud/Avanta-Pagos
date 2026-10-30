@@ -469,8 +469,8 @@ CONTENIDO_HTML = """
                         </div>
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <span style="font-weight: 800; color: #10b981; font-size: 14px;">${{ "%.2f"|format(p.total_abonado) }}</span>
-                            <button type="button" onclick="if(confirm('¿Revertir este pago completo?')) revertirGestionDia('pago', '{{ p.pago_ids_str }}')" style="background: #ef4444; border: none; width: 36px; height: 36px; border-radius: 8px; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
-                                <i class="fa-solid fa-arrow-rotate-left" style="font-size: 13px; color: white !important;"></i>
+                            <button type="button" onclick="if(confirm('¿Revertir este pago completo?')) revertirGestionDia('pago', '{{ p.pago_ids_str }}')" style="background: #ef4444; border: none; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.25);">
+                                <i class="fas fa-undo-alt" style="font-size: 15px; color: #ffffff !important; display: inline-block !important;"></i>
                             </button>
                         </div>
                     </div>
@@ -494,8 +494,8 @@ CONTENIDO_HTML = """
                             <span style="font-weight: 800; color: #0f2b5c; font-size: 13px; display: block;">{{ s.nombre }}</span>
                             <span style="font-size: 11px; color: #64748b;">Total días saltado: <b>{{ s.saltado_hoy }}</b></span>
                         </div>
-                        <button type="button" onclick="if(confirm('¿Revertir el salto de este cliente?')) revertirGestionDia('salto', '{{ s.cliente_id }}')" style="background: #475569; border: none; width: 36px; height: 36px; border-radius: 8px; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
-                            <i class="fa-solid fa-arrow-rotate-left" style="font-size: 13px; color: white !important;"></i>
+                        <button type="button" onclick="if(confirm('¿Revertir el salto de este cliente?')) revertirGestionDia('salto', '{{ s.cliente_id }}')" style="background: #475569; border: none; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 5px rgba(71, 85, 105, 0.25);">
+                            <i class="fas fa-undo-alt" style="font-size: 15px; color: #ffffff !important; display: inline-block !important;"></i>
                         </button>
                     </div>
                 </div>
