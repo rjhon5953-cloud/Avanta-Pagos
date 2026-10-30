@@ -136,11 +136,6 @@ def init_db_contable():
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('ticket_encabezado', '¡BIENVENIDO A AVANTA PAGOS!') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('caja_base', '100.00') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('balance_estado', 'Sin cerrar') ON CONFLICT DO NOTHING")
-            # Inicialización de campos extendidos para el Perfil del Cobrador de la Ruta
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('cobrador_nombre', 'Cobrador Principal') ON CONFLICT DO NOTHING")
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('cobrador_cedula', '') ON CONFLICT DO NOTHING")
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('cobrador_celular', '') ON CONFLICT DO NOTHING")
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('cobrador_correo', '') ON CONFLICT DO NOTHING")
         conn.commit()
     finally:
         release_db(conn)
@@ -858,23 +853,23 @@ HTML_TEMPLATE = """
         </div>
         
         <ul class="drawer-menu" style="list-style: none; padding: 14px 10px; margin: 0; display: flex; flex-direction: column; gap: 7px;">
-            <!-- 💵 PAGOS HOY PREMIUM CORREGIDO -->
-            <li style="margin: 0 0 10px 0; background: white; border-radius: 12px; border: 1px solid #e2e8f0; border-left: 4px solid #f59e0b; box-shadow: 0 1px 3px rgba(0,0,0,0.02); overflow: hidden;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/pagos_hoy')" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; text-decoration: none;">
+            <!-- 👤 MI PERFIL -->
+            <li style="margin: 0;">
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/perfil')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #3b82f6;">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">💰</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #1e293b;">Pagos de Hoy</span>
+                        <span style="font-size: 15px;">👤</span>
+                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Mi Perfil</span>
                     </div>
                     <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
                 </a>
             </li>
 
-            <!-- 👤 MI PERFIL PREMIUM CORREGIDO -->
-            <li style="margin: 0 0 10px 0; background: white; border-radius: 12px; border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.02); overflow: hidden;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/perfil')" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; text-decoration: none;">
+            <!-- 💰 PAGOS DE HOY -->
+            <li style="margin: 0;">
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/pagos_hoy')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #f59e0b;">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">👤</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #1e293b;">Mi Perfil</span>
+                        <span style="font-size: 15px;">💰</span>
+                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Pagos de Hoy</span>
                     </div>
                     <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
                 </a>
