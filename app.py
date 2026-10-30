@@ -321,14 +321,22 @@ CONTENIDO_HTML = """
                 </div>
             </div>
             
-            <!-- 🎯 Bloque de Acciones Verticales del Lado Derecho (Cobrar y Saltar) -->
+            <!-- Bloque de Acciones Verticales del Lado Derecho (Cobrar y Saltar) -->
             <div class="card-derecha-acciones">
                 {% if cuota_pendiente %}
+                    <!-- Botón Profesional de Registrar Pago -->
                     <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero }}, {{ cuota_pendiente.valor - cuota_pendiente.valor_pagado }}, {{ c.valor_cuota }})">
-                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                        <svg xmlns="http://w3.org" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
                     </button>
+                    
+                    <!-- Botón Profesional de Saltar Cliente (No Pago) -->
                     <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({{ c.id }})">
-                        <i class="fa-solid fa-hand-fist" style="transform: rotate(90deg); font-size: 21px;"></i>
+                        <svg xmlns="http://w3.org" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
                     </button>
                 {% endif %}
             </div>
@@ -808,11 +816,12 @@ HTML_TEMPLATE = """
         .badge-saldo-premium { font-size: 11px; color: #64748b; }
         .badge-saldo-premium b { color: #1e293b; font-weight: 800; }
         .card-derecha-acciones { display: flex; flex-direction: column; justify-content: space-around; align-items: center; padding-left: 12px; border-left: 1px solid #e2e8f0; min-width: 50px; gap: 4px; }
-        .btn-accion-premium { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; font-size: 18px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: all 0.1s ease; }
-        .btn-accion-premium:active { transform: scale(0.9); }
-        .btn-accion-premium.cobrar { color: #10b981; background: #ecfdf5; border-color: #bbf7d0; }
-        .btn-accion-premium.saltar { color: #ef4444; background: #fff1f2; border-color: #fca5a5; }
-        @media print {
+        .btn-accion-premium { background: #ffffff !important; border: 1px solid #e2e8f0 !important; border-radius: 10px !important; cursor: pointer !important; width: 42px !important; height: 42px !important; display: flex !important; align-items: center !important; justify-content: center !important; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important; box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important; }
+        .btn-accion-premium:active { transform: scale(0.92) !important; }
+        .btn-accion-premium.cobrar { color: #10b981 !important; background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+        .btn-accion-premium.cobrar:active { background: #d1fae5 !important; }
+        .btn-accion-premium.saltar { color: #ef4444 !important; background: #fff1f2 !important; border-color: #fecdd3 !important; }
+        .btn-accion-premium.saltar:active { background: #ffe4e6 !important; }
             body * { visibility: hidden; }
             #ticketPrint, #ticketPrint * { visibility: visible; }
             #ticketPrint { position: absolute; left: 0; top: 0; width: 58mm; font-family: monospace; font-size: 11px; }
@@ -1549,9 +1558,21 @@ def dashboard_principal():
             </div>
             
             <div class="card-derecha-acciones" id="acciones-{c_id}">
-                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">💵✔️</button>
-                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">💵❌</button>
-            </div>
+            <!-- Botón Profesional de Registrar Pago -->
+            <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
+                <svg xmlns="http://w3.org" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </button>
+            
+            <!-- Botón Profesional de Saltar Cliente (No Pago) -->
+            <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">
+                <svg xmlns="http://w3.org" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
         """
         
         contexto_dash += "</div>"
