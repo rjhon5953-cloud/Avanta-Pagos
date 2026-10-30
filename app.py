@@ -469,7 +469,7 @@ CONTENIDO_HTML = """
                         </div>
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <span style="font-weight: 800; color: #10b981; font-size: 14px;">${{ "%.2f"|format(p.total_abonado) }}</span>
-                            <button type="button" onclick="if(confirm('¿Revertir este pago completo?')) revertirGestionDia('pago', '{{ p.pago_ids_str }}')" style="background: #ef4444; border: none; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.25);">
+                            <button type="button" onclick="revertirGestionDia('pago', '{{ p.pago_ids_str }}')" style="background: #ef4444; border: none; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.25);">
                                 <svg xmlns="http://w3.org" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color: white !important;">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
                                 </svg>
@@ -496,7 +496,7 @@ CONTENIDO_HTML = """
                             <span style="font-weight: 800; color: #0f2b5c; font-size: 13px; display: block;">{{ s.nombre }}</span>
                             <span style="font-size: 11px; color: #64748b;">Total días saltado: <b>{{ s.saltado_hoy }}</b></span>
                         </div>
-                        <button type="button" onclick="if(confirm('¿Revertir el salto de este cliente?')) revertirGestionDia('salto', '{{ s.cliente_id }}')" style="background: #475569; border: none; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 5px rgba(71, 85, 105, 0.25);">
+                        <button type="button" onclick="revertirGestionDia('salto', '{{ s.cliente_id }}')" style="background: #475569; border: none; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 5px rgba(71, 85, 105, 0.25);">
                             <svg xmlns="http://w3.org" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color: white !important;">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
                             </svg>
@@ -509,20 +509,22 @@ CONTENIDO_HTML = """
         </div>
     </div>
 
-    <!-- 🧠 CONTROLADOR ASÍNCRONO DE ACCIONES -->
+    <!-- 🧠 CONTROLADOR ASÍNCRONO DE ACCIONES UNIFICADO -->
     <script>
     function revertirGestionDia(tipo, idStr) {
-        fetch('/api/revertir_gestion/' + tipo + '/' + idStr)
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    alert('🔄 Gestión revertida con éxito.');
-                    navegarRuta('/menu/pagos_hoy');
-                } else {
-                    alert('⚠️ No se pudo revertir: ' + (data.message || 'Error en el servidor'));
-                }
-            })
-            .catch(err => console.error('Error:', err));
+        if (confirm('¿Está seguro de que desea deshacer esta gestión y regresar al cliente a la Ruta del Día?')) {
+            fetch('/api/revertir_gestion/' + tipo + '/' + idStr)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'ok') {
+                        // Se remueve el alert de éxito para que recargue en silencio inmediatamente
+                        navegarRuta('/menu/pagos_hoy');
+                    } else {
+                        alert('⚠️ No se pudo revertir: ' + (data.message || 'Error en el servidor'));
+                    }
+                })
+                .catch(err => console.error('Error:', err));
+        }
     }
     </script>
 
