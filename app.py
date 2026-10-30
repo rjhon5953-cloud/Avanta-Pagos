@@ -2812,7 +2812,7 @@ def api_guardar_perfil():
     
     conn = get_db()
     with conn.cursor() as cursor:
-        # 🛡️ MODO COMPATIBLE POSTGRESQL: Intenta actualizar, si no existe inserta desde cero
+        # 🛡️ MODO ELIMINACIÓN Y COCCIÓN REAL: Limpia duplicados fantasmas en Neon
         for llave_conf, valor_conf in [
             ('usuario', nuevo_usuario),
             ('cobrador_nombre', nom),
@@ -2820,9 +2820,10 @@ def api_guardar_perfil():
             ('cobrador_celular', cel),
             ('cobrador_correo', cor)
         ]:
-            cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = %s", (valor_conf, llave_conf))
-            if cursor.rowcount == 0:
-                cursor.execute("INSERT INTO configuracion (llave, valor) VALUES (%s, %s)", (llave_conf, valor_conf))
+            # Primero borramos cualquier rastro previo para evitar conflictos de filas duplicadas sin índice
+            cursor.execute("DELETE FROM configuracion WHERE llave = %s", (llave_conf,))
+            # Insertamos el valor fresco enviado desde el celular
+            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES (%s, %s)", (llave_conf, valor_conf))
 
         if nueva_clave and nueva_clave.strip() != "":
             clave_encriptada = generate_password_hash(nueva_clave)
