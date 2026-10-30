@@ -450,6 +450,8 @@ CONTENIDO_HTML = """
     </div>
 
 {% elif vista == 'pagos_hoy' %}
+<!-- 🛡️ FUERZA EL CREADO DE ICONOS: Asegura que FontAwesome se cargue en la vista inyectada -->
+    <link rel="stylesheet" href="https://cloudflare.com">
     <div class="section-header-title"><i class="fa-solid fa-money-bill-trend-up"></i> GESTIÓN DE COBROS DE HOY</div>
 
     <!-- 🟢 SECCIÓN DE ABONOS REALIZADOS -->
