@@ -750,6 +750,63 @@ HTML_TEMPLATE = """
     <link href="https://googleapis.com" rel="stylesheet">
     <link rel="stylesheet" href="https://cloudflare.com" crossorigin="anonymous">
     <style>
+        /* 🎨 NUEVOS ESTILOS PROFESIONALES DE BOTONES - AVANTA-PAGOS v1.3 */
+        .dashboard-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin: 12px 4px 16px 4px;
+        }
+        .btn-avanta {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            text-decoration: none;
+        }
+        .btn-avanta-primary {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #ffffff;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.15);
+        }
+        .btn-avanta-primary:hover {
+            background: linear-gradient(135deg, #1d4ed8, #1e40af);
+            transform: translateY(-1px);
+        }
+        .btn-avanta-secondary {
+            background-color: #ffffff;
+            border-color: #e2e8f0;
+            color: #475569;
+        }
+        .btn-avanta-secondary:hover {
+            background-color: #f8fafc;
+            border-color: #cbd5e1;
+            color: #1e293b;
+        }
+        .btn-avanta-purple {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: #ffffff;
+            box-shadow: 0 4px 6px rgba(99, 102, 241, 0.15);
+        }
+        .btn-avanta-purple:hover {
+            background: linear-gradient(135deg, #4f46e5, #3730a3);
+            transform: translateY(-1px);
+        }
+        .btn-avanta svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            fill: currentColor;
+        }
+
         * { box-sizing: border-box; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
         body { background: #f8fafc; color: #0f172a; padding-bottom: 60px; }
         .navbar { background: #0f2b5c; color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; }
@@ -1490,6 +1547,24 @@ def dashboard_principal():
         <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
         <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo de Ruta: <b>${debido_minimo_dia:.2f}</b> | Acumulado Mora: <b>${debido_total_acumulado:.2f}</b></div>
     </div>
+
+    <!-- ⚡ BOTONERA DE ACCIONES RÁPIDAS DEL DASHBOARD -->
+    <div class="dashboard-actions-grid">
+        <button class="btn-avanta btn-avanta-primary" onclick="navegarRuta('/nuevo')">
+            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Nuevo Crédito
+        </button>
+        
+        <button class="btn-avanta btn-avanta-purple" onclick="navegarRuta('/menu/ruta_orden')">
+            <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+            Organizar Ruta
+        </button>
+
+        <button class="btn-avanta btn-avanta-secondary" onclick="navegarRuta('/menu/balance')">
+            <svg viewBox="0 0 24 24"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+            Ver Balance
+        </button>
+    </div>
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()">
     <div id="clientesContainer">
     """
@@ -1549,8 +1624,12 @@ def dashboard_principal():
             </div>
             
             <div class="card-derecha-acciones" id="acciones-{c_id}">
-                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">💵✔️</button>
-                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">💵❌</button>
+                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                </button>
+                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">
+                    <i class="fa-solid fa-hand-fist" style="transform: rotate(90deg); font-size: 21px;"></i>
+                </button>
             </div>
         """
         
