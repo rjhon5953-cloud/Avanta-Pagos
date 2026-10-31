@@ -582,7 +582,15 @@ CONTENIDO_HTML = """
             <label>Referencia Local</label><input type="text" name="referencia" value="{{ cliente.referencia | default('') }}">
             <label>Monto Financiado ($)</label><input type="number" step="any" id="calcMonto" name="monto" oninput="calcularCuota()" required>
             <label>Interés (%)</label><input type="number" step="any" id="calcInteres" name="interes_porcentaje" value="20" oninput="calcularCuota()" required>
-            <label>Cuotas</label><input type="number" id="calcCuotas" name="cuotas" value="24" oninput="calcularCuota()" required>
+            <input type="number" id="calcCuotas" name="cuotas" value="24" oninput="calcularCuota()" required>
+            
+            <label>¿Aplicar Microseguro Opcional (4%)?</label>
+            <select name="aplicar_seguro" id="calcSeguroAccion" onchange="calcularCuota()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1; font-size:13px;">
+                <option value="NO">❌ No aplicar seguro (Entrega 100%)</option>
+                <option value="SI" selected>🛡️ Aplicar seguro (Descontar de entrega)</option>
+            </select>
+            
+            <div id="seguroDesgloseText" style="font-size:12px; color:#475569; font-weight:700; margin-top:6px;">Monto Seguro: $0.00 | Neto a Entregar: $0.00</div>
             <div id="simulacionText" style="font-weight:bold; color:#0369a1; margin:6px 0;">$0.00 / cuota</div>
             <label>Frecuencia</label>
             <select name="frecuencia"><option value="Diaria">Diaria</option><option value="Semanal">Semanal</option></select>
@@ -1152,11 +1160,26 @@ function calcularCuota() {
     const monto = parseFloat(document.getElementById('calcMonto').value) || 0;
     const interes = parseFloat(document.getElementById('calcInteres').value) || 0;
     const cuotas = parseInt(document.getElementById('calcCuotas').value) || 0;
+    const aplicaSeguro = document.getElementById('calcSeguroAccion').value;
+    
+    let seguro = 0;
+    if (aplicaSeguro === 'SI') {
+        seguro = monto * 0.04;
+    }
+    
+    const netoEntregar = monto - seguro;
+    
+    // Mostramos el desglose de lo que realmente se lleva el cliente en mano
+    document.getElementById('seguroDesgloseText').innerHTML = `Monto Seguro: <b>$${seguro.toFixed(2)}</b> | Neto a Entregar: <b style="color:#10b981;">$${netoEntregar.toFixed(2)}</b>`;
+    
     if (monto > 0 && cuotas > 0) {
-        const total = monto * (1 + (interes / 100));
-        document.getElementById('simulacionText').innerText = '$' + (total / cuotas).toFixed(2) + ' / cuota';
+        const totalCredito = monto * (1 + (interes / 100));
+        document.getElementById('simulacionText').innerText = '$' + (totalCredito / cuotas).toFixed(2) + ' / cuota';
+    } else {
+        document.getElementById('simulacionText').innerText = '$0.00 / cuota';
     }
 }
+
 function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota) {
     document.getElementById('abonoClienteId').value = clienteId;
     document.getElementById('abonoNumCuota').value = numCuota;
@@ -1847,6 +1870,7 @@ def guardar_nuevo_cliente():
         cuotas = int(request.form.get("cuotas", "0"))
         frecuencia = request.form.get("frecuencia")
         fecha_inicio_dt = date.fromisoformat(request.form.get("fecha_inicio"))
+        aplica_seguro = request.form.get("aplicar_seguro", "NO")
         
         # 📍 Captura nativa de coordenadas geográficas desde el GPS del móvil
         latitud = request.form.get("latitud", "").strip()
@@ -1860,6 +1884,19 @@ def guardar_nuevo_cliente():
         conn = get_db()
         try:
             with conn.cursor() as cursor:
+                # 🛡️ MÓDULO MICROSEGURO: Si se activa, se asienta como Entrada directa en la caja de hoy
+                if aplica_seguro == "SI" and monto > 0:
+                    microseguro_valor = round(monto * Decimal("0.04"), 2)
+                    concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
+                    
+                    cursor.execute(
+                        """
+                        INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
+                        VALUES ('Entrada', 'Inversión', %s, %s, %s, '')
+                        """,
+                        (concepto_seguro, microseguro_valor, fecha_inicio_dt.isoformat())
+                    )
+                
                 cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
                 res_orden = cursor.fetchone()
                 max_orden = int(res_orden[0]) if res_orden and res_orden[0] is not None else 0
