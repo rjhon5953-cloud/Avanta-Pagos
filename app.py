@@ -771,27 +771,6 @@ HTML_TEMPLATE = """
         .kpi-val { font-size: 15px; font-weight: 800; color: #0f2b5c; }
         .expected-card { background: #f0f9ff; border: 1px solid #bae6fd; padding: 12px; border-radius: 12px; margin-bottom: 12px; text-align: left; }
         .search-box { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; margin-bottom: 12px; font-size: 13px; outline: none; }
-        .tabs-container { display: flex; background: #f1f5f9; border-radius: 12px; padding: 4px; margin: 10px 4px; border: 1px solid #e2e8f0; }
-        .tab-button { flex: 1; padding: 10px; border: none; background: transparent; color: #64748b; font-weight: 700; font-size: 13px; border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; }
-        .tab-button.active { background: #0f2b5c; color: white; box-shadow: 0 4px 6px rgba(15, 43, 92, 0.15); }
-        .search-filter-row { display: flex; gap: 8px; margin: 0 4px 12px 4px; align-items: center; }
-        .btn-filter-lines { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #0f2b5c; flex-shrink: 0; }
-        .modal-filtros-avanta { display: none; position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: rgba(15, 23, 42, 0.6) !important; z-index: 99999 !important; justify-content: center; align-items: center; }
-        .modal-filtros-content { background: white; border-radius: 16px; width: 90%; max-width: 340px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); overflow: hidden; margin: auto; }
-        .filter-modal-header { background: #7c3aed; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .filter-modal-header h3 { font-size: 18px; font-weight: 700; }
-        .filter-modal-close-x { background: transparent; border: none; color: white; font-size: 20px; cursor: pointer; }
-        .filter-modal-body { padding: 16px 20px; max-height: 70vh; overflow-y: auto; text-align: left; }
-        .filter-section-title { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 700; color: #1e293b; margin: 14px 0 10px 0; padding-bottom: 4px; border-bottom: 1px solid #f1f5f9; }
-        .filter-row-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 4px; font-size: 14px; font-weight: 600; color: #475569; cursor: pointer; }
-        .filter-checkbox-custom { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; }
-        .filter-row-item.active .filter-checkbox-custom { background: #84cc16; border-color: #84cc16; color: white; }
-        .filter-checkbox-custom::after { content: "✓"; font-size: 12px; font-weight: 900; display: none; }
-        .filter-row-item.active .filter-checkbox-custom::after { display: block; }
-        .filter-modal-footer { padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; }
-        .btn-filter-ver-todo { background: transparent; border: none; color: #7c3aed; font-weight: 700; font-size: 14px; cursor: pointer; }
-        .floating-action-menu { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; z-index: 250; }
-        .btn-fab-sub { background: #6366f1; color: white; border: none; padding: 10px 16px; border-radius: 20px; font-weight: 700; font-size: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); cursor: pointer; display: flex; align-items: center; gap: 6px; }
         .card { background: white; padding: 14px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
         .btn-accion { border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 11px; cursor: pointer; color: white; text-align: center; }
@@ -809,7 +788,6 @@ HTML_TEMPLATE = """
         
         /* 📱 ESTILOS PREMIUM UNIFICADOS COMPATIBLES CON CELULARES */
         /* 📱 FIJADO: Bloque vertical responsivo rígido para evitar que las tarjetas se monten de lado */
-        #clientesContainer { display: flex !important; flex-direction: column !important; gap: 12px; width: 100%; box-sizing: border-box; }
         .cliente-card-premium { background: #ffffff !important; border-radius: 10px !important; padding: 12px !important; margin-bottom: 12px !important; border: 1px solid #e2e8f0 !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important; width: 100% !important; clear: both !important; }
         .card-izquierda { display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 12px !important; flex: 1 !important; text-align: left !important; width: calc(100% - 60px) !important; }
         .circulo-frecuencia { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #ef4444; color: #ef4444; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; background: #fff1f2; flex-shrink: 0; }
@@ -1410,141 +1388,6 @@ function actualizarPerfilCompleto(e) {
         })
         .catch(err => console.error('Error:', err));
 }
-
-// ==========================================================================
-// 🗂️ LÓGICA DE FILTROS AVANZADOS Y PESTAÑAS (MÓDULO TRYCONTROLLER)
-// ==========================================================================
-
-let filtrosDashboardActivos = {
-    estados: [],
-    frecuencias: []
-};
-
-function abrirModalFiltrosDashboard() {
-    calcularContadoresDeFiltros();
-    document.getElementById('modalFiltrosAvanzados').style.display = 'flex';
-}
-
-function cerrarModalFiltrosDashboard() {
-    document.getElementById('modalFiltrosAvanzados').style.display = 'none';
-}
-
-function cambiarPestañaDashboard(v) {
-    const tR = document.getElementById('tab-recaudo');
-    const tV = document.getElementById('tab-ventas');
-    const pR = document.getElementById('panelDashboardRecaudo');
-    const pV = document.getElementById('panelDashboardVentas');
-    
-    if (v === 'recaudo') {
-        tR.classList.add('active');
-        tV.classList.remove('active');
-        pR.style.display = 'flex';
-        pV.style.display = 'none';
-    } else {
-        tR.classList.remove('active');
-        tV.classList.add('active');
-        pR.style.display = 'none';
-        pV.style.display = 'flex';
-    }
-}
-
-function toggleFiltroFila(t) {
-    const el = document.getElementById(`f-item-${t}`);
-    const esEst = ['pendientes', 'pagos', 'nopagos'].includes(t);
-    const lista = esEst ? filtrosDashboardActivos.estados : filtrosDashboardActivos.frecuencias;
-    
-    if (lista.includes(t)) {
-        lista.splice(lista.indexOf(t), 1);
-        if (el) el.classList.remove('active');
-    } else {
-        lista.push(t);
-        if (el) el.classList.add('active');
-    }
-    filtrarClientesMúltiple();
-}
-
-function limpiarTodosLosFiltrosDashboard() {
-    filtrosDashboardActivos.estados = [];
-    filtrosDashboardActivos.frecuencias = [];
-    document.querySelectorAll('.filter-row-item').forEach(item => item.classList.remove('active'));
-    filtrarClientesMúltiple();
-    cerrarModalFiltrosDashboard();
-}
-
-function calcularContadoresDeFiltros() {
-    const container = document.getElementById('clientesContainer');
-    const cards = container ? container.getElementsByClassName('cliente-card-premium') : [];
-    
-    let c = { 
-        pendientes: 0, 
-        pagos: 0, 
-        nopagos: 0, 
-        diario: 0, 
-        semanal: 0, 
-        quincenal: 0, 
-        mensual: 0 
-    };
-    
-    for (let i = 0; i < cards.length; i++) {
-        const card = cards[i];
-        const badge = card.querySelector('.circulo-check-cuota');
-        const fText = card.querySelector('.circulo-frecuencia') ? card.querySelector('.circulo-frecuencia').innerText.trim() : '';
-        
-        const ok = badge ? badge.classList.contains('gestionado-ok') : false;
-        const salt = badge ? badge.classList.contains('gestionado') : false;
-        
-        if (ok) c.pagos++;
-        else if (salt) c.nopagos++;
-        else c.pendientes++;
-        
-        if (fText === 'D') c.diario++;
-        else if (fText === 'S') c.semanal++;
-        else if (fText === 'Q') c.quincenal++;
-        else if (fText === 'M') c.mensual++;
-    }
-    
-    for (let k in c) {
-        if (document.getElementById(`count-${k}`)) {
-            document.getElementById(`count-${k}`).innerText = c[k];
-        }
-    }
-}
-
-function filtrarClientesMúltiple() {
-    const input = document.getElementById('searchInput');
-    const query = input ? input.value.toLowerCase().trim() : "";
-    const container = document.getElementById('clientesContainer');
-    const cards = container ? container.getElementsByClassName('cliente-card-premium') : [];
-    
-    for (let i = 0; i < cards.length; i++) {
-        const card = cards[i];
-        const text = card.innerText.toLowerCase();
-        const badge = card.querySelector('.circulo-check-cuota');
-        const fText = card.querySelector('.circulo-frecuencia') ? card.querySelector('.circulo-frecuencia').innerText.trim() : '';
-        
-        const ok = badge ? badge.classList.contains('gestionado-ok') : false;
-        const salt = badge ? badge.classList.contains('gestionado') : false;
-        
-        let estCard = 'pendientes';
-        if (ok) estCard = 'pagos';
-        else if (salt) estCard = 'nopagos';
-        
-        let freqCard = 'diario';
-        if (fText === 'S') freqCard = 'semanal';
-        else if (fText === 'Q') freqCard = 'quincenal';
-        else if (fText === 'M') freqCard = 'mensual';
-        
-        const pEst = filtrosDashboardActivos.estados.length === 0 || filtrosDashboardActivos.estados.includes(estCard);
-        const pFreq = filtrosDashboardActivos.frecuencias.length === 0 || filtrosDashboardActivos.frecuencias.includes(freqCard);
-        const pBusq = text.includes(query);
-        
-        if (pEst && pFreq && pBusq) {
-            card.style.setProperty('display', 'flex', 'important');
-        } else {
-            card.style.setProperty('display', 'none', 'important');
-        }
-    }
-}
 </script>
 </body>
 </html>
@@ -1647,10 +1490,8 @@ def dashboard_principal():
         <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
         <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo de Ruta: <b>${debido_minimo_dia:.2f}</b> | Acumulado Mora: <b>${debido_total_acumulado:.2f}</b></div>
     </div>
-    <div class="tabs-container"><button class="tab-button active" id="tab-recaudo" onclick="cambiarPestañaDashboard('recaudo')">Recaudo</button><button class="tab-button" id="tab-ventas" onclick="cambiarPestañaDashboard('ventas')">Ventas / Créditos</button></div>
-    <div class="search-filter-row"><input type="text" id="searchInput" class="search-box" style="margin-bottom:0; flex:1; height:44px;" placeholder="🔍 ID, cliente o alias cliente..." onkeyup="filtrarClientesMúltiple()"><button type="button" class="btn-filter-lines" onclick="abrirModalFiltrosDashboard()" style="height:44px; width:44px; border-radius:10px;"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></button></div>
-    <div class="modal-filtros-avanta" id="modalFiltrosAvanzados"><div class="modal-filtros-content"><div class="filter-modal-header"><h3>Filtros</h3><button type="button" class="filter-modal-close-x" onclick="cerrarModalFiltrosDashboard()">✕</button></div><div class="filter-modal-body"><div class="filter-section-title">Estado de pago <span>^</span></div><div class="filter-row-item" id="f-item-pendientes" onclick="toggleFiltroFila('pendientes')"><span>Pendientes (<span id="count-pendientes">0</span>)</span><div class="filter-checkbox-custom"></div></div><div class="filter-row-item" id="f-item-pagos" onclick="toggleFiltroFila('pagos')"><span>Pagos (<span id="count-pagos">0</span>)</span><div class="filter-checkbox-custom"></div></div><div class="filter-row-item" id="f-item-nopagos" onclick="toggleFiltroFila('nopagos')"><span>No pagos (<span id="count-nopagos">0</span>)</span><div class="filter-checkbox-custom"></div></div><div class="filter-section-title">Frecuencia de pago <span>^</span></div><div class="filter-row-item" id="f-item-diario" onclick="toggleFiltroFila('diario')"><span>Diario (<span id="count-diario">0</span>)</span><div class="filter-checkbox-custom"></div></div><div class="filter-row-item" id="f-item-semanal" onclick="toggleFiltroFila('semanal')"><span>Semanal (<span id="count-semanal">0</span>)</span><div class="filter-checkbox-custom"></div></div><div class="filter-row-item" id="f-item-quincenal" onclick="toggleFiltroFila('quincenal')"><span>Quincenal (<span id="count-quincenal">0</span>)</span><div class="filter-checkbox-custom"></div></div><div class="filter-row-item" id="f-item-mensual" onclick="toggleFiltroFila('mensual')"><span>Mensual (<span id="count-mensual">0</span>)</span><div class="filter-checkbox-custom"></div></div></div><div class="filter-modal-footer"><button type="button" class="btn-filter-ver-todo" onclick="limpiarTodosLosFiltrosDashboard()">Ver todo</button></div></div></div>
-    <div id="panelDashboardRecaudo" style="display: flex; flex-direction: column; gap: 12px; width: 100%;"><div id="clientesContainer" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()">
+    <div id="clientesContainer">
     """
     
     # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO
@@ -1713,28 +1554,7 @@ def dashboard_principal():
             </div>
         """
         
-        # 🗂️ CIERRE DE RECAUDO, APERTURA DE VENTAS Y MENÚ FLOTANTE
-        contexto_dash += """
-        <div id="panelDashboardVentas" style="display: none; flex-direction: column; gap: 12px; width: 100%;">
-            <div style="background:#ffffff; padding:14px; border-radius:12px; border:1px solid #e2e8f0; text-align:left;">
-                <h4 style="font-size:13px; color:#0f2b5c; font-weight:800; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:8px;">📊 Resumen Contable de Colocación</h4>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px;">
-                    <div>Créditos Entregados: <b style="color:#7c3aed;" id="kpi-count-cred-ventas">0</b></div>
-                    <div>Capital Invertido: <b style="color:#84cc16;" id="kpi-monto-cred-ventas">$0.00</b></div>
-                </div>
-            </div>
-        
-            <div id="ventasContainer" style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
-                <div style="font-size: 13px; color: #94a3b8; text-align: center; padding: 20px;">No hay ventas disponibles</div>
-            </div>
-        
-            <div class="floating-action-menu" style="position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; z-index: 250;">
-                <button class="btn-fab-sub" onclick="navegarRuta('/nuevo')" style="background:#7c3aed; color:white; border:none; padding:12px 20px; border-radius:24px; font-weight:700; font-size:13px; box-shadow:0 4px 10px rgba(0,0,0,0.2); cursor:pointer;">Cliente Nuevo 👤</button>
-                <button class="btn-fab-sub" onclick="navegarRuta('/menu/clientes')" style="background:#7c3aed; color:white; border:none; padding:12px 20px; border-radius:24px; font-weight:700; font-size:13px; box-shadow:0 4px 10px rgba(0,0,0,0.2); cursor:pointer;">Cliente Registrado 🤝</button>
-                <button class="btn-fab-sub" onclick="cambiarPestañaDashboard('recaudo')" style="background:#7c3aed; color:white; border:none; padding:12px 20px; border-radius:24px; font-weight:700; font-size:13px; box-shadow:0 4px 10px rgba(0,0,0,0.2); cursor:pointer;">Regresar ⬅️</button>
-            </div>
-        </div>
-        """
+        contexto_dash += "</div>"
     
     # 🎨 Inyectamos el bloque procesado y controlamos el formato nativo para celulares
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
