@@ -776,8 +776,8 @@ HTML_TEMPLATE = """
         .tab-button.active { background: #0f2b5c; color: white; box-shadow: 0 4px 6px rgba(15, 43, 92, 0.15); }
         .search-filter-row { display: flex; gap: 8px; margin: 0 4px 12px 4px; align-items: center; }
         .btn-filter-lines { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #0f2b5c; flex-shrink: 0; }
-        .modal-filtros-avanta { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); z-index: 2000; justify-content: center; align-items: center; padding: 16px; }
-        .modal-filtros-content { background: white; border-radius: 20px; width: 100%; max-width: 380px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; }
+        .modal-filtros-avanta { display: none; position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: rgba(15, 23, 42, 0.6) !important; z-index: 99999 !important; justify-content: center; align-items: center; }
+        .modal-filtros-content { background: white; border-radius: 16px; width: 90%; max-width: 340px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); overflow: hidden; margin: auto; }
         .filter-modal-header { background: #7c3aed; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
         .filter-modal-header h3 { font-size: 18px; font-weight: 700; }
         .filter-modal-close-x { background: transparent; border: none; color: white; font-size: 20px; cursor: pointer; }
@@ -809,6 +809,7 @@ HTML_TEMPLATE = """
         
         /* 📱 ESTILOS PREMIUM UNIFICADOS COMPATIBLES CON CELULARES */
         /* 📱 FIJADO: Bloque vertical responsivo rígido para evitar que las tarjetas se monten de lado */
+        #clientesContainer { display: flex !important; flex-direction: column !important; gap: 12px; width: 100%; box-sizing: border-box; }
         .cliente-card-premium { background: #ffffff !important; border-radius: 10px !important; padding: 12px !important; margin-bottom: 12px !important; border: 1px solid #e2e8f0 !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important; width: 100% !important; clear: both !important; }
         .card-izquierda { display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 12px !important; flex: 1 !important; text-align: left !important; width: calc(100% - 60px) !important; }
         .circulo-frecuencia { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #ef4444; color: #ef4444; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; background: #fff1f2; flex-shrink: 0; }
