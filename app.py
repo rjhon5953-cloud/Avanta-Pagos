@@ -1206,7 +1206,20 @@ let imagenComprimidaB64 = "";
 let fotoListaParaEnviar = false;
 
 function procesarPagoAPI(clienteId, numCuota, monto) {
-    fetch('/api/marcar_pago/' + clienteId + '/' + numCuota + '?monto=' + monto)
+    // 🌍 Captura automática de la zona horaria y hora local del dispositivo móvil
+    const zonaUsuario = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const ahoraDispositivo = new Date();
+    
+    // Formateo exacto del reloj del teléfono: DD/MM/YYYY HH:MM
+    const dia = String(ahoraDispositivo.getDate()).padStart(2, '0');
+    const mes = String(ahoraDispositivo.getMonth() + 1).padStart(2, '0');
+    const anio = ahoraDispositivo.getFullYear();
+    const horas = String(ahoraDispositivo.getHours()).padStart(2, '0');
+    const minutos = String(ahoraDispositivo.getMinutes()).padStart(2, '0');
+    const horaLocalFormateada = `${dia}/${mes}/${anio} ${horas}:${minutos}`;
+
+    // Enviamos los datos automáticos como parámetros adicionales en el fetch
+    fetch('/api/marcar_pago/' + clienteId + '/' + numCuota + '?monto=' + monto + '&hora_local=' + encodeURIComponent(horaLocalFormateada) + '&zona_usuario=' + encodeURIComponent(zonaUsuario))
         .then(res => res.json())
         .then(data => {
             if (data.status === 'ok') {
@@ -2371,6 +2384,12 @@ def api_marcar_pago(cliente_id, num_cuota):
         return jsonify({"status": "error", "message": "No autorizado"})
         
     monto_recaudado = Decimal(str(request.args.get("monto", 0)))
+        
+    # 🌍 CAPTURA INTERNACIONAL AUTOMÁTICA DEL DISPOSITIVO DEL COBRADOR
+    hora_local_cliente = request.args.get("hora_local", "")
+    if not hora_local_cliente:
+        hora_local_cliente = datetime.now().strftime("%d/%m/%Y %H:%M")
+            
     hoy_str = date.today().isoformat()
     monto_restante = monto_recaudado
     
@@ -2431,7 +2450,7 @@ def api_marcar_pago(cliente_id, num_cuota):
         f"{linea_division}\n"
         f"👤 *Cliente:* {c['nombre']}\n"
         f"📱 *WhatsApp:* {c['telefono'] or 'N/A'}\n"
-        f"📅 *Fecha de Pago:* {datetime.now().strftime('%d/%m/%Y %H:%M')}\n"
+        f"*📅 Fecha de Pago:* {hora_local_cliente}\n"
         f"{linea_division}\n"
         f"💵 *Monto Cobrado:* ${float(monto_recaudado):.2f}\n"
         f"🔢 *Cuota Procesada:* #{num_cuota}\n"
