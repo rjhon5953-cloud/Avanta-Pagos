@@ -213,21 +213,24 @@ LOGIN_HTML = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Avanta Pagos - Acceso</title>
-    <link href="https://googleapis.com" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
-        body { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; }
-        .login-card { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(16px); padding: 32px 24px; border-radius: 20px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
-        .logo-container { margin-bottom: 24px; }
-        .logo-icon { font-size: 38px; background: linear-gradient(45deg, #00a8cc, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; display: inline-block; }
-        .logo-subtitle { color: #94a3b8; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
-        h2 { color: white; font-size: 18px; font-weight: 700; margin: 20px 0; text-align: center; }
-        .input-group { text-align: left; margin-bottom: 16px; }
-        label { color: #cbd5e1; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: block; }
-        input { width: 100%; padding: 12px 14px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; color: white; font-size: 14px; outline: none; display: block; margin-top: 4px; }
-        .btn-access { background: linear-gradient(90deg, #00a8cc 0%, #0284c7 100%); color: white; font-weight: 700; font-size: 14px; border: none; padding: 14px; border-radius: 10px; width: 100%; cursor: pointer; margin-top: 14px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); display: block; }
-        .version-text { color: #64748b; font-size: 11px; font-weight: 600; margin-top: 24px; }
-        .error-msg { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; font-size: 12px; margin-bottom: 16px; }
+        * { box-sizing: border-box; font-family: 'Inter', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
+        body { background: linear-gradient(135deg, #0b1329 0%, #1c2541 100%); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; }
+        .login-card { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 36px 24px; border-radius: 24px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); }
+        .logo-container { margin-bottom: 20px; }
+        .logo-icon { font-size: 32px; background: linear-gradient(135deg, #38bdf8, #0369a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; display: inline-block; letter-spacing: -0.5px; }
+        .logo-subtitle { color: #94a3b8; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+        h2 { color: white; font-size: 18px; font-weight: 700; margin: 20px 0; text-align: center; letter-spacing: 0.3px; }
+        .input-group { text-align: left; margin-bottom: 18px; }
+        label { color: #cbd5e1; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: block; letter-spacing: 0.5px; }
+        input { width: 100%; padding: 14px 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: white; font-size: 14px; font-weight: 500; outline: none; display: block; margin-top: 4px; transition: all 0.2s ease-in-out; }
+        input::placeholder { color: #64748b; }
+        input:focus { border-color: #0ea5e9; background: rgba(15, 23, 42, 0.8); box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.15); }
+        .btn-access { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; font-weight: 700; font-size: 14px; border: none; padding: 14px; border-radius: 12px; width: 100%; cursor: pointer; margin-top: 14px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3); display: block; transition: all 0.2s ease-in-out; }
+        .btn-access:hover { background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 6px 16px rgba(14, 165, 233, 0.45); transform: translateY(-1px); }
+        .btn-access:active { transform: translateY(0); }
+        .version-text { color: #475569; font-size: 11px; font-weight: 600; margin-top: 24px; }
+        .error-msg { background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; font-size: 12px; margin-bottom: 16px; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -238,7 +241,7 @@ LOGIN_HTML = """
         </div>
         <h2>Control de Acceso</h2>
         {% if error %} <div class="error-msg">⚠️ {{ error }}</div> {% endif %}
-        <form action="/login" method="POST">
+        <form action="/login" method="POST" onsubmit="setTimeout(() => { const b = document.getElementById('btnLoginSubmit'); if(b){ b.disabled = true; b.innerText = '⌛ Autenticando...'; b.style.opacity = '0.7'; } }, 10);">
             <div class="input-group">
                 <label>Usuario Comercial</label>
                 <input type="text" name="usuario" required placeholder="Ingresa tu usuario">
@@ -247,7 +250,7 @@ LOGIN_HTML = """
                 <label>Contraseña</label>
                 <input type="password" name="clave" required placeholder="••••••••">
             </div>
-            <button type="submit" class="btn-access">Acceder al Sistema</button>
+            <button type="submit" id="btnLoginSubmit" class="btn-access">Acceder al Sistema</button>
         </form>
         <div class="version-text">Avanta Pagos versión 1.3</div>
     </div>
