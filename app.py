@@ -581,9 +581,11 @@ CONTENIDO_HTML = """
             <label>Dirección Domiciliaria</label><input type="text" name="direccion" value="{{ cliente.direccion | default('') }}">
             <label>Referencia Local</label><input type="text" name="referencia" value="{{ cliente.referencia | default('') }}">
             <label>Monto Financiado ($)</label><input type="number" step="any" id="calcMonto" name="monto" oninput="calcularCuota()" required>
-            <label>Interés (%)</label><input type="number" step="any" id="calcInteres" name="interes_porcentaje" value="20" oninput="calcularCuota()" required>
-            <input type="number" id="calcCuotas" name="cuotas" value="24" oninput="calcularCuota()" required>
+            <label>Interés (%)</label>
+            <input type="number" step="any" id="calcInteres" name="interes_porcentaje" value="20" oninput="calcularCuota()" required>
             
+            <label>Cuotas</label>
+            <input type="number" id="calcCuotas" name="cuotas" value="24" oninput="calcularCuota()" required>
             <label>¿Aplicar Microseguro Opcional (4%)?</label>
             <select name="aplicar_seguro" id="calcSeguroAccion" onchange="calcularCuota()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1; font-size:13px;">
                 <option value="NO">❌ No aplicar seguro (Entrega 100%)</option>
@@ -700,7 +702,9 @@ CONTENIDO_HTML = """
                         {% if g.comprobante and g.comprobante != "None" and g.comprobante != "" %}
                             <button type="button" onclick="cargarYVerFoto({{ g.id }})" style="padding:4px 8px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer;">📷 Ver</button>
                         {% endif %}
-                        <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Eliminar Gasto?')" style="color:#ef4444; text-decoration:none; font-weight:bold; font-size:14px; margin-left:4px;">🗑️</a>
+                        {% if g.id != 0 %}
+                            <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Eliminar Gasto?')" style="color:#ef4444; text-decoration:none; font-weight:bold; font-size:14px; margin-left:4px;">🗑️</a>
+                        {% endif %}
                     </div>
                 </div>
             {% endfor %}
