@@ -603,8 +603,8 @@ CONTENIDO_HTML = """
             <button type="button" onclick="obtenerCoordenadasGPS()" style="width: 100%; padding: 12px; background-color: #0284c7; color: white; border: none; border-radius: 8px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px;">📍 Obtener Ubicación GPS</button>
             <p id="status_gps" style="font-size: 12px; color: #64748b; margin-top: 5px; text-align: center;">Ubicación no registrada aún.</p>
             <!-- ⚡ CORREGIDO: Se cambia 'btn-primary' por 'btn-accion btn-pagar' para heredar el comportamiento de clic prioritario -->
-            <button type="submit" class="btn-accion btn-pagar" style="width:100%; padding:12px; margin-top:8px; font-size:13px; font-weight:800;">💾 Guardar e Inicializar Tablas</button>
-        </form>
+            <button type="submit" id="btnGuardarCredito" class="btn-accion btn-pagar" style="width:100%; padding:12px; margin-top:8px; font-size:13px; font-weight:800;" onclick="setTimeout(() => { const btn = document.getElementById('btnGuardarCredito'); if(btn) { btn.disabled = true; btn.innerText = '⌛ Guardando...'; } }, 10);"> Guardar e Inicializar Tablas</button>
+       </form>
     </div>
 
 {% elif vista == 'balance' or vista == 'gastos' %}
