@@ -586,11 +586,19 @@ CONTENIDO_HTML = """
             
             <label>Cuotas</label>
             <input type="number" id="calcCuotas" name="cuotas" value="24" oninput="calcularCuota()" required>
-            <label>¿Aplicar Microseguro Opcional (4%)?</label>
-            <select name="aplicar_seguro" id="calcSeguroAccion" onchange="calcularCuota()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1; font-size:13px;">
+            
+            <label>Opciones de Microseguro</label>
+            <select name="aplicar_seguro" id="calcSeguroAccion" onchange="manejarTipoSeguro()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1; font-size:13px; outline:none; margin-top:4px;">
                 <option value="NO">❌ No aplicar seguro (Entrega 100%)</option>
-                <option value="SI" selected>🛡️ Aplicar seguro (Descontar de entrega)</option>
+                <option value="2">🛡️ Seguro Básico (2%)</option>
+                <option value="4" selected>🛡️ Seguro Premium (4%)</option>
+                <option value="MANUAL">✏️ Ingresar Monto Manual</option>
             </select>
+
+            <div id="contenedorSeguroManual" style="display: none; margin-top: 8px;">
+                <label>Monto del Seguro ($)</label>
+                <input type="number" step="any" id="calcSeguroManualVal" name="microseguro_manual_valor" value="0" oninput="calcularCuota()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1; font-size:13px; outline:none; margin-top:4px;">
+            </div>
             
             <div id="seguroDesgloseText" style="font-size:12px; color:#475569; font-weight:700; margin-top:6px;">Monto Seguro: $0.00 | Neto a Entregar: $0.00</div>
             <div id="simulacionText" style="font-weight:bold; color:#0369a1; margin:6px 0;">$0.00 / cuota</div>
@@ -1161,6 +1169,18 @@ function filtrarEstado(tipo) {
     event.currentTarget.classList.add('active');
 }
 
+function manejarTipoSeguro() {
+    const accion = document.getElementById('calcSeguroAccion').value;
+    const contenedorManual = document.getElementById('contenedorSeguroManual');
+    if (accion === 'MANUAL') {
+        contenedorManual.style.display = 'block';
+    } else {
+        contenedorManual.style.display = 'none';
+        document.getElementById('calcSeguroManualVal').value = '0';
+    }
+    calcularCuota();
+}
+
 function calcularCuota() {
     const monto = parseFloat(document.getElementById('calcMonto').value) || 0;
     const interes = parseFloat(document.getElementById('calcInteres').value) || 0;
@@ -1168,13 +1188,16 @@ function calcularCuota() {
     const aplicaSeguro = document.getElementById('calcSeguroAccion').value;
     
     let seguro = 0;
-    if (aplicaSeguro === 'SI') {
+    if (aplicaSeguro === '2') {
+        seguro = monto * 0.02;
+    } else if (aplicaSeguro === '4') {
         seguro = monto * 0.04;
+    } else if (aplicaSeguro === 'MANUAL') {
+        seguro = parseFloat(document.getElementById('calcSeguroManualVal').value) || 0;
     }
     
     const netoEntregar = monto - seguro;
     
-    // Mostramos el desglose de lo que realmente se lleva el cliente en mano
     document.getElementById('seguroDesgloseText').innerHTML = `Monto Seguro: <b>$${seguro.toFixed(2)}</b> | Neto a Entregar: <b style="color:#10b981;">$${netoEntregar.toFixed(2)}</b>`;
     
     if (monto > 0 && cuotas > 0) {
@@ -1902,18 +1925,27 @@ def guardar_nuevo_cliente():
         conn = get_db()
         try:
             with conn.cursor() as cursor:
-                # 🛡️ MÓDULO MICROSEGURO: Si se activa, se asienta como Entrada directa en la caja de hoy
-                if aplica_seguro == "SI" and monto > 0:
-                    microseguro_valor = round(monto * Decimal("0.04"), 2)
-                    concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
-                    
-                    cursor.execute(
-                        """
-                        INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
-                        VALUES ('Entrada', 'Inversión', %s, %s, %s, '')
-                        """,
-                        (concepto_seguro, microseguro_valor, fecha_inicio_dt.isoformat())
-                    )
+                # 🛡️ MÓDULO MICROSEGURO MULTI-OPCIÓN (2%, 4% o Manual)
+                if aplica_seguro != "NO" and monto > 0:
+                    if aplica_seguro == "2":
+                        microseguro_valor = round(monto * Decimal("0.02"), 2)
+                    elif aplica_seguro == "4":
+                        microseguro_valor = round(monto * Decimal("0.04"), 2)
+                    elif aplica_seguro == "MANUAL":
+                        microseguro_manual_raw = request.form.get("microseguro_manual_valor", "0").strip()
+                        microseguro_valor = round(Decimal(microseguro_manual_raw if microseguro_manual_raw else "0"), 2)
+                    else:
+                        microseguro_valor = Decimal("0.00")
+                        
+                    if microseguro_valor > 0:
+                        concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
+                        cursor.execute(
+                            """
+                            INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
+                            VALUES ('Entrada', 'Inversión', %s, %s, %s, '')
+                            """,
+                            (concepto_seguro, microseguro_valor, fecha_inicio_dt.isoformat())
+                        )
                 
                 cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
                 res_orden = cursor.fetchone()
