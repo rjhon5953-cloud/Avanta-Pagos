@@ -2445,8 +2445,8 @@ def api_marcar_pago(cliente_id, num_cuota):
     linea_division = "------------------------------------------"
     
     mensaje_ws = (
-        "🧾 *AVANTA PAGOS* 🧾\n"
-        "_*Comprobante Oficial de Pago*_\n"
+                "🧾 *AVANTA PAGOS* 🧾\n"
+            "_*Comprobante Oficial de Pago*_\n"
         f"{linea_division}\n"
         f"👤 *Cliente:* {c['nombre']}\n"
         f"📱 *WhatsApp:* {c['telefono'] or 'N/A'}\n"
