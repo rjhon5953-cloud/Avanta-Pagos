@@ -702,7 +702,8 @@ CONTENIDO_HTML = """
                         {% if g.comprobante and g.comprobante != "None" and g.comprobante != "" %}
                             <button type="button" onclick="cargarYVerFoto({{ g.id }})" style="padding:4px 8px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer;">📷 Ver</button>
                         {% endif %}
-                        {% if g.id != 0 %}
+                        {# 🛡️ BLINDAJE CONTABLE: Oculta el borrado si es un Microseguro o Recaudación automática de cuotas #}
+                        {% if "MICROSEGURO" not in g.concepto and "RECAUDACIÓN DE CUOTAS" not in g.concepto %}
                             <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Eliminar Gasto?')" style="color:#ef4444; text-decoration:none; font-weight:bold; font-size:14px; margin-left:4px;">🗑️</a>
                         {% endif %}
                     </div>
