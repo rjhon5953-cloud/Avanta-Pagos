@@ -1011,7 +1011,7 @@ HTML_TEMPLATE = """
         <div class="modal-content">
             <h3 style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Pago Procesado</h3>
             <p id="modalMsg" style="margin:10px 0;"></p>
-            <a href="#" id="modalWsBtn" target="_blank" class="btn-ws"><i class="fa-brands fa-whatsapp"></i> WhatsApp Nativo</a>
+            <a href="javascript:void(0)" id="modalWsBtn" target="_blank" class="btn-ws"><i class="fa-brands fa-whatsapp"></i> WhatsApp Nativo</a>
             <button onclick="imprimirTicket()" class="btn-primary" style="background:#0f2b5c; margin-top:8px; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-print"></i> Imprimir Recibo</button>
             <button onclick="window.location.reload();" class="btn-modal-close">Continuar</button>
         </div>
@@ -1217,23 +1217,32 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                 document.getElementById('tMonto').innerText = data.recibo.monto.toFixed(2);
                 document.getElementById('tSaldo').innerText = data.recibo.saldo.toFixed(2);
 
-                // 🛡️ Limpieza del número telefónico y formateo internacional de Ecuador (593)
-                let numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
-                if (numPuro.startsWith('0')) {
-                    numPuro = numPuro.substring(1);
-                }
+                const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
                 const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
-        
-                // 🚀 URL Universal de WhatsApp Nativo Corregida con la barra /
+                
+                const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
                 const urlWeb = 'https://wa.me' + numPuro + '?text=' + textoMensaje;
-        
-                // Configurar el botón de la modal para que use el enlace correcto en pestaña nueva
+                
                 const btnWs = document.getElementById('modalWsBtn');
-                if (btnWs) {
-                    btnWs.href = urlWeb;
-                    btnWs.target = '_blank';
-                    btnWs.onclick = null; // Eliminamos los trucos viejos de clics repetidos
-                }
+                
+                // FIJADO: Cambiado '#' por javascript:void(0) para matar el parpadeo de pantalla
+                btnWs.href = 'javascript:void(0)';
+                
+                btnWs.onclick = function(e) {
+                    e.preventDefault();
+                    const dropper = document.createElement('a');
+                    dropper.target = '_blank';
+                    dropper.rel = 'noopener noreferrer';
+                    dropper.href = urlCelular;
+                    document.body.appendChild(dropper);
+                    dropper.click();
+                    
+                    setTimeout(function() {
+                        dropper.href = urlWeb;
+                        dropper.click();
+                        document.body.removeChild(dropper);
+                    }, 300);
+                };
                 
                 document.getElementById('modalWs').style.display = 'flex';
             }
