@@ -1340,9 +1340,10 @@ function obtenerCoordenadasGPS() {
             
             statusText.innerHTML = `✅ Ubicación fijada: <b>${lat.toFixed(5)}, ${lon.toFixed(5)}</b>`;
             
-            // Abre Google Maps automáticamente con un pin en la ubicación actual
-            const urlMaps = `https://google.com{lat},${lon}`;
-            window.open(urlMaps, '_blank');
+        // CÓDIGO CORREGIDO:
+        // Detecta si es un dispositivo móvil para usar el intent nativo, si no, usa el enlace web
+        const urlMaps = esMovil ? `geo:${lat},${lon}?q=${lat},${lon}(Ubicación+Cliente)` : `https://google.com/maps?q=${lat},${lon}`;
+        window.location.href = urlMaps;
         },
         function (error) {
             statusText.innerText = "❌ No se pudo capturar el GPS.";
