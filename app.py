@@ -1184,6 +1184,24 @@ function manejarTipoSeguro() {
     calcularCuota();
 }
 
+// 💱 DETECCIÓN AUTOMÁTICA INTERNACIONAL DE MONEDA NATIVA
+const configuracionMonedaLocal = {
+    obtenerSimbolo: function() {
+        const locale = navigator.language || 'es-EC';
+        
+        if (locale.includes('-CO')) return { formato: 'es-CO', divisa: 'COP' };
+        if (locale.includes('-MX')) return { formato: 'es-MX', divisa: 'MXN' };
+        if (locale.includes('-PE')) return { formato: 'es-PE', divisa: 'PEN' };
+        if (locale.includes('-CL')) return { formato: 'es-CL', divisa: 'CLP' };
+        
+        return { formato: 'es-EC', divisa: 'USD' };
+    },
+    formatear: function(valor) {
+        const conf = this.obtenerSimbolo();
+        return new Intl.NumberFormat(conf.formato, { style: 'currency', currency: conf.divisa }).format(valor);
+    }
+};
+
 function calcularCuota() {
     const monto = parseFloat(document.getElementById('calcMonto').value) || 0;
     const interes = parseFloat(document.getElementById('calcInteres').value) || 0;
@@ -1201,13 +1219,13 @@ function calcularCuota() {
     
     const netoEntregar = monto - seguro;
     
-    document.getElementById('seguroDesgloseText').innerHTML = `Monto Seguro: <b>$${seguro.toFixed(2)}</b> | Neto a Entregar: <b style="color:#10b981;">$${netoEntregar.toFixed(2)}</b>`;
-    
+    // Desglose automático usando la moneda local detectada del dispositivo móvil
+    document.getElementById('seguroDesgloseText').innerHTML = `Monto Seguro: <b>${configuracionMonedaLocal.formatear(seguro)}</b> | Neto a Entregar: <b style="color:#10b981;">${configuracionMonedaLocal.formatear(netoEntregar)}</b>`;
     if (monto > 0 && cuotas > 0) {
         const totalCredito = monto * (1 + (interes / 100));
-        document.getElementById('simulacionText').innerText = '$' + (totalCredito / cuotas).toFixed(2) + ' / cuota';
+        document.getElementById('simulacionText').innerText = configuracionMonedaLocal.formatear(totalCredito / cuotas) + ' / cuota';
     } else {
-        document.getElementById('simulacionText').innerText = '$0.00 / cuota';
+        document.getElementById('simulacionText').innerText = configuracionMonedaLocal.formatear(0) + ' / cuota';
     }
 }
 
