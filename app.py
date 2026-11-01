@@ -1753,24 +1753,42 @@ def seccion_balance_maestro():
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # 🏢 1. Recuperamos la Caja Base o el arrastre del día anterior
+            # # 1. CÁLCULO DINÁMICO DE CAJA BASE - ARRASTRE REAL DE CARTERA NEON
+            cursor.execute(
+                """
+                SELECT 
+                    COALESCE(SUM(CASE WHEN tipo = 'Entrada' THEN monto ELSE 0 END), 0) -
+                    COALESCE(SUM(CASE WHEN tipo = 'Salida' THEN monto ELSE 0 END), 0)
+                FROM balance_movimientos
+                WHERE fecha < %s
+                """,
+                (hoy_str,)
+            )
+            res_saldo_historico = cursor.fetchone()
+        
+            # Extraemos el valor de forma segura sin importar si el cursor devuelve tupla o diccionario
+            if res_saldo_historico:
+                if isinstance(res_saldo_historico, dict):
+                    valores_lista = list(res_saldo_historico.values())
+                    saldo_acumulado_ayer = Decimal(str(valores_lista[0])) if valores_lista and valores_lista[0] is not None else Decimal("0.00")
+                else:
+                    saldo_acumulado_ayer = Decimal(str(res_saldo_historico[0])) if res_saldo_historico and res_saldo_historico[0] is not None else Decimal("0.00")
+            else:
+                saldo_acumulado_ayer = Decimal("0.00")
+
             cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_base'")
             res_caja = cursor.fetchone()
-            caja_base_fija = Decimal(res_caja["valor"]) if res_caja else Decimal("100.00")
-            
-            # Buscamos si hay un arqueo físico del día de ayer para arrastrarlo
-            ayer_str = (date.today() - timedelta(days=1)).isoformat()
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = %s", (f"cierre_caja_{ayer_str}",))
-            res_ayer = cursor.fetchone()
-            
-            if res_ayer and "Real: $" in res_ayer["valor"]:
-                try:
-                    # Extraemos el número final que guardó el cobrador en su balance anterior
-                    caja_base = Decimal(res_ayer["valor"].split("Real: $")[-1])
-                except Exception:
-                    caja_base = caja_base_fija
+
+            if res_caja:
+                if isinstance(res_caja, dict):
+                    caja_inicial_sistema = Decimal(str(res_caja.get("valor", "100.00") or "100.00"))
+                else:
+                    caja_inicial_sistema = Decimal(str(res_caja[0] or "100.00"))
             else:
-                caja_base = caja_base_fija
+                caja_inicial_sistema = Decimal("100.00")
+            
+            # La caja base real de hoy es el acumulado histórico de flujos hasta el día de ayer
+            caja_base = caja_inicial_sistema + saldo_acumulado_ayer
             
             # 📊 2. Consultamos si la jornada ya fue sellada hoy
             cursor.execute("SELECT valor FROM configuracion WHERE llave = %s", (f"cierre_caja_{hoy_str}",))
