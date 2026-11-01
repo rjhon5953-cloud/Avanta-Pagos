@@ -1122,10 +1122,8 @@ function filtrarClientes() {
     if (!container) return;
     
     // Buscamos dentro de todas las tarjetas de clientes (tanto premium como tradicionales)
-    const cardsPremium = container.getElementsByClassName('cliente-card-premium');
-    const cardsTradicionales = container.getElementsByClassName('cliente-card');
-    const todasLasCards = [...cardsPremium, ...cardsTradicionales];
-    
+    const todasLasCards = container.getElementsByClassName('card');
+
     for (let i = 0; i < todasLasCards.length; i++) {
         const card = todasLasCards[i];
         
