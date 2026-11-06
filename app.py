@@ -578,7 +578,7 @@ CONTENIDO_HTML = """
 {% elif vista == 'nuevo' or vista == 'renovar' %}
     <h3 style="margin-top:0; color:#0f2b5c;">{% if vista == 'renovar' %}🔄 Renovar Crédito a {{ cliente.nombre }}{% else %}👤 Registro de Crédito / Venta{% endif %}</h3>
     <div class="card" style="padding:16px;">
-        <form action="/guardar" method="POST">
+        <form action="/api/clientes/guardar" method="POST">
             {% if vista == 'renovar' %}<input type="hidden" name="cliente_id" value="{{ cliente.id }}">{% endif %}
             <label>Nombre del Cliente</label><input type="text" name="nombre" value="{{ cliente.nombre | default('') }}" required>
             <label>WhatsApp</label><input type="text" name="telefono" value="{{ cliente.telefono | default('') }}" required>
