@@ -2032,7 +2032,7 @@ def guardar_nuevo_cliente():
                         raw_val = raw_val.strip() if raw_val else "0"
                         microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
                         
-                # 📝 2. Insertamos el movimiento del microseguro si aplica
+                # 📝 2. Insertamos el movimiento del microseguro si aplica (ENTRADA)
                 if microseguro_valor > 0:
                     concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
                     cursor.execute(
@@ -2043,27 +2043,37 @@ def guardar_nuevo_cliente():
                         (concepto_seguro, microseguro_valor, fecha_inicio_dt.isoformat())
                     )
                 
-                # 📊 3. Calcular posición secuencial de enrutamiento
+                # 💸 3. ASENTO DEL EGRESO DE CAPITAL INMUTABLE (SALIDA UNIVERSAL)
+                # Lo movemos aquí arriba para que se registre SIEMPRE de forma prioritaria
+                concepto_egreso = f"📉 CAPITAL ENTREGADO EN CRÉDITO NUEVO - CLIENTE: {nombre}"
+                cursor.execute(
+                    """
+                    INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
+                    VALUES ('Salida', 'Inversión', %s, %s, %s, '')
+                    """,
+                    (concepto_egreso, monto, fecha_inicio_dt.isoformat())
+                )
+                
+                # 📊 4. Calcular posición secuencial de enrutamiento
                 cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
                 res_orden = cursor.fetchone()
-                # Validación flexible si Neon retorna dict o tupla según el cursor
                 if isinstance(res_orden, dict):
                     max_orden = int(list(res_orden.values())[0])
                 else:
                     max_orden = int(res_orden[0]) if res_orden and res_orden[0] is not None else 0
                 
-                # 👤 4. Insertar la cabecera del cliente
+                # 👤 5. Insertar la cabecera del cliente
                 cursor.execute(
                     """
                     INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, latitud, longitud, estado)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Activo') RETURNING id
                     """,
-                    (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud)
+                    (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, valor_base_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud)
                 )
                 res_id = cursor.fetchone()
                 cliente_id = res_id["id"] if isinstance(res_id, dict) else (res_id[0] if res_id else None)
                 
-                # 🔢 5. Generar tablas de amortización inmutables obligatorias
+                # 🔢 6. Generar tablas de amortización de las cuotas
                 if cliente_id:
                     acumulado = Decimal("0.00")
                     for num in range(1, cuotas + 1):
@@ -2082,18 +2092,8 @@ def guardar_nuevo_cliente():
                             """,
                             (cliente_id, num, f_cuota.isoformat(), valor_cuota_real)
                         )
-                
-                # 💸 6. ASENTO DEL EGRESO DE CAPITAL (ENTREGA DEL CRÉDITO)
-                concepto_egreso = f"📉 EGRESO POR NUEVO CRÉDITO - CLIENTE: {nombre}"
-                cursor.execute(
-                    """
-                    INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
-                    VALUES ('Salida', 'Gastos', %s, %s, %s, '')
-                    """,
-                    (concepto_egreso, monto, fecha_inicio_dt.isoformat())
-                )
-
-            # Sello absoluto: si algo falló arriba, esta línea no se ejecuta y evita descuadres
+                        
+            # Sello y confirmación de la transacción en Neon
             conn.commit()
 
         except Exception as e:
@@ -2170,9 +2170,27 @@ def api_eliminar_cliente(id):
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # 📌 FIJADO: Borrado físico seguro en cascada manual
+            # 1. Primero obtenemos el nombre del cliente antes de borrarlo para poder limpiar sus flujos
+            cursor.execute("SELECT nombre FROM clientes WHERE id = %s;", (id,))
+            cliente_data = cursor.fetchone()
+            
+            if cliente_data:
+                # Si Neon devuelve un diccionario o tupla, extraemos el nombre de forma segura
+                nombre_cliente = cliente_data["nombre"] if isinstance(cliente_data, dict) else cliente_data[0]
+                
+                # 🛡️ 2. BORRADO EN CASCADA CONTABLE: Eliminamos el seguro y el egreso flotantes en el balance
+                # Busca cualquier concepto que contenga el nombre de ese cliente específico
+                cursor.execute(
+                    "DELETE FROM balance_movimientos WHERE concepto LIKE %s;", 
+                    (f"%{nombre_cliente}%",)
+                )
+
+            # 🔢 3. Limpiamos las tablas de amortización de cuotas
             cursor.execute("DELETE FROM pagos WHERE cliente_id = %s;", (id,))
+            
+            # 👤 4. Eliminamos definitivamente la ficha del cliente
             cursor.execute("DELETE FROM clientes WHERE id = %s;", (id,))
+            
         conn.commit()
     except Exception as e:
         print(f"Error crítico al eliminar cliente de la base de datos: {e}")
