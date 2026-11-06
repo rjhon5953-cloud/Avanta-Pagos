@@ -1476,6 +1476,28 @@ function actualizarPerfilCompleto(e) {
         })
         .catch(err => console.error('Error:', err));
 }
+
+// ⚡ MOTOR GLOBAL ANTI-DOBLE CLIC PARA FORMULARIOS DE CAMPO
+document.addEventListener("DOMContentLoaded", function() {
+    const formularios = document.querySelectorAll("form");
+    
+    formularios.forEach(form => {
+        form.addEventListener("submit", function(e) {
+            const botonSubmit = form.querySelector("button[type='submit'], input[type='submit']");
+            if (botonSubmit) {
+                setTimeout(() => {
+                    botonSubmit.disabled = true;
+                    if (botonSubmit.tagName === "BUTTON") {
+                        botonSubmit.innerHTML = "⌛ Procesando solicitud...";
+                    } else {
+                        botonSubmit.value = "Procesando...";
+                    }
+                }, 10);
+            }
+        });
+    });
+});
+
 </script>
 </body>
 </html>
@@ -1494,7 +1516,7 @@ def login_route():
                 cursor.execute("SELECT valor FROM configuracion WHERE llave = 'clave'")
                 clv_row = cursor.fetchone()
         finally:
-            release_db(conn)
+            pass
                 
         # 🔐 FIJADO: Verificación utilizando hashes seguros criptográficos contra DictCursor
         if usr_row and clv_row:
@@ -1575,7 +1597,7 @@ def dashboard_principal():
         creditos_hoy = 0
         capital_prestado_hoy = Decimal("0.00")
     finally:
-        release_db(conn)
+        pass
 
     clientes_ruta = obtener_clientes_ruta_hoy()
     debido_minimo_dia = sum(Decimal(str(cl["valor_cuota"])) for cl in clientes_ruta)
@@ -1704,7 +1726,7 @@ def seccion_clientes_maestro():
         print(f"Error al consultar historial de clientes: {e}")
         todos_clientes = []
     finally:
-        release_db(conn)
+        pass
             
     creditos_procesados = []
     for cr in todos_clientes:
@@ -1783,7 +1805,7 @@ def seccion_creditos_activos():
         clientes_completos = []
         total_activos, total_inactivos, total_negra = 0, 0, 0
     finally:
-        release_db(conn)
+        pass
             
     contexto = dict(
         vista="creditos_maestros",
@@ -1867,7 +1889,7 @@ def seccion_balance_maestro():
         movimientos = []
         estado_cierre = "Abierta"
     finally:
-        release_db(conn)
+        pass
         
     # #️⃣ Agrupamos los flujos de la tabla de movimientos manuales con precisión Decimal
     entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if m["tipo"] == "Entrada")
@@ -1954,7 +1976,7 @@ def seccion_nuevo_credito(cliente_id=None):
         except Exception as e:
             print(f"Error al recuperar cliente para renovación: {e}")
         finally:
-            release_db(conn)
+            pass
             
     contexto = dict(
         vista="nuevo" if not cliente_id else "renovar", 
@@ -2118,7 +2140,7 @@ def balance_guardar_movimiento():
     except Exception as e:
         print(f"Error crítico al guardar movimiento de balance: {e}")
     finally:
-        release_db(conn)
+        pass
         
     return redirect("/menu/balance")
 
@@ -2136,7 +2158,7 @@ def eliminar_gasto(gasto_id):
     except Exception as e:
         print(f"Error al eliminar gasto contable: {e}")
     finally:
-        release_db(conn)
+        pass
         
     return redirect("/menu/balance")
 
@@ -2148,13 +2170,14 @@ def api_eliminar_cliente(id):
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # 🛡️ FIJADO: Borrado físico en cascada con liberación segura de recursos en la nube
-            cursor.execute("DELETE FROM clientes WHERE id = %s", (id,))
+            # 📌 FIJADO: Borrado físico seguro en cascada manual
+            cursor.execute("DELETE FROM pagos WHERE cliente_id = %s;", (id,))
+            cursor.execute("DELETE FROM clientes WHERE id = %s;", (id,))
         conn.commit()
     except Exception as e:
         print(f"Error crítico al eliminar cliente de la base de datos: {e}")
     finally:
-        release_db(conn)
+        pass
         
     return redirect("/menu/clientes")
 
@@ -2192,7 +2215,7 @@ def mover(cliente_id, direccion):
     except Exception as e:
         print(f"Error crítico al reordenar la ruta de cobros: {e}")
     finally:
-        release_db(conn)
+        pass
         
     # 🔄 FIJADO: Te mantiene fijo dentro de la sección de reordenar ruta para clics consecutivos cómodos
     return redirect("/menu/ruta_orden")
@@ -2212,7 +2235,7 @@ def seccion_reordenar_ruta():
         print(f"Error al cargar orden de ruta: {e}")
         todos = []
     finally:
-        release_db(conn)
+        pass
 
     # 🎨 FIJADO: Enlace oficial a FontAwesome para activar los iconos de las flechas en el móvil
     html_orden = """
@@ -2298,7 +2321,7 @@ def seccion_listados():
         pagos_f = []
         creditos_f = []
     finally:
-        release_db(conn)
+        pass
             
     # 🗂️ AGRUPACIÓN PARA EVITAR NOMBRES REPETIDOS
     mapa_pagos = {}
@@ -2379,7 +2402,7 @@ def seccion_agregar_lista():
         print(f"Error al cargar enrutamiento forzado: {e}")
         todos = []
     finally:
-        release_db(conn)
+        pass
 
     # Convertimos los registros a diccionarios puros legibles por el motor de renderizado
     todos_procesados = [dict(c) for c in todos]
@@ -2423,7 +2446,7 @@ def api_clientes_forzar_enrutado():
     except Exception as e:
         print(f"Error crítico al forzar enrutamiento anticipado: {e}")
     finally:
-        release_db(conn)
+        pass
         
     return redirect("/")
 
@@ -2447,7 +2470,7 @@ def seccion_respaldo_nube():
     except Exception as e:
         error_respaldo = str(e)
     finally:
-        release_db(conn)
+        pass
 
     # Generamos el mensaje dinámico real según el estado de la base de datos
     if error_respaldo:
@@ -2567,7 +2590,7 @@ def api_marcar_pago(cliente_id, num_cuota):
                 
             conn.commit()
     finally:
-        release_db(conn)
+        pass
         
         # 🧾 DISEÑO DE TICKET PREMIUM REESTRUCTURADO PARA WHATSAPP
     linea_division = "------------------------------------------"
@@ -2623,7 +2646,7 @@ def api_marcar_no_pago(cliente_id):
         print(f"Error crítico al registrar no pago del cliente: {e}")
         return jsonify({"status": "error", "message": "Error interno del servidor"})
     finally:
-        release_db(conn)
+        pass
         
     return jsonify({"status": "ok"})
 
@@ -2741,7 +2764,7 @@ def seccion_configuracion_sistema():
             filas = cursor.fetchall()
             config = {f["llave"]: f["valor"] for f in filas}
     finally:
-        release_db(conn)
+        pass
 
     # Variables de control con valores de respaldo de seguridad
     usuario_actual = config.get("usuario", "admin")
@@ -2863,7 +2886,7 @@ def api_guardar_configuracion_maestra():
     except Exception as e:
         print(f"Error crítico al guardar configuración maestra: {e}")
     finally:
-        release_db(conn)
+        pass
         
     return redirect("/menu/configuracion")
 
@@ -2914,7 +2937,7 @@ def api_guardar_configuracion_global():
     except Exception as e:
         print(f"Error crítico al guardar configuración maestra: {e}")
     finally:
-        release_db(conn)
+        pass
         
     return redirect("/menu/configuracion")
 
@@ -2932,7 +2955,7 @@ def api_lista_negra(id):
     except Exception as e:
         print(f"Error al enviar a lista negra: {e}")
     finally:
-        release_db(conn)
+        pass
         
     return redirect("/menu/clientes")
 
@@ -2974,7 +2997,7 @@ def api_gasto_foto(gasto_id):
         print(f"Error crítico en API de visualización de fotos: {err}")
         return jsonify({"status": "error", "message": "Error al procesar la cadena de imagen"})
     finally:
-        release_db(conn)
+        pass
         
     return jsonify({"status": "error", "message": "No encontrado"})
 
@@ -3076,7 +3099,7 @@ def seccion_pagos_hoy():
         pagos_individuales = []
         saltados = []
     finally:
-        release_db(conn)
+        pass
 
     # 🗂️ AGRUPACIÓN CRÍTICA CONTRA DUPLICADOS: Consolida las cuotas con tipo Decimal exacto
     mapa_agrupacion = {}
@@ -3159,7 +3182,7 @@ def api_revertir_gestion(tipo, id_str):
     except Exception as e:
         print(f"Error crítico al revertir gestión del día: {e}")
     finally:
-        release_db(conn)
+        pass
         
     return jsonify({"status": "ok"})
 
@@ -3192,7 +3215,7 @@ def api_reactivar_cliente(cliente_id):
         print(f"Error crítico al reactivar cliente: {e}")
         return jsonify({"status": "error", "message": "Fallo interno en base de datos"})
     finally:
-        release_db(conn)
+        pass
         
     # Redirecciona automáticamente de vuelta al menú maestro de control
     return redirect("/menu/creditos?filtro=Inactivo")
@@ -3232,7 +3255,7 @@ def api_procesar_cierre_caja():
     except Exception as e:
         print(f"Error crítico en el asiento del cierre: {e}")
     finally:
-        release_db(conn)
+        pass
         
     # 🔒 ORDEN MÁXIMA DE SEGURIDAD FINANCIERA: 
     # Destruimos los accesos de la sesión de inmediato y redireccionamos a la página de Login
