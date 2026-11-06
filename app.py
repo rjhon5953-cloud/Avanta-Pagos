@@ -1989,124 +1989,127 @@ def seccion_nuevo_credito(cliente_id=None):
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
 
-@app.route("/guardar", methods=["POST"])
+@app.route("/api/clientes/guardar", methods=["POST"])
 def guardar_nuevo_cliente():
-    if not session.get("autenticado"): 
-        return redirect("/login")
+    if not session.get("autenticado"):
+        return jsonify({"status": "error", "message": "No autorizado"}), 401
+
+    # 1. CAPTURA DE DATOS DEL FORMULARIO HTTP POST
+    nombre = request.form.get("nombre", "").strip()
+    telefono = request.form.get("telefono", "").strip()
+    direccion = request.form.get("direccion", "").strip()
+    referencia = request.form.get("referencia", "").strip()
+    identificacion = request.form.get("identificacion", "").strip()
+    
     try:
-        nombre = request.form.get("nombre", "").strip()
-        telefono = request.form.get("telefono", "").strip()
-        identificacion = request.form.get("identificacion", "").strip()
-        direccion = request.form.get("direccion", "").strip()
-        referencia = request.form.get("referencia", "").strip()
-        
-        # 💰 Captura de datos usando precisión contable Decimal
         monto = Decimal(request.form.get("monto", "0"))
-        interes_porcentaje = Decimal(request.form.get("interes_porcentaje", "20"))
-        cuotas = int(request.form.get("cuotas", "0"))
-        frecuencia = request.form.get("frecuencia")
-        fecha_inicio_dt = date.fromisoformat(request.form.get("fecha_inicio"))
-        aplica_seguro = request.form.get("aplicar_seguro", "NO")
-        
-        # 📍 Captura nativa de coordenadas geográficas desde el GPS del móvil
-        latitud = request.form.get("latitud", "").strip()
-        longitud = request.form.get("longitud", "").strip()
-        
-        # Redondeado matemático estricto a 2 decimales para evitar fugas de centavos
-        monto_total = round(monto * (Decimal("1") + (interes_porcentaje / Decimal("100"))), 2)
-        valor_base_cuota = round(monto_total / cuotas, 2)
-        fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas, frecuencia)
-        
-        conn = get_db()
-        try:
-            with conn.cursor() as cursor:
-                # 🛡️ 1. MÓDULO MICROSEGURO MULTI-OPCIÓN (2%, 4% o Manual)
-                microseguro_valor = Decimal("0.00")
-                if aplica_seguro != "NO" and monto > 0:
-                    if aplica_seguro == "2":
-                        microseguro_valor = round(monto * Decimal("0.02"), 2)
-                    elif aplica_seguro == "4":
-                        microseguro_valor = round(monto * Decimal("0.04"), 2)
-                    elif aplica_seguro == "MANUAL":
-                        raw_val = request.form.get("microseguro_manual_valor", "0")
-                        raw_val = raw_val.strip() if raw_val else "0"
-                        microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
-                        
-                # 📝 2. Insertamos el movimiento del microseguro si aplica (ENTRADA)
-                if microseguro_valor > 0:
-                    concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
-                    cursor.execute(
-                        """
-                        INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
-                        VALUES ('Entrada', 'Inversión', %s, %s, %s, '')
-                        """,
-                        (concepto_seguro, microseguro_valor, fecha_inicio_dt.isoformat())
-                    )
-                
-                # 💸 3. ASENTO DEL EGRESO DE CAPITAL INMUTABLE (SALIDA UNIVERSAL)
-                # Lo movemos aquí arriba para que se registre SIEMPRE de forma prioritaria
-                concepto_egreso = f"📉 CAPITAL ENTREGADO EN CRÉDITO NUEVO - CLIENTE: {nombre}"
+        interes_porcentaje = Decimal(request.form.get("interes", "0"))
+        cuotas = int(request.form.get("cuotas", "1"))
+    except Exception:
+        return jsonify({"status": "error", "message": "Valores numéricos inválidos"}), 400
+
+    frecuencia = request.form.get("frecuencia", "Diaria")
+    aplica_seguro = request.form.get("aplica_seguro", "NO")
+    
+    latitud = request.form.get("latitud", "")
+    longitud = request.form.get("longitud", "")
+    
+    # Manejo preciso de fechas
+    fecha_inicio_str = request.form.get("fecha_inicio", date.today().isoformat())
+    try:
+        fecha_inicio_dt = datetime.strptime(fecha_inicio_str, "%Y-%m-%d").date()
+    except ValueError:
+        fecha_inicio_dt = date.today()
+
+    # Cálculos contables base
+    monto_interes = monto * (interes_porcentaje / Decimal("100"))
+    monto_total = monto + monto_interes
+    
+    # 📌 REGLA DE UNIFICACIÓN: Definimos 'valor_cuota' como la variable central
+    valor_cuota = round(monto_total / Decimal(str(cuotas)), 2)
+    
+    # Calcular fecha estimada de vencimiento según frecuencia
+    fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frecuencia)
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            # 🛡️ MÓDULO MICROSEGURO MULTI-OPCIÓN
+            microseguro_valor = Decimal("0.00")
+            if aplica_seguro != "NO" and monto > 0:
+                if aplica_seguro == "2":
+                    microseguro_valor = round(monto * Decimal("0.02"), 2)
+                elif aplica_seguro == "4":
+                    microseguro_valor = round(monto * Decimal("0.04"), 2)
+                elif aplica_seguro == "MANUAL":
+                    raw_val = request.form.get("microseguro_manual_valor", "0")
+                    raw_val = raw_val.strip() if raw_val else "0"
+                    microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
+                    
+            # 📝 Insertamos movimiento del microseguro si aplica (ENTRADA)
+            if microseguro_valor > 0:
+                concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
                 cursor.execute(
                     """
                     INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
-                    VALUES ('Salida', 'Inversión', %s, %s, %s, '')
+                    VALUES ('Entrada', 'Inversión', %s, %s, %s, '')
                     """,
-                    (concepto_egreso, monto, fecha_inicio_dt.isoformat())
+                    (concepto_seguro, microseguro_valor, fecha_inicio_dt.isoformat())
                 )
-                
-                # 📊 4. Calcular posición secuencial de enrutamiento
-                cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
-                res_orden = cursor.fetchone()
-                if isinstance(res_orden, dict):
-                    max_orden = int(list(res_orden.values())[0])
-                else:
-                    max_orden = int(res_orden[0]) if res_orden and res_orden[0] is not None else 0
-                
-                # 👤 5. Insertar la cabecera del cliente
-                cursor.execute(
-                    """
-                    INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, latitud, longitud, estado)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Activo') RETURNING id
-                    """,
-                    (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, valor_base_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud)
-                )
-                res_id = cursor.fetchone()
-                cliente_id = res_id["id"] if isinstance(res_id, dict) else (res_id[0] if res_id else None)
-                
-                # 🔢 6. Generar tablas de amortización de las cuotas
-                if cliente_id:
-                    acumulado = Decimal("0.00")
-                    for num in range(1, cuotas + 1):
-                        if num == cuotas:
-                            valor_cuota_real = monto_total - acumulado
-                        else:
-                            valor_cuota_real = valor_base_cuota
-                            
-                        acumulado += valor_cuota_real
-                        f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
-                        
-                        cursor.execute(
-                            """
-                            INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real)
-                            VALUES (%s, %s, %s, %s, 0, 0, '')
-                            """,
-                            (cliente_id, num, f_cuota.isoformat(), valor_cuota_real)
-                        )
-                        
-            # Sello y confirmación de la transacción en Neon
-            conn.commit()
-
-        except Exception as e:
-            print(f"Error crítico en el asiento atómico del crédito: {e}")
-            conn.rollback()
-        finally:
-            pass
             
+            # 💸 ASIENTO DEL EGRESO DE CAPITAL INMUTABLE (SALIDA UNIVERSAL)
+            concepto_egreso = f"📉 CAPITAL ENTREGADO EN CRÉDITO NUEVO - CLIENTE: {nombre}"
+            cursor.execute(
+                """
+                INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
+                VALUES ('Salida', 'Inversión', %s, %s, %s, '')
+                """,
+                (concepto_egreso, monto, fecha_inicio_dt.isoformat())
+            )
+            
+            # 📊 Calcular posición secuencial de enrutamiento
+            cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
+            res_orden = cursor.fetchone()
+            max_orden = int(res_orden["coalesce"]) if isinstance(res_orden, dict) else int(res_orden[0] if res_orden else 0)
+            
+            # 👤 Insertar la cabecera del cliente (Usando 'valor_cuota' unificado)
+            cursor.execute(
+                """
+                INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, latitud, longitud, estado)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Activo') RETURNING id
+                """,
+                (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud)
+            )
+            res_id = cursor.fetchone()
+            cliente_id = res_id["id"] if isinstance(res_id, dict) else (res_id[0] if res_id else None)
+            
+            # 🔢 Generar tablas de amortización de las cuotas sin pérdidas de centavos
+            if cliente_id:
+                acumulado = Decimal("0.00")
+                for num in range(1, cuotas + 1):
+                    if num == cuotas:
+                        valor_cuota_real = monto_total - acumulado
+                    else:
+                        valor_cuota_real = valor_cuota
+                        
+                    acumulado += valor_cuota_real
+                    f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
+                    
+                    cursor.execute(
+                        """
+                        INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real)
+                        VALUES (%s, %s, %s, %s, 0, 0, '')
+                        """,
+                        (cliente_id, num, f_cuota.isoformat(), valor_cuota_real)
+                    )
+                    
+        # Confirmación de la transacción limpia en Neon
+        conn.commit()
+        return jsonify({"status": "ok", "message": "Crédito guardado exitosamente"})
     except Exception as e:
-        print(f"Error crítico en guardar cliente con GPS: {e}")
-        
-    return redirect("/")
-
+        print(f"Error crítico en el asiento del crédito: {e}")
+        conn.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/api/balance/guardar_movimiento", methods=["POST"])
 def balance_guardar_movimiento():
