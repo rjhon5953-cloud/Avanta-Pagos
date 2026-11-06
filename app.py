@@ -578,7 +578,7 @@ CONTENIDO_HTML = """
 {% elif vista == 'nuevo' or vista == 'renovar' %}
     <h3 style="margin-top:0; color:#0f2b5c;">{% if vista == 'renovar' %}🔄 Renovar Crédito a {{ cliente.nombre }}{% else %}👤 Registro de Crédito / Venta{% endif %}</h3>
     <div class="card" style="padding:16px;">
-        <form action="/api/clientes/guardar" method="POST">
+        <form id="formNuevoCredito" action="/api/clientes/guardar" method="POST" onsubmit="enviarCreditoAsincrono(event)">
             {% if vista == 'renovar' %}<input type="hidden" name="cliente_id" value="{{ cliente.id }}">{% endif %}
             <label>Nombre del Cliente</label><input type="text" name="nombre" value="{{ cliente.nombre | default('') }}" required>
             <label>WhatsApp</label><input type="text" name="telefono" value="{{ cliente.telefono | default('') }}" required>
@@ -1497,6 +1497,38 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 });
+
+function enviarCreditoAsincrono(e) {
+    e.preventDefault();
+    const form = document.getElementById('formNuevoCredito');
+    const formData = new FormData(form);
+    
+    // Deshabilitamos el botón para el control visual de carga
+    const btn = document.getElementById('btnGuardarCredito');
+    if(btn) { btn.disabled = true; btn.innerText = '⌛ Guardando...'; }
+
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'ok') {
+            alert('🎉 ¡Crédito e inicialización de tablas creados con éxito!');
+            // Te regresa automáticamente al Dashboard principal de cobros
+            window.location.href = '/';
+        } else {
+            alert('⚠️ Error: ' + (data.message || 'No se pudo procesar.'));
+            if(btn) { btn.disabled = false; btn.innerText = 'Guardar e Inicializar Tablas'; }
+        }
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        alert('❌ Falla de comunicación con Neon Cloud.');
+        if(btn) { btn.disabled = false; btn.innerText = 'Guardar e Inicializar Tablas'; }
+    });
+}
 
 </script>
 </body>
