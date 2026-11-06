@@ -1516,16 +1516,23 @@ def dashboard_principal():
     if not session.get("autenticado"):
         return redirect("/login")
         
-    # 🔐 VALIDACIÓN DE APERTURA DE JORNADA (DUEÑO)
+    # 🔐 VALIDACIÓN INTEGRAL DE JORNADA CONTROLADA POR EL DUEÑO
     conn_val = get_db()
     try:
         with conn_val.cursor() as cur_val:
-            # Buscamos el estado de autorización del cobrador logueado
-            cur_val.execute("SELECT caja_autorizada FROM usuarios WHERE id = %s;", (session.get("usuario_id"),))
-            status_caja = cur_val.fetchone()
+            cur_val.execute("SELECT valor FROM configuracion WHERE llave = 'caja_autorizada';")
+            res_status = cur_val.fetchone()
             
-            # Si el dueño no ha presionado el botón (está en 0), se bloquea el acceso
-            if not status_caja or status_caja["caja_autorizada"] == 0:
+            # Extraemos el valor del registro sin importar si Neon responde tupla o dict
+            val_caja = "0"
+            if res_status:
+                if isinstance(res_status, dict):
+                    val_caja = res_status.get("valor", "0")
+                else:
+                    val_caja = res_status[0]
+            
+            # Si el dueño no ha presionado el botón verde, se congela la pantalla
+            if val_caja == "0" or val_caja == 0:
                 return """
                 <div style="text-align:center; padding:50px; font-family:sans-serif; background:#0f172a; color:white; min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
                     <h1 style="color:#ef4444; font-size:32px; margin-bottom:10px;">⚠️ Jornada No Autorizada</h1>
@@ -1537,9 +1544,9 @@ def dashboard_principal():
     except Exception as e:
         print(f"Error en validación de jornada: {e}")
     finally:
-        release_db(conn_val)
+        pass
 
-    # El código del programa continúa normalmente con sus consultas si tiene pase...
+    # Tu lógica contable original de la ruta continúa normalmente aquí abajo...
     hoy_str = date.today().isoformat()
     
     # 📅 FECHA EN TIEMPO REAL: Formateo en español para el badge superior
