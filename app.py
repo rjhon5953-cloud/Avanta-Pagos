@@ -1998,7 +1998,8 @@ def guardar_nuevo_cliente():
         conn = get_db()
         try:
             with conn.cursor() as cursor:
-                # 🛡️ MÓDULO MICROSEGURO MULTI-OPCIÓN (2%, 4% o Manual)
+                # 🛡️ 1. MÓDULO MICROSEGURO MULTI-OPCIÓN (2%, 4% o Manual)
+                microseguro_valor = Decimal("0.00")
                 if aplica_seguro != "NO" and monto > 0:
                     if aplica_seguro == "2":
                         microseguro_valor = round(monto * Decimal("0.02"), 2)
@@ -2009,20 +2010,27 @@ def guardar_nuevo_cliente():
                         raw_val = raw_val.strip() if raw_val else "0"
                         microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
                         
-                    if microseguro_valor > 0:
-                        concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
-                        cursor.execute(
-                            """
-                            INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
-                            VALUES ('Entrada', 'Inversión', %s, %s, %s, '')
-                            """,
-                            (concepto_seguro, microseguro_valor, fecha_inicio_dt.isoformat())
-                        )
+                # 📝 2. Insertamos el movimiento del microseguro si aplica
+                if microseguro_valor > 0:
+                    concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
+                    cursor.execute(
+                        """
+                        INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
+                        VALUES ('Entrada', 'Inversión', %s, %s, %s, '')
+                        """,
+                        (concepto_seguro, microseguro_valor, fecha_inicio_dt.isoformat())
+                    )
                 
+                # 📊 3. Calcular posición secuencial de enrutamiento
                 cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
                 res_orden = cursor.fetchone()
-                max_orden = int(res_orden[0]) if res_orden and res_orden[0] is not None else 0
+                # Validación flexible si Neon retorna dict o tupla según el cursor
+                if isinstance(res_orden, dict):
+                    max_orden = int(list(res_orden.values())[0])
+                else:
+                    max_orden = int(res_orden[0]) if res_orden and res_orden[0] is not None else 0
                 
+                # 👤 4. Insertar la cabecera del cliente
                 cursor.execute(
                     """
                     INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, latitud, longitud, estado)
@@ -2031,12 +2039,12 @@ def guardar_nuevo_cliente():
                     (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_base_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud)
                 )
                 res_id = cursor.fetchone()
-                cliente_id = res_id[0] if res_id else None
+                cliente_id = res_id["id"] if isinstance(res_id, dict) else (res_id[0] if res_id else None)
                 
+                # 🔢 5. Generar tablas de amortización inmutables obligatorias
                 if cliente_id:
                     acumulado = Decimal("0.00")
                     for num in range(1, cuotas + 1):
-                        # Absorción de residuos de centavos en la última cuota
                         if num == cuotas:
                             valor_cuota_real = monto_total - acumulado
                         else:
@@ -2052,9 +2060,25 @@ def guardar_nuevo_cliente():
                             """,
                             (cliente_id, num, f_cuota.isoformat(), valor_cuota_real)
                         )
+                
+                # 💸 6. ASENTO DEL EGRESO DE CAPITAL (ENTREGA DEL CRÉDITO)
+                concepto_egreso = f"📉 EGRESO POR NUEVO CRÉDITO - CLIENTE: {nombre}"
+                cursor.execute(
+                    """
+                    INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
+                    VALUES ('Salida', 'Gastos', %s, %s, %s, '')
+                    """,
+                    (concepto_egreso, monto, fecha_inicio_dt.isoformat())
+                )
+
+            # Sello absoluto: si algo falló arriba, esta línea no se ejecuta y evita descuadres
             conn.commit()
+
+        except Exception as e:
+            print(f"Error crítico en el asiento atómico del crédito: {e}")
+            conn.rollback()
         finally:
-            release_db(conn)
+            pass
             
     except Exception as e:
         print(f"Error crítico en guardar cliente con GPS: {e}")
