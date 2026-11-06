@@ -136,6 +136,8 @@ def init_db_contable():
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('ticket_encabezado', '¡BIENVENIDO A AVANTA PAGOS!') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('caja_base', '100.00') ON CONFLICT DO NOTHING")
             cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('balance_estado', 'Sin cerrar') ON CONFLICT DO NOTHING")
+            # 🔐 FIJADO: Inicialización de la llave de seguridad para la autorización de jornada
+            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('caja_autorizada', '0') ON CONFLICT DO NOTHING")
         conn.commit()
     finally:
         release_db(conn)
@@ -614,7 +616,7 @@ CONTENIDO_HTML = """
             <button type="button" onclick="obtenerCoordenadasGPS()" style="width: 100%; padding: 12px; background-color: #0284c7; color: white; border: none; border-radius: 8px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px;">📍 Obtener Ubicación GPS</button>
             <p id="status_gps" style="font-size: 12px; color: #64748b; margin-top: 5px; text-align: center;">Ubicación no registrada aún.</p>
             <!-- ⚡ CORREGIDO: Se cambia 'btn-primary' por 'btn-accion btn-pagar' para heredar el comportamiento de clic prioritario -->
-            <button type="submit" id="btnGuardarCredito" class="btn-accion btn-pagar" style="width:100%; padding:12px; margin-top:8px; font-size:13px; font-weight:800;" onclick="setTimeout(() => { const btn = document.getElementById('btnGuardarCredito'); if(btn) { btn.disabled = true; btn.innerText = '⌛ Guardando...'; } }, 10);"> Guardar e Inicializar Tablas</button>
+            <button type="submit" id="btnGuardarCredito" class="btn-primary" style="width:100%; padding:12px; margin-top:8px; font-size:13px; font-weight:800; background:#10b981; color:white; border:none; border-radius:8px; cursor:pointer;" onclick="setTimeout(() => { const btn = document.getElementById('btnGuardarCredito'); if(btn) { btn.disabled = true; btn.innerText = '⌛ Guardando...'; } }, 10);"> Guardar e Inicializar Tablas</button>
        </form>
     </div>
 
@@ -1511,9 +1513,33 @@ def logout():
 
 @app.route("/")
 def dashboard_principal():
-    if not session.get("autenticado"): 
+    if not session.get("autenticado"):
         return redirect("/login")
         
+    # 🔐 VALIDACIÓN DE APERTURA DE JORNADA (DUEÑO)
+    conn_val = get_db()
+    try:
+        with conn_val.cursor() as cur_val:
+            # Buscamos el estado de autorización del cobrador logueado
+            cur_val.execute("SELECT caja_autorizada FROM usuarios WHERE id = %s;", (session.get("usuario_id"),))
+            status_caja = cur_val.fetchone()
+            
+            # Si el dueño no ha presionado el botón (está en 0), se bloquea el acceso
+            if not status_caja or status_caja["caja_autorizada"] == 0:
+                return """
+                <div style="text-align:center; padding:50px; font-family:sans-serif; background:#0f172a; color:white; min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                    <h1 style="color:#ef4444; font-size:32px; margin-bottom:10px;">⚠️ Jornada No Autorizada</h1>
+                    <p style="color:#cbd5e1; font-size:16px; max-width:450px; line-height:1.6;">Tu caja se encuentra actualmente cerrada. Solicita al Administrador el pase de apertura para poder iniciar las actividades de hoy.</p>
+                    <br>
+                    <a href="/login" style="color:#a855f7; text-decoration:none; font-weight:bold; background:rgba(168,85,247,0.1); padding:10px 20px; border-radius:8px; border:1px solid #a855f7;">Volver al Login</a>
+                </div>
+                """, 403
+    except Exception as e:
+        print(f"Error en validación de jornada: {e}")
+    finally:
+        release_db(conn_val)
+
+    # El código del programa continúa normalmente con sus consultas si tiene pase...
     hoy_str = date.today().isoformat()
     
     # 📅 FECHA EN TIEMPO REAL: Formateo en español para el badge superior
@@ -1972,10 +1998,9 @@ def guardar_nuevo_cliente():
                     elif aplica_seguro == "4":
                         microseguro_valor = round(monto * Decimal("0.04"), 2)
                     elif aplica_seguro == "MANUAL":
-                        microseguro_manual_raw = request.form.get("microseguro_manual_valor", "0").strip()
-                        microseguro_valor = round(Decimal(microseguro_manual_raw if microseguro_manual_raw else "0"), 2)
-                    else:
-                        microseguro_valor = Decimal("0.00")
+                        raw_val = request.form.get("microseguro_manual_valor", "0")
+                        raw_val = raw_val.strip() if raw_val else "0"
+                        microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
                         
                     if microseguro_valor > 0:
                         concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
@@ -3162,10 +3187,15 @@ def api_procesar_cierre_caja():
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # 🛡️ Sello inmutable de la jornada en Neon Cloud
+            # 📌 Sello inmutable de la jornada en Neon Cloud
             cursor.execute(
                 "INSERT INTO configuracion (llave, valor) VALUES (%s, %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
                 (f"cierre_caja_{hoy_str}", detalle_status)
+            )
+            
+            # 🔒 CIERRE AUTOMÁTICO INTEGRADO: Pone la caja en '0' para bloquear el acceso mañana
+            cursor.execute(
+                "INSERT INTO configuracion (llave, valor) VALUES ('caja_autorizada', '0') ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor"
             )
         conn.commit()
     except Exception as e:
