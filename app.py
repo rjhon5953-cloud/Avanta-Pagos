@@ -2018,7 +2018,7 @@ def guardar_nuevo_cliente():
     if not session.get("autenticado"):
         return jsonify({"status": "error", "message": "No autorizado"}), 401
 
-    # 1. CAPTURA DE DATOS DEL FORMULARIO HTTP POST
+    # 1. CAPTURA DE VARIABLES CON LOS NOMBRES EXACTOS DEL FORMULARIO
     nombre = request.form.get("nombre", "").strip()
     telefono = request.form.get("telefono", "").strip()
     direccion = request.form.get("direccion", "").strip()
@@ -2027,13 +2027,15 @@ def guardar_nuevo_cliente():
     
     try:
         monto = Decimal(request.form.get("monto", "0"))
-        interes_porcentaje = Decimal(request.form.get("interes", "0"))
+        # 📌 CORREGIDO: Se acopla al 'interes_defecto' del maestro de Neon
+        interes_porcentaje = Decimal(request.form.get("interes_defecto", "20"))
         cuotas = int(request.form.get("cuotas", "1"))
     except Exception:
         return jsonify({"status": "error", "message": "Valores numéricos inválidos"}), 400
 
-    frecuencia = request.form.get("Frecuencia", "Diaria")
-    aplica_seguro = request.form.get("aplica_seguro", "NO")
+    frecuencia = request.form.get("frecuencia", "Diaria")
+    # 📌 CORREGIDO: Se empareja con el name real de tus opciones HTML
+    aplica_seguro = request.form.get("aplicar_seguro", "NO")
     
     latitud = request.form.get("latitud", "")
     longitud = request.form.get("longitud", "")
@@ -2053,7 +2055,7 @@ def guardar_nuevo_cliente():
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # 🛡️ MÓDULO MICROSEGURO MULTI-OPCIÓN
+            # 🛡️ MÓDULO MICROSEGURO MULTI-OPCIÓN CONTABLE
             microseguro_valor = Decimal("0.00")
             if aplica_seguro != "NO" and monto > 0:
                 if aplica_seguro == "2":
@@ -2065,6 +2067,7 @@ def guardar_nuevo_cliente():
                     raw_val = raw_val.strip() if raw_val else "0"
                     microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
                     
+            # Inserción limpia del microseguro (Entrada)
             if microseguro_valor > 0:
                 concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
                 cursor.execute(
@@ -2075,7 +2078,7 @@ def guardar_nuevo_cliente():
                     (concepto_seguro, microseguro_valor, fecha_inicio_dt.isoformat())
                 )
             
-            # 💸 ÚNICO ASIENTO DE EGRESO DE CAPITAL INMUTABLE
+            # 💸 ÚNICO ASIENTO DE EGRESO DE CAPITAL INMUTABLE (Salida)
             concepto_egreso = f"📉 CAPITAL ENTREGADO EN CRÉDITO NUEVO - CLIENTE: {nombre}"
             cursor.execute(
                 """
@@ -2085,12 +2088,12 @@ def guardar_nuevo_cliente():
                 (concepto_egreso, monto, fecha_inicio_dt.isoformat())
             )
             
-            # 📊 Calcular posición secuencial de enrutamiento
+            # Calcular posición secuencial de enrutamiento en base a Postgres
             cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
             res_orden = cursor.fetchone()
-            max_orden = int(res_orden["coalesce"]) if isinstance(res_orden, dict) else int(res_orden[0] if res_orden else 0)
+            max_orden = int(res_orden["coalesce"]) if isinstance(res_orden, dict) else int(res_orden if res_orden else 0)
             
-            # 👤 Insertar la cabecera del cliente (Alineación exacta de 17 parámetros)
+            # Insertar cabecera con 17 parámetros alineados milimétricamente
             cursor.execute(
                 """
                 INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, latitud, longitud, estado)
@@ -2099,9 +2102,9 @@ def guardar_nuevo_cliente():
                 (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud)
             )
             res_id = cursor.fetchone()
-            cliente_id = res_id["id"] if isinstance(res_id, dict) else (res_id[0] if res_id else None)
+            cliente_id = res_id["id"] if isinstance(res_id, dict) else (res_id if res_id else None)
             
-            # 🔢 Generar tablas de amortización de las cuotas corregidas
+            # Tablas de amortización protegidas contra desfases de bucle semanales
             if cliente_id:
                 acumulado = Decimal("0.00")
                 for num in range(1, cuotas + 1):
@@ -2113,7 +2116,7 @@ def guardar_nuevo_cliente():
                     acumulado += valor_cuota_real
                     
                     try:
-                        f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
+                        f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frequency=frecuencia)
                     except Exception:
                         from datetime import timedelta
                         f_cuota = fecha_inicio_dt + timedelta(days=(num - 1) * 7 if frecuencia == "Semanal" else (num - 1))
