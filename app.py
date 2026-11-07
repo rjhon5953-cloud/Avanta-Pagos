@@ -1956,15 +1956,7 @@ def seccion_balance_maestro():
         m_dict["comprobante"] = comprobante_puro
         m_dict["monto"] = float(m_dict["monto"])
         movimientos_limpios.append(m_dict)
-        
-    # Añadimos al desglose visual un registro informativo del capital prestado
-    if total_prestado_hoy > 0:
-        movimientos_limpios.insert(0, {
-            "id": 0, "tipo": "Salida", "categoria": "Inversión",
-            "concepto": "🔹 CAPITAL ENTREGADO EN CRÉDITOS NUEVOS",
-            "monto": float(total_prestado_hoy), "fecha": hoy_str, "comprobante": ""
-        })
-        
+
     # Añadimos al desglose visual un registro informativo de lo recaudado en la calle
     if total_abonos_hoy > 0:
         movimientos_limpios.insert(0, {
