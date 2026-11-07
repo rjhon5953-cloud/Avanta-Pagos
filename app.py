@@ -1912,23 +1912,27 @@ def seccion_balance_maestro():
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s AND pagado = 1", (hoy_str,))
             total_abonos_hoy = Decimal(str(cursor.fetchone()["total"]))
             
-            # 👤 5. Sumamos el dinero prestado (capital puro) en créditos nuevos hoy
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM clientes WHERE fecha_inicio = %s", (hoy_str,))
+            # 🛡️ NUEVO QUERY: Sumatoria de los microseguros cobrados hoy en Neon
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND concepto LIKE '%%MICROSEGURO%%' AND fecha = %s", (hoy_str,))
+            total_seguros_hoy = Decimal(str(cursor.fetchone()["total"]))
+
+            # 📊 5. Calculamos el dinero prestado real leyendo las transacciones de Neon
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s", (hoy_str,))
             total_prestado_hoy = Decimal(str(cursor.fetchone()["total"]))
     except Exception as e:
         print(f"Error en balance: {e}")
-        caja_base = total_abonos_hoy = total_prestado_hoy = Decimal("0.00")
+        caja_base = total_abonos_hoy = total_seguros_hoy = total_prestado_hoy = Decimal("0.00")
         movimientos = []
         estado_cierre = "Abierta"
     finally:
         pass
         
     # #️⃣ Agrupamos los flujos de la tabla de movimientos manuales con precisión Decimal
-    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if m["tipo"] == "Entrada")
-    salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if m["tipo"] == "Salida")
-    
-    # 📈 FÓRMULA CONTABLE EXACTA DE CAJA REAL BIEN CALCULADA
-    entradas_totales = total_abonos_hoy + entradas_manuales
+    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if m["tipo"] == "Entrada" and "MICROSEGURO" not in m["concepto"].upper())
+    salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if m["tipo"] == "Salida" and "CRÉDITO NUEVO" not in m["concepto"].upper())
+
+    # 📊 FÓRMULA CONTABLE UNIVERSAL MOSTRANDO VALORES NETOS REALES
+    entradas_totales = total_abonos_hoy + total_seguros_hoy + entradas_manuales
     salidas_totales = salidas_manuales + total_prestado_hoy
     efectivo_neto = caja_base + entradas_totales - salidas_totales
     
