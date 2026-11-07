@@ -1616,12 +1616,20 @@ def dashboard_principal():
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s AND pagado = 1", (hoy_str,))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
             
-            # 👤 2. Conteo exacto de la cantidad de créditos nuevos entregados hoy
-            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE fecha_inicio = %s", (hoy_str,))
-            creditos_hoy = int(cursor.fetchone()["total"])
-            
-            # 📈 3. Suma real del dinero prestado (capital neto entregado hoy en la calle)
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM clientes WHERE fecha_inicio = %s", (hoy_str,))
+            # 📌 2. Conteo absoluto de todos los créditos entregados hoy (Cualquier frecuencia o renovación)
+            cursor.execute(
+                """
+                SELECT COUNT(*) AS total_creditos 
+                FROM balance_movimientos 
+                WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s
+                """, (hoy_str,)
+            )
+            res_creditos = cursor.fetchone()
+            # Validación flexible por si Neon devuelve un diccionario o tupla según el cursor
+            creditos_hoy = res_creditos["total_creditos"] if isinstance(res_creditos, dict) else res_creditos[0]
+
+            # 3. Suma real del dinero prestado leyendo el flujo inmutable de Neon
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s", (hoy_str,))
             capital_prestado_hoy = Decimal(str(cursor.fetchone()["total"]))
     except Exception as e:
         print(f"Error contable en Dashboard Principal: {e}")
