@@ -2032,27 +2032,22 @@ def guardar_nuevo_cliente():
     except Exception:
         return jsonify({"status": "error", "message": "Valores numéricos inválidos"}), 400
 
-    frecuencia = request.form.get("frecuencia", "Diaria")
+    frecuencia = request.form.get("Frecuencia", "Diaria")
     aplica_seguro = request.form.get("aplica_seguro", "NO")
     
     latitud = request.form.get("latitud", "")
     longitud = request.form.get("longitud", "")
     
-    # Manejo preciso de fechas
     fecha_inicio_str = request.form.get("fecha_inicio", date.today().isoformat())
     try:
         fecha_inicio_dt = datetime.strptime(fecha_inicio_str, "%Y-%m-%d").date()
     except ValueError:
         fecha_inicio_dt = date.today()
 
-    # Cálculos contables base
     monto_interes = monto * (interes_porcentaje / Decimal("100"))
     monto_total = monto + monto_interes
-    
-    # 📌 REGLA DE UNIFICACIÓN: Definimos 'valor_cuota' como la variable central
     valor_cuota = round(monto_total / Decimal(str(cuotas)), 2)
     
-    # Calcular fecha estimada de vencimiento según frecuencia
     fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frecuencia)
 
     conn = get_db()
@@ -2070,7 +2065,6 @@ def guardar_nuevo_cliente():
                     raw_val = raw_val.strip() if raw_val else "0"
                     microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
                     
-            # 📝 Insertamos movimiento del microseguro si aplica (ENTRADA)
             if microseguro_valor > 0:
                 concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
                 cursor.execute(
@@ -2081,7 +2075,7 @@ def guardar_nuevo_cliente():
                     (concepto_seguro, microseguro_valor, fecha_inicio_dt.isoformat())
                 )
             
-            # 💸 ASIENTO DEL EGRESO DE CAPITAL INMUTABLE (SALIDA UNIVERSAL)
+            # 💸 ÚNICO ASIENTO DE EGRESO DE CAPITAL INMUTABLE
             concepto_egreso = f"📉 CAPITAL ENTREGADO EN CRÉDITO NUEVO - CLIENTE: {nombre}"
             cursor.execute(
                 """
@@ -2096,7 +2090,7 @@ def guardar_nuevo_cliente():
             res_orden = cursor.fetchone()
             max_orden = int(res_orden["coalesce"]) if isinstance(res_orden, dict) else int(res_orden[0] if res_orden else 0)
             
-            # 👤 Insertar la cabecera del cliente (Usando 'valor_cuota' unificado)
+            # 👤 Insertar la cabecera del cliente (Alineación exacta de 17 parámetros)
             cursor.execute(
                 """
                 INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, latitud, longitud, estado)
@@ -2107,7 +2101,7 @@ def guardar_nuevo_cliente():
             res_id = cursor.fetchone()
             cliente_id = res_id["id"] if isinstance(res_id, dict) else (res_id[0] if res_id else None)
             
-            # 🔢 Generar tablas de amortización de las cuotas sin pérdidas de centavos
+            # 🔢 Generar tablas de amortización de las cuotas corregidas
             if cliente_id:
                 acumulado = Decimal("0.00")
                 for num in range(1, cuotas + 1):
@@ -2117,8 +2111,13 @@ def guardar_nuevo_cliente():
                         valor_cuota_real = valor_cuota
                         
                     acumulado += valor_cuota_real
-                    f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
                     
+                    try:
+                        f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
+                    except Exception:
+                        from datetime import timedelta
+                        f_cuota = fecha_inicio_dt + timedelta(days=(num - 1) * 7 if frecuencia == "Semanal" else (num - 1))
+                        
                     cursor.execute(
                         """
                         INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real)
@@ -2127,7 +2126,6 @@ def guardar_nuevo_cliente():
                         (cliente_id, num, f_cuota.isoformat(), valor_cuota_real)
                     )
                     
-        # Confirmación de la transacción limpia en Neon
         conn.commit()
         return jsonify({"status": "ok", "message": "Crédito guardado exitosamente"})
     except Exception as e:
