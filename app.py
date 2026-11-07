@@ -2071,7 +2071,7 @@ def guardar_nuevo_cliente():
                     raw_val = raw_val.strip() if raw_val else "0"
                     microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
                     
-            # Inserción limpia del microseguro (Entrada)
+            # 🛡️ 1. Inserción limpia del microseguro (Fuerza la fecha de HOY real)
             if microseguro_valor > 0:
                 concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
                 cursor.execute(
@@ -2079,17 +2079,17 @@ def guardar_nuevo_cliente():
                     INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
                     VALUES ('Entrada', 'Inversión', %s, %s, %s, '')
                     """,
-                    (concepto_seguro, microseguro_valor, fecha_inicio_dt.isoformat())
+                    (concepto_seguro, microseguro_valor, date.today().isoformat())
                 )
             
-            # 💸 ÚNICO ASIENTO DE EGRESO DE CAPITAL INMUTABLE (Salida)
+            # 💸 2. ÚNICO ASIENTO DE EGRESO DE CAPITAL (Fuerza la fecha de HOY real)
             concepto_egreso = f"📉 CAPITAL ENTREGADO EN CRÉDITO NUEVO - CLIENTE: {nombre}"
             cursor.execute(
                 """
                 INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
                 VALUES ('Salida', 'Inversión', %s, %s, %s, '')
                 """,
-                (concepto_egreso, monto, fecha_inicio_dt.isoformat())
+                (concepto_egreso, monto, date.today().isoformat())
             )
             
             # 📊 3. Calcular posición secuencial de enrutamiento (Blindado contra DictRow)
