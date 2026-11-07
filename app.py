@@ -2088,11 +2088,20 @@ def guardar_nuevo_cliente():
                 (concepto_egreso, monto, fecha_inicio_dt.isoformat())
             )
             
-            # Calcular posición secuencial de enrutamiento en base a Postgres
+            # 📊 3. Calcular posición secuencial de enrutamiento (Blindado contra DictRow)
             cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
             res_orden = cursor.fetchone()
-            max_orden = int(res_orden["coalesce"]) if isinstance(res_orden, dict) else int(res_orden if res_orden else 0)
             
+            if res_orden is None:
+                max_orden = 0
+            elif isinstance(res_orden, dict):
+                max_orden = int(res_orden.get('coalesce') if res_orden.get('coalesce') is not None else 0)
+            elif hasattr(res_orden, 'keys'):
+                max_orden = int(res_orden[0]) if res_orden[0] is not None else 0
+            else:
+                # Si viene como tupla/lista tradicional
+                max_orden = int(res_orden[0]) if res_orden and res_orden[0] is not None else 0
+
             # Insertar cabecera con 17 parámetros alineados milimétricamente
             cursor.execute(
                 """
@@ -2102,7 +2111,16 @@ def guardar_nuevo_cliente():
                 (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud)
             )
             res_id = cursor.fetchone()
-            cliente_id = res_id["id"] if isinstance(res_id, dict) else (res_id if res_id else None)
+        
+            # 👤 LÍNEA 2113 COMPLETAMENTE BLINDADA:
+            if res_id is None:
+                cliente_id = None
+            elif isinstance(res_id, dict):
+                cliente_id = res_id.get("id")
+            elif hasattr(res_id, '__getitem__'):
+                cliente_id = res_id[0]
+            else:
+                cliente_id = res_id
             
             # Tablas de amortización protegidas contra desfases de bucle semanales
             if cliente_id:
