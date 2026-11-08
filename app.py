@@ -148,6 +148,7 @@ with app.app_context():
     init_db_contable()
 def obtener_clientes_ruta_hoy():
     hoy_str = date.today().isoformat()
+    hoy_date = date.today()
     conn = get_db()
     try:
         with conn.cursor() as cursor:
@@ -160,7 +161,7 @@ def obtener_clientes_ruta_hoy():
             cursor.execute("SELECT * FROM pagos WHERE cliente_id = ANY(%s) ORDER BY numero ASC", (cliente_ids,))
             pagos = cursor.fetchall()
     finally:
-        release_db(conn)
+        pass
 
     pagos_por_cliente = defaultdict(list)
     for p in pagos:
@@ -184,8 +185,46 @@ def obtener_clientes_ruta_hoy():
                     break
 
         if debe_cobrar_hoy:
-            atrasadas = sum(1 for p in c_dict["pagos"] if not p["pagado"] and p["fecha"] < hoy_str)
-            c_dict["cuotas_atrasadas"] = atrasadas
+            # 📊 METRO CONTABLE AVANZADO: Días de Mora o Días Adelantados
+            dias_mora_max = 0
+            tiene_cuotas_vencidas = False
+            
+            for p in c_dict["pagos"]:
+                p_fecha = datetime.strptime(p["fecha"], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
+                if not p["pagado"]:
+                    if p_fecha < hoy_date:
+                        tiene_cuotas_vencidas = True
+                        dias = (hoy_date - p_fecha).days
+                        if dias > dias_mora_max:
+                            dias_mora_max = dias
+            
+            # Cálculo exacto de días adelantados si no debe nada hacia atrás
+            dias_adelanto_max = 0
+            if not tiene_cuotas_vencidas:
+                # Buscamos la última cuota que SÍ está pagada en el sistema
+                ult_pagada = [p for p in c_dict["pagos"] if p["pagado"] == 1]
+                if ult_pagada:
+                    ultima_p = ult_pagada[-1]
+                    f_ultima_p = datetime.strptime(ultima_p["fecha"], "%Y-%m-%d").date() if isinstance(ultima_p["fecha"], str) else ultima_p["fecha"]
+                    # Si pagó una cuota cuyo vencimiento es mayor a hoy, está adelantado
+                    if f_ultima_p > hoy_date:
+                        dias_adelanto_max = (f_ultima_p - hoy_date).days
+
+            # 🎨 Mapeo completo de estados visuales (Incluye el Azul de cuotas adelantadas)
+            if tiene_cuotas_vencidas:
+                if dias_mora_max > 3:
+                    c_dict["estado_mora"] = "en_mora"        # 🔴 Mora crítica
+                else:
+                    c_dict["estado_mora"] = "entrando_mora"  # 🟡 Entrando en mora
+                c_dict["cuotas_atrasadas"] = dias_mora_max
+            else:
+                if dias_adelanto_max > 0:
+                    c_dict["estado_mora"] = "adelantado"     # 🔵 Cuotas adelantadas
+                    c_dict["cuotas_atrasadas"] = dias_adelanto_max  # Guardamos los días adelantados aquí
+                else:
+                    c_dict["estado_mora"] = "al_dia"         # 🟢 Al día normal
+                    c_dict["cuotas_atrasadas"] = 0
+            
             resultado.append(c_dict)
             
     return resultado
@@ -1231,22 +1270,28 @@ function calcularCuota() {
     }
 }
 
-function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota) {
+let diasMoraGlobalTemporal = 0; // Variable de persistencia ambiental para las modales
+
+function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 0) {
     document.getElementById('abonoClienteId').value = clienteId;
     document.getElementById('abonoNumCuota').value = numCuota;
     document.getElementById('abonoMontoInput').value = pendiente.toFixed(2);
+    diasMoraGlobalTemporal = parseInt(diasMora) || 0; // Guardamos los días para el WhatsApp
     document.getElementById('modalAbonoTitulo').innerText = '✏️ Registrar Pago - Cuota #' + numCuota;
     document.getElementById('modalAbono').style.display = 'flex';
 }
+
 function confirmarAbono() {
     const clienteId = document.getElementById('abonoClienteId').value;
     const numCuota = document.getElementById('abonoNumCuota').value;
     const monto = parseFloat(document.getElementById('abonoMontoInput').value);
     if (monto > 0) { cerrarModal('modalAbono'); procesarPagoAPI(clienteId, numCuota, monto); }
 }
+
 function ejecutarPago(clienteId, numCuota, pendiente) {
     procesarPagoAPI(clienteId, numCuota, pendiente);
 }
+
 // Variables de control ambiental de carga síncrona multimedia
 let imagenComprimidaB64 = "";
 let fotoListaParaEnviar = false;
@@ -1264,8 +1309,8 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
     const minutos = String(ahoraDispositivo.getMinutes()).padStart(2, '0');
     const horaLocalFormateada = `${dia}/${mes}/${anio} ${horas}:${minutos}`;
 
-    // Enviamos los datos automáticos como parámetros adicionales en el fetch
-    fetch('/api/marcar_pago/' + clienteId + '/' + numCuota + '?monto=' + monto + '&hora_local=' + encodeURIComponent(horaLocalFormateada) + '&zona_usuario=' + encodeURIComponent(zonaUsuario))
+    // ⚡ INYECTAMOS 'dias_mora' en la petición para pasárselo de forma segura al backend de Neon
+    fetch('/api/marcar_pago/' + clienteId + '/' + numCuota + '?monto=' + monto + '&hora_local=' + encodeURIComponent(horaLocalFormateada) + '&zona_usuario=' + encodeURIComponent(zonaUsuario) + '&dias_mora=' + diasMoraGlobalTemporal)
         .then(res => res.json())
         .then(data => {
             if (data.status === 'ok') {
@@ -1680,13 +1725,14 @@ def dashboard_principal():
         pagado_acumulado = sum(Decimal(str(p["valor_pagado"])) for p in c["pagos"])
         saldo_restante = max(Decimal("0.00"), Decimal(str(c["monto_total"])) - pagado_acumulado)
     
-        # Calculamos de forma exacta cuántas cuotas completas equivalen al dinero abonado
         valor_cuota_dec = Decimal(str(c["valor_cuota"]))
         cuotas_pagadas = int(pagado_acumulado // valor_cuota_dec) if valor_cuota_dec > 0 else 0
     
-        # 🛡️ FIJADO: Operador de comparación exacto (==) para hallar la cuota pendiente en la ruta
         cuota_p = next((p for p in c["pagos"] if int(p["pagado"]) == 0), None)
-        es_mora_cl = int(c.get("es_mora_cl", 0)) > 0  # Ajuste seguro de bandera de mora
+        
+        # Recuperamos los metadatos de mora o adelanto calculados de la base de datos
+        dias_calculados = int(c.get("cuotas_atrasadas", 0))
+        estado_mora_cl = c.get("estado_mora", "al_dia")
     
         c_id = str(c["id"])
         c_nombre = str(c["nombre"])
@@ -1698,8 +1744,25 @@ def dashboard_principal():
         c_cuotas_pagadas = str(cuotas_pagadas)
 
         inicial_frecuencia = 'D' if c['frecuencia'] == 'Diaria' else 'S'
-        clase_mora = "mora-leve" if es_mora_cl else "al-dia"
-        clase_mora_badge = "1" if es_mora_cl else "0"
+        
+        # 🎨 CONFIGURACIÓN DE LOS COLORES DE PAGO FIJADOS SEGÚN EL MENÚ DE AYUDA
+        if estado_mora_cl == "en_mora":
+            # 🔴 Cliente en mora: Recuadro rojo rígido con la cantidad de días
+            html_indicador_mora = f'<div style="background:#dc2626; color:#ffffff; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:bold; text-transform:uppercase; flex-shrink:0; text-align:center; min-width:90px; border:1px solid #991b1b; box-shadow:0 2px 4px rgba(220,38,38,0.2);">{dias_calculados} Días mora</div>'
+            clase_mora_badge = "1"
+        elif estado_mora_cl == "entrando_mora":
+            # 🟡 Cliente entrando en mora: Círculo amarillo con borde e inicial de frecuencia
+            html_indicador_mora = f'<div class="circulo-frecuencia" style="border-color:#d97706 !important; color:#d97706 !important; background:#fffbeb !important;">{inicial_frecuencia}</div>'
+            clase_mora_badge = "1"
+        elif estado_mora_cl == "adelantado":
+            # 🔵 Cuotas adelantadas: Círculo azul con borde e inicial de frecuencia
+            html_indicador_mora = f'<div class="circulo-frecuencia" style="border-color:#2563eb !important; color:#2563eb !important; background:#eff6ff !important;">{inicial_frecuencia}</div>'
+            clase_mora_badge = "0"
+        else:
+            # 🟢 Cliente al día: Círculo verde estándar con inicial de frecuencia
+            html_indicador_mora = f'<div class="circulo-frecuencia al-dia">{inicial_frecuencia}</div>'
+            clase_mora_badge = "0"
+            
         clase_check = "gestionado" if c['saltado_hoy'] > 0 else ("gestionado-ok" if cuotas_pagadas > 0 else "")
         numero_check = str(c['saltado_hoy'] if c['saltado_hoy'] > 0 else (cuotas_pagadas if cuotas_pagadas > 0 else 1))
         
@@ -1709,7 +1772,7 @@ def dashboard_principal():
         contexto_dash += f"""
         <div class="cliente-card-premium" id="cliente-card-{c_id}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}">
             <div class="card-izquierda">
-                <div class="circulo-frecuencia {clase_mora}">{inicial_frecuencia}</div>
+                {html_indicador_mora}
                 <div class="info-bloque-texto" style="width:100%;">
                     <div class="id-alias">{c_id} {c_referencia}</div>
                     <div class="nombre-real">{c_nombre}</div>
@@ -1721,8 +1784,7 @@ def dashboard_principal():
                     </div>
                     
                     <div class="fila-utilidades-premium">
-                        <!-- 📸 FIJADO: El botón de la cámara ahora abre directamente la modal de abonos para adjuntar comprobante sin desviar el flujo -->
-                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
+                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
                         <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
                     </div>
@@ -1730,11 +1792,10 @@ def dashboard_principal():
             </div>
             
             <div class="card-derecha-acciones" id="acciones-{c_id}">
-                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota})">💵✔️</button>
+                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados})">💵✔️</button>
                 <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">💵❌</button>
             </div>
         """
-        
         contexto_dash += "</div>"
     
     # 🎨 Inyectamos el bloque procesado y controlamos el formato nativo para celulares
@@ -2668,12 +2729,13 @@ def api_marcar_pago(cliente_id, num_cuota):
     finally:
         pass
         
-        # 🧾 DISEÑO DE TICKET PREMIUM REESTRUCTURADO PARA WHATSAPP
+        # 🧾 CAPTURA DE PARÁMETROS DE MORA EN PYTHON DESDE EL FETCH
+    dias_mora_notificados = int(request.args.get("dias_mora", 0))
     linea_division = "------------------------------------------"
     
     mensaje_ws = (
-                "🧾 *AVANTA PAGOS* 🧾\n"
-            "_*Comprobante Oficial de Pago*_\n"
+        "🧾 *AVANTA PAGOS* 🧾\n"
+        "_*Comprobante Oficial de Pago*_\n"
         f"{linea_division}\n"
         f"👤 *Cliente:* {c['nombre']}\n"
         f"📱 *WhatsApp:* {c['telefono'] or 'N/A'}\n"
@@ -2682,15 +2744,28 @@ def api_marcar_pago(cliente_id, num_cuota):
         f"💵 *Monto Cobrado:* ${float(monto_recaudado):.2f}\n"
         f"🔢 *Cuota Procesada:* #{num_cuota}\n"
         f"📉 *Saldo Restante:* ${float(saldo_restante):.2f}\n"
-        f"{linea_division}\n"
     )
     
-    if saldo_restante <= 0:
-        mensaje_ws += "🎉 *¡FELICIDADES! CRÉDITO LIQUIDADO AL 100%* 🎉\n"
+    # 🚨 INYECCIÓN DINÁMICA DE LA ALERTA DE MORA O ADELANTADOS EN EL TICKET DE WHATSAPP
+    if dias_mora_notificados > 0:
+        # Si la bandera estructural del backend determinó un estado de mora real
+        if c.get("estado_mora") in ["en_mora", "entrando_mora"]:
+            mensaje_ws += f"⚠️ *Días de Atraso:* {dias_mora_notificados} días en mora\n"
+            mensaje_ws += f"👉 _Le solicitamos ponerse al día para evitar recargos o suspensión de su cupo._\n"
+        # Si los días calculados pertenecen a cuotas cubiertas en el futuro (Ventaja)
+        else:
+            mensaje_ws += f"🔵 *Días Adelantados:* {dias_mora_notificados} días a favor\n"
+            mensaje_ws += f"🎉 _¡Excelente historial! Siga manteniendo su cuenta al día._\n"
+        mensaje_ws += f"{linea_division}\n"
     else:
-        mensaje_ws += "🙏 *¡Gracias por su puntualidad y pago!* 🙏\n"
+        mensaje_ws += f"{linea_division}\n"
+        if saldo_restante <= 0:
+            mensaje_ws += "🎉 *¡FELICIDADES! CRÉDITO LIQUIDADO AL 100%* 🎉\n"
+        else:
+            mensaje_ws += "🙏 *¡Gracias por su puntualidad y pago!* 🙏\n"
+        mensaje_ws += f"{linea_division}\n"
         
-    mensaje_ws += f"{linea_division}\n_Sistema de Gestión de Cobros Avanta_"
+    mensaje_ws += "_Sistema de Gestión de Cobros Avanta_"
     
     recibo = {
         "cliente": c["nombre"],
