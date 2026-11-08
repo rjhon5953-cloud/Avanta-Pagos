@@ -1762,8 +1762,16 @@ def dashboard_principal():
             html_indicador_mora = f'<div class="circulo-frecuencia al-dia">{inicial_frecuencia}</div>'
             clase_mora_badge = "0"
             
-        clase_check = "gestionado" if c['saltado_hoy'] > 0 else ("gestionado-ok" if cuotas_pagadas > 0 else "")
-        numero_check = str(c['saltado_hoy'] if c['saltado_hoy'] > 0 else (cuotas_pagadas if cuotas_pagadas > 0 else 1))
+        # Cálculo exacto para el cuadradito de días de atraso o adelanto
+        if estado_mora_cl in ["en_mora", "entrando_mora"] and dias_calculados > 0:
+            estilo_cuadro_dias = "background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; font-weight:800;"
+            texto_cuadro_dias = str(dias_calculados)
+        elif estado_mora_cl == "adelantado" and dias_calculados > 0:
+            estilo_cuadro_dias = "background:#dbeafe; color:#2563eb; border:1px solid #93c5fd; font-weight:800;"
+            texto_cuadro_dias = str(dias_calculados)
+        else:
+            estilo_cuadro_dias = "background:#dcfce7; color:#16a34a; border:1px solid #86efac; font-weight:800;"
+            texto_cuadro_dias = "0"
         
         js_num_cuota = str(cuota_p["numero"]) if cuota_p else "1"
         js_pendiente = f"{(cuota_p['valor'] - cuota_p['valor_pagado'])}" if cuota_p else "0"
@@ -1794,7 +1802,7 @@ def dashboard_principal():
                     
                     <div class="fila-utilidades-premium">
                         <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
-                        <div class="circulo-check-cuota {clase_check}">{numero_check}</div>
+                        <div class="circulo-check-cuota" style="{estilo_cuadro_dias}">{texto_cuadro_dias}</div>
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
                     </div>
                 </div>
