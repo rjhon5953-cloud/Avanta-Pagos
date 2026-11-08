@@ -498,14 +498,15 @@ CONTENIDO_HTML = """
     <link rel="stylesheet" href="https://cloudflare.com">
     <div class="section-header-title"><i class="fa-solid fa-money-bill-trend-up"></i> GESTIÓN DE COBROS DE HOY</div>
 
-    <!-- 🟢 SECCIÓN DE ABONOS REALIZADOS -->
+    <!-- 🟢 SECCIÓN DE ABONOS REALIZADOS (ESTILO TRYCONTROLLER CON BARRA VERDE) -->
     <div style="margin-bottom: 20px; padding: 0 4px;">
         <h4 style="font-size: 12px; color: #10b981; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; text-align: left; border-left: 3px solid #10b981; padding-left: 6px;">
             💰 Abonos / Pagos Recibidos
         </h4>
         <div id="containerPagados" style="display: flex; flex-direction: column; gap: 8px;">
             {% for p in pagados_list %}
-                <div class="card" style="padding: 12px; margin-bottom: 0; background: white; text-align: left; border: 1px solid #e2e8f0; border-radius: 10px;">
+                <!-- 🎯 FIJADO: Inyección de border-left de 5px verde para simular la gestión completada -->
+                <div class="card" style="padding: 12px; margin-bottom: 0; background: white; text-align: left; border: 1px solid #e2e8f0; border-radius: 10px; border-left: 5px solid #10b981 !important; padding-left: 10px !important;">
                     <div class="flex-between">
                         <div>
                             <span style="font-weight: 800; color: #0f2b5c; font-size: 13px; display: block;">{{ p.nombre }}</span>
@@ -527,14 +528,15 @@ CONTENIDO_HTML = """
         </div>
     </div>
 
-    <!-- 🔴 SECCIÓN DE CLIENTES SALTADOS -->
+    <!-- 🔴 SECCIÓN DE CLIENTES SALTADOS (ESTILO TRYCONTROLLER CON BARRA ROJA) -->
     <div style="padding: 0 4px;">
         <h4 style="font-size: 12px; color: #ef4444; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; text-align: left; border-left: 3px solid #ef4444; padding-left: 6px;">
             ❌ Clientes Saltados (No Pagó)
         </h4>
         <div id="containerSaltados" style="display: flex; flex-direction: column; gap: 8px;">
             {% for s in saltados_list %}
-                <div class="card" style="padding: 12px; margin-bottom: 0; background: white; text-align: left; border: 1px solid #e2e8f0; border-radius: 10px;">
+                <!-- 🎯 FIJADO: Inyección de border-left de 5px rojo para simular la alerta de omitido/no pago -->
+                <div class="card" style="padding: 12px; margin-bottom: 0; background: white; text-align: left; border: 1px solid #e2e8f0; border-radius: 10px; border-left: 5px solid #dc2626 !important; padding-left: 10px !important;">
                     <div class="flex-between">
                         <div>
                             <span style="font-weight: 800; color: #0f2b5c; font-size: 13px; display: block;">{{ s.nombre }}</span>
@@ -553,7 +555,6 @@ CONTENIDO_HTML = """
         </div>
     </div>
 
-    <!-- 🧠 CONTROLADOR ASÍNCRONO DE ACCIONES UNIFICADO -->
     <script>
     function revertirGestionDia(tipo, idStr) {
         if (confirm('¿Está seguro de que desea deshacer esta gestión y regresar al cliente a la Ruta del Día?')) {
@@ -561,7 +562,6 @@ CONTENIDO_HTML = """
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'ok') {
-                        // Se remueve el alert de éxito para que recargue en silencio inmediatamente
                         navegarRuta('/menu/pagos_hoy');
                     } else {
                         alert('⚠️ No se pudo revertir: ' + (data.message || 'Error en el servidor'));
@@ -1276,7 +1276,10 @@ function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 
     document.getElementById('abonoClienteId').value = clienteId;
     document.getElementById('abonoNumCuota').value = numCuota;
     document.getElementById('abonoMontoInput').value = pendiente.toFixed(2);
-    diasMoraGlobalTemporal = parseInt(diasMora) || 0; // Guardamos los días para el WhatsApp
+    
+    // ⚡ FIJADO: Guardamos los días de mora reales calculados de la tarjeta
+    diasMoraGlobalTemporal = parseInt(diasMora) || 0; 
+    
     document.getElementById('modalAbonoTitulo').innerText = '✏️ Registrar Pago - Cuota #' + numCuota;
     document.getElementById('modalAbono').style.display = 'flex';
 }
@@ -1297,19 +1300,17 @@ let imagenComprimidaB64 = "";
 let fotoListaParaEnviar = false;
 
 function procesarPagoAPI(clienteId, numCuota, monto) {
-    // 🌍 Captura automática de la zona horaria y hora local del dispositivo móvil
     const zonaUsuario = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const ahoraDispositivo = new Date();
     
-    // Formateo exacto del reloj del teléfono: DD/MM/YYYY HH:MM
     const dia = String(ahoraDispositivo.getDate()).padStart(2, '0');
     const mes = String(ahoraDispositivo.getMonth() + 1).padStart(2, '0');
     const anio = ahoraDispositivo.getFullYear();
     const horas = String(ahoraDispositivo.getHours()).padStart(2, '0');
-    const minutos = String(ahoraDispositivo.getMinutes()).padStart(2, '0');
-    const horaLocalFormateada = `${dia}/${mes}/${anio} ${horas}:${minutos}`;
+    const minutes = String(ahoraDispositivo.getMinutes()).padStart(2, '0');
+    const horaLocalFormateada = `${dia}/${mes}/${anio} ${horas}:${minutes}`;
 
-    // ⚡ INYECTAMOS 'dias_mora' en la petición para pasárselo de forma segura al backend de Neon
+    // ⚡ FIJADO: Ahora sí le pasamos de forma real la variable 'diasMoraGlobalTemporal' a la ruta de Python
     fetch('/api/marcar_pago/' + clienteId + '/' + numCuota + '?monto=' + monto + '&hora_local=' + encodeURIComponent(horaLocalFormateada) + '&zona_usuario=' + encodeURIComponent(zonaUsuario) + '&dias_mora=' + diasMoraGlobalTemporal)
         .then(res => res.json())
         .then(data => {
@@ -1720,17 +1721,20 @@ def dashboard_principal():
     <div id="clientesContainer">
     """
     
-    # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO
+        # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO (DISEÑO LIMPIO EN DASHBOARD)
     for c in clientes_ruta:
         pagado_acumulado = sum(Decimal(str(p["valor_pagado"])) for p in c["pagos"])
         saldo_restante = max(Decimal("0.00"), Decimal(str(c["monto_total"])) - pagado_acumulado)
     
         valor_cuota_dec = Decimal(str(c["valor_cuota"]))
-        cuotas_pagadas = int(pagado_acumulado // valor_cuota_dec) if valor_cuota_dec > 0 else 0
+        
+        # Contador con flotantes (.1f) idéntico a TryController
+        cuotas_totales_float = float(c["cuotas"])
+        cuotas_pendientes_float = float(len([p for p in c["pagos"] if int(p["pagado"]) == 0]))
+        cuotas_pagadas = int(c["cuotas"] - cuotas_pendientes_float)
     
         cuota_p = next((p for p in c["pagos"] if int(p["pagado"]) == 0), None)
         
-        # Recuperamos los metadatos de mora o adelanto calculados de la base de datos
         dias_calculados = int(c.get("cuotas_atrasadas", 0))
         estado_mora_cl = c.get("estado_mora", "al_dia")
     
@@ -1739,27 +1743,22 @@ def dashboard_principal():
         c_nombre_lower = c_nombre.lower()
         c_referencia = str(c["referencia"]) if c["referencia"] else "Comercio"
         c_valor_cuota = f"{float(valor_cuota_dec):.2f}"
-        c_cuotas = str(c["cuotas"])
         c_saldo_restante = f"{float(saldo_restante):.2f}"
         c_cuotas_pagadas = str(cuotas_pagadas)
 
         inicial_frecuencia = 'D' if c['frecuencia'] == 'Diaria' else 'S'
         
-        # 🎨 CONFIGURACIÓN DE LOS COLORES DE PAGO FIJADOS SEGÚN EL MENÚ DE AYUDA
-        if estado_mora_cl == "en_mora":
-            # 🔴 Cliente en mora: Recuadro rojo rígido con la cantidad de días
-            html_indicador_mora = f'<div style="background:#dc2626; color:#ffffff; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:bold; text-transform:uppercase; flex-shrink:0; text-align:center; min-width:90px; border:1px solid #991b1b; box-shadow:0 2px 4px rgba(220,38,38,0.2);">{dias_calculados} Días mora</div>'
-            clase_mora_badge = "1"
-        elif estado_mora_cl == "entrando_mora":
-            # 🟡 Cliente entrando en mora: Círculo amarillo con borde e inicial de frecuencia
-            html_indicador_mora = f'<div class="circulo-frecuencia" style="border-color:#d97706 !important; color:#d97706 !important; background:#fffbeb !important;">{inicial_frecuencia}</div>'
+        # 🎨 CONFIGURACIÓN DE LOS CÍRCULOS DE FRECUENCIA EN VIVO SEGÚN EL ESTADO CONTABLE
+        if saldo_restante <= 0:
+            html_indicador_mora = '<div class="circulo-frecuencia" style="border-color:#10b981 !important; color:#10b981 !important; background:#ecfdf5 !important; font-weight:900;">P</div>'
+            clase_mora_badge = "0"
+        elif estado_mora_cl == "en_mora":
+            html_indicador_mora = f'<div class="circulo-frecuencia" style="border-color:#dc2626 !important; color:#dc2626 !important; background:#fff1f2 !important;">{inicial_frecuencia}</div>'
             clase_mora_badge = "1"
         elif estado_mora_cl == "adelantado":
-            # 🔵 Cuotas adelantadas: Círculo azul con borde e inicial de frecuencia
             html_indicador_mora = f'<div class="circulo-frecuencia" style="border-color:#2563eb !important; color:#2563eb !important; background:#eff6ff !important;">{inicial_frecuencia}</div>'
             clase_mora_badge = "0"
         else:
-            # 🟢 Cliente al día: Círculo verde estándar con inicial de frecuencia
             html_indicador_mora = f'<div class="circulo-frecuencia al-dia">{inicial_frecuencia}</div>'
             clase_mora_badge = "0"
             
@@ -1769,6 +1768,16 @@ def dashboard_principal():
         js_num_cuota = str(cuota_p["numero"]) if cuota_p else "1"
         js_pendiente = f"{(cuota_p['valor'] - cuota_p['valor_pagado'])}" if cuota_p else "0"
         
+        # Lógica de botones en Python puro para que Visual Studio Code no marque errores en rojo
+        if saldo_restante > 0:
+            html_botones_derechos = f"""
+            <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados})">💵✔️</button>
+            <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">💵❌</button>
+            """
+        else:
+            html_botones_derechos = '<span style="font-size:18px; color:#10b981; font-weight:bold; padding-right:10px;">✅</span>'
+        
+        # Inyección limpia en las tarjetas premium
         contexto_dash += f"""
         <div class="cliente-card-premium" id="cliente-card-{c_id}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}">
             <div class="card-izquierda">
@@ -1779,7 +1788,7 @@ def dashboard_principal():
                     
                     <div class="grid-metricas-premium">
                         <div class="metric-col"><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${c_valor_cuota}</span></div>
-                        <div class="metric-col"><span class="metric-lbl">Pendiente</span><span class="metric-val">{c_cuotas_pagadas} / {c_cuotas}</span></div>
+                        <div class="metric-col"><span class="metric-lbl">Pendiente</span><span class="metric-val">{cuotas_pendientes_float:.1f} / {cuotas_totales_float:.1f}</span></div>
                         <div class="metric-col"><span class="metric-lbl">Pago</span><span class="metric-val">—</span></div>
                     </div>
                     
@@ -1792,8 +1801,7 @@ def dashboard_principal():
             </div>
             
             <div class="card-derecha-acciones" id="acciones-{c_id}">
-                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados})">💵✔️</button>
-                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">💵❌</button>
+                {html_botones_derechos}
             </div>
         """
         contexto_dash += "</div>"
