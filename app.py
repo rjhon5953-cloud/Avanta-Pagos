@@ -2737,7 +2737,7 @@ def api_marcar_pago(cliente_id, num_cuota):
     finally:
         pass
         
-        # 🧾 CAPTURA DE PARÁMETROS DE MORA EN PYTHON DESDE EL FETCH
+        # 📊 CAPTURA DE PARÁMETROS DE MORA EN PYTHON DESDE EL FETCH
     dias_mora_notificados = int(request.args.get("dias_mora", 0))
     linea_division = "------------------------------------------"
     
@@ -2754,13 +2754,18 @@ def api_marcar_pago(cliente_id, num_cuota):
         f"📉 *Saldo Restante:* ${float(saldo_restante):.2f}\n"
     )
     
+    # Extraemos de forma segura el estado de mora para evitar caídas de DictRow
+    est_mora_val = "al_dia"
+    if isinstance(c, dict):
+        est_mora_val = c.get("estado_mora", "al_dia")
+    elif hasattr(c, "get"):
+        est_mora_val = c.get("estado_mora", "al_dia")
+        
     # 🚨 INYECCIÓN DINÁMICA DE LA ALERTA DE MORA O ADELANTADOS EN EL TICKET DE WHATSAPP
     if dias_mora_notificados > 0:
-        # Si la bandera estructural del backend determinó un estado de mora real
-        if c.get("estado_mora") in ["en_mora", "entrando_mora"]:
+        if est_mora_val in ["en_mora", "entrando_mora"]:
             mensaje_ws += f"⚠️ *Días de Atraso:* {dias_mora_notificados} días en mora\n"
             mensaje_ws += f"👉 _Le solicitamos ponerse al día para evitar recargos o suspensión de su cupo._\n"
-        # Si los días calculados pertenecen a cuotas cubiertas en el futuro (Ventaja)
         else:
             mensaje_ws += f"🔵 *Días Adelantados:* {dias_mora_notificados} días a favor\n"
             mensaje_ws += f"🎉 _¡Excelente historial! Siga manteniendo su cuenta al día._\n"
