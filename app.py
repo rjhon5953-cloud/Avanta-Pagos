@@ -1659,7 +1659,7 @@ def dashboard_principal():
     try:
         with conn.cursor() as cursor:
             # 💵 1. Suma real en dólares del recaudo asentado el día de hoy
-            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s AND pagado = 1", (hoy_str,))
+            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s", (hoy_str,))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
             
             # 📌 2. Conteo absoluto de todos los créditos entregados hoy (Cualquier frecuencia o renovación)
@@ -2680,22 +2680,35 @@ def api_marcar_pago(cliente_id, num_cuota):
         return jsonify({"status": "error", "message": "No autorizado"})
         
     monto_recaudado = Decimal(str(request.args.get("monto", 0)))
-        
-    # 🌍 CAPTURA INTERNACIONAL AUTOMÁTICA DEL DISPOSITIVO DEL COBRADOR
     hora_local_cliente = request.args.get("hora_local", "")
     if not hora_local_cliente:
         hora_local_cliente = datetime.now().strftime("%d/%m/%Y %H:%M")
             
     hoy_str = date.today().isoformat()
+    hoy_date = date.today()
     monto_restante = monto_recaudado
+    monto_efectivamente_aplicado = Decimal("0.00")
     
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # 📊 Recuperamos las cuotas pendientes ordenadas cronológicamente por número
-            cursor.execute("SELECT id, numero, valor, valor_pagado, pagado FROM pagos WHERE cliente_id = %s AND pagado = 0 ORDER BY numero ASC", (cliente_id,))
-            pagos_pendientes = cursor.fetchall()
+            # 1. Calculamos los días reales de mora ANTES de procesar el pago
+            cursor.execute("SELECT id, numero, fecha, valor, valor_pagado, pagado FROM pagos WHERE cliente_id = %s ORDER BY numero ASC", (cliente_id,))
+            todas_las_cuotas = cursor.fetchall()
             
+            dias_mora_real = 0
+            tiene_mora = False
+            for q in todas_las_cuotas:
+                if int(q["pagado"]) == 0:
+                    f_q = datetime.strptime(q["fecha"], "%Y-%m-%d").date() if isinstance(q["fecha"], str) else q["fecha"]
+                    if f_q < hoy_date:
+                        tiene_mora = True
+                        diff = (hoy_date - f_q).days
+                        if diff > dias_mora_real:
+                            dias_mora_real = diff
+
+            # 2. Aplicamos el dinero recibido a las cuotas pendientes y sumamos lo aplicado
+            pagos_pendientes = [q for q in todas_las_cuotas if int(q["pagado"]) == 0]
             for p in pagos_pendientes:
                 if monto_restante <= 0:
                     break
@@ -2704,43 +2717,52 @@ def api_marcar_pago(cliente_id, num_cuota):
                 
                 if monto_restante >= pendiente_cuota:
                     monto_restante = round(monto_restante - pendiente_cuota, 2)
+                    monto_efectivamente_aplicado += pendiente_cuota
                     cursor.execute(
                         "UPDATE pagos SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
                         (p["valor"], hoy_str, p["id"])
                     )
                 else:
                     nuevo_pago_parcial = round(Decimal(str(p["valor_pagado"])) + monto_restante, 2)
+                    monto_efectivamente_aplicado += monto_restante
                     monto_restante = Decimal("0.00")
                     cursor.execute(
                         "UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
                         (nuevo_pago_parcial, hoy_str, p["id"])
                     )
             
-            # Recalcular balances reales del cliente para validar si ya liquidó la deuda completa
+            # 3. Calculamos si quedó adelantado DESPUÉS de aplicar el pago
+            dias_adelanto_real = 0
+            if not tiene_mora:
+                cursor.execute("SELECT fecha FROM pagos WHERE cliente_id = %s AND pagado = 1 ORDER BY numero DESC LIMIT 1", (cliente_id,))
+                ult_p = cursor.fetchone()
+                if ult_p:
+                    f_ult = datetime.strptime(ult_p["fecha"], "%Y-%m-%d").date() if isinstance(ult_p["fecha"], str) else ult_p["fecha"]
+                    if f_ult > hoy_date:
+                        dias_adelanto_real = (f_ult - hoy_date).days
+
+            # 4. Recalcular saldo total real del cliente
             cursor.execute("SELECT nombre, telefono, monto_total FROM clientes WHERE id = %s", (cliente_id,))
             c = cursor.fetchone()
             
             cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE cliente_id = %s", (cliente_id,))
             total_pagado = Decimal(str(cursor.fetchone()["total"]))
-            
             saldo_restante = max(Decimal("0.00"), Decimal(str(c["monto_total"])) - total_pagado)
             
-            cursor.execute("UPDATE clientes SET fecha_gestion = %s WHERE id = %s", (hoy_str, cliente_id))
-
-            # 🛡️ Si el saldo llegó a $0.00, el cliente pasa a 'Inactivo' (Liquidado) de manera automática
             if saldo_restante <= 0:
-                cursor.execute("UPDATE clientes SET estado = 'Inactivo', enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
+                cursor.execute("UPDATE clientes SET estado = 'Inactivo', fecha_gestion = %s, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (hoy_str, cliente_id))
             else:
-                cursor.execute("UPDATE clientes SET enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
+                cursor.execute("UPDATE clientes SET fecha_gestion = %s, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (hoy_str, cliente_id))
                 
             conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
     finally:
         pass
-        
-        # 📊 CAPTURA DE PARÁMETROS DE MORA EN PYTHON DESDE EL FETCH
-    dias_mora_notificados = int(request.args.get("dias_mora", 0))
+
+    # 5. Construcción exacta del comprobante de WhatsApp
     linea_division = "------------------------------------------"
-    
     mensaje_ws = (
         "🧾 *AVANTA PAGOS* 🧾\n"
         "_*Comprobante Oficial de Pago*_\n"
@@ -2749,33 +2771,26 @@ def api_marcar_pago(cliente_id, num_cuota):
         f"📱 *WhatsApp:* {c['telefono'] or 'N/A'}\n"
         f"*📅 Fecha de Pago:* {hora_local_cliente}\n"
         f"{linea_division}\n"
-        f"💵 *Monto Cobrado:* ${float(monto_recaudado):.2f}\n"
+        f"💵 *Monto Cobrado:* ${float(monto_efectivamente_aplicado):.2f}\n"
         f"🔢 *Cuota Procesada:* #{num_cuota}\n"
         f"📉 *Saldo Restante:* ${float(saldo_restante):.2f}\n"
     )
     
-    # Extraemos de forma segura el estado de mora para evitar caídas de DictRow
-    est_mora_val = "al_dia"
-    if isinstance(c, dict):
-        est_mora_val = c.get("estado_mora", "al_dia")
-    elif hasattr(c, "get"):
-        est_mora_val = c.get("estado_mora", "al_dia")
-        
-    # 🚨 INYECCIÓN DINÁMICA DE LA ALERTA DE MORA O ADELANTADOS EN EL TICKET DE WHATSAPP
-    if dias_mora_notificados > 0:
-        if est_mora_val in ["en_mora", "entrando_mora"]:
-            mensaje_ws += f"⚠️ *Días de Atraso:* {dias_mora_notificados} días en mora\n"
-            mensaje_ws += f"👉 _Le solicitamos ponerse al día para evitar recargos o suspensión de su cupo._\n"
-        else:
-            mensaje_ws += f"🔵 *Días Adelantados:* {dias_mora_notificados} días a favor\n"
-            mensaje_ws += f"🎉 _¡Excelente historial! Siga manteniendo su cuenta al día._\n"
+    if saldo_restante <= 0:
+        mensaje_ws += f"{linea_division}\n"
+        mensaje_ws += "🎉 *¡FELICIDADES! CRÉDITO LIQUIDADO AL 100%* 🎉\n"
+        mensaje_ws += f"{linea_division}\n"
+    elif tiene_mora and dias_mora_real > 0:
+        mensaje_ws += f"⚠️ *Días de Atraso:* {dias_mora_real} días en mora\n"
+        mensaje_ws += f"👉 _Le solicitamos ponerse al día para evitar recargos o suspensión de su cupo._\n"
+        mensaje_ws += f"{linea_division}\n"
+    elif dias_adelanto_real > 0:
+        mensaje_ws += f"🔵 *Días Adelantados:* {dias_adelanto_real} días a favor\n"
+        mensaje_ws += f"🎉 _¡Excelente historial! Siga manteniendo su cuenta al día._\n"
         mensaje_ws += f"{linea_division}\n"
     else:
         mensaje_ws += f"{linea_division}\n"
-        if saldo_restante <= 0:
-            mensaje_ws += "🎉 *¡FELICIDADES! CRÉDITO LIQUIDADO AL 100%* 🎉\n"
-        else:
-            mensaje_ws += "🙏 *¡Gracias por su puntualidad y pago!* 🙏\n"
+        mensaje_ws += "🙏 *¡Gracias por su puntualidad y pago!* 🙏\n"
         mensaje_ws += f"{linea_division}\n"
         
     mensaje_ws += "_Sistema de Gestión de Cobros Avanta_"
@@ -2784,7 +2799,7 @@ def api_marcar_pago(cliente_id, num_cuota):
         "cliente": c["nombre"],
         "telefono": c["telefono"] or "",
         "cuota": num_cuota,
-        "monto": float(monto_recaudado),
+        "monto": float(monto_efectivamente_aplicado),
         "saldo": float(saldo_restante),
         "mensaje_ws": mensaje_ws
     }
