@@ -1659,7 +1659,7 @@ def dashboard_principal():
     try:
         with conn.cursor() as cursor:
             # 💵 1. Suma real en dólares del recaudo asentado el día de hoy
-            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s", (hoy_str,))
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (hoy_str,))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
             
             # 📌 2. Conteo absoluto de todos los créditos entregados hoy (Cualquier frecuencia o renovación)
@@ -1994,7 +1994,7 @@ def seccion_balance_maestro():
             movimientos = cursor.fetchall()
             
             # 🪙 4. Sumamos en tiempo real los abonos en efectivo cobrados en la calle hoy
-            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE fecha_pago_real = %s AND pagado = 1", (hoy_str,))
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (hoy_str,))
             total_abonos_hoy = Decimal(str(cursor.fetchone()["total"]))
             
             # 🛡️ NUEVO QUERY: Sumatoria de los microseguros cobrados hoy en Neon
@@ -2013,7 +2013,7 @@ def seccion_balance_maestro():
         pass
         
     # #️⃣ Agrupamos los flujos de la tabla de movimientos manuales con precisión Decimal
-    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if m["tipo"] == "Entrada" and "MICROSEGURO" not in m["concepto"].upper())
+    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if m["tipo"] == "Entrada" and "MICROSEGURO" not in m["concepto"].upper() and m["categoria"] != "Cobranza")
     salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if m["tipo"] == "Salida" and "CRÉDITO NUEVO" not in m["concepto"].upper())
 
     # 📊 FÓRMULA CONTABLE UNIVERSAL MOSTRANDO VALORES NETOS REALES
@@ -2024,6 +2024,8 @@ def seccion_balance_maestro():
     # 🧼 Clean y purificación de imágenes Base64 de los comprobantes
     movimientos_limpios = []
     for m in movimientos:
+        if m["categoria"] == "Cobranza":
+            continue
         m_dict = dict(m)
         comprobante_puro = ""
         if m_dict.get("comprobante"):
@@ -2700,23 +2702,10 @@ def api_marcar_pago(cliente_id, num_cuota):
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # 1. Calculamos los días reales de mora ANTES de procesar el pago
-            cursor.execute("SELECT id, numero, fecha, valor, valor_pagado, pagado FROM pagos WHERE cliente_id = %s ORDER BY numero ASC", (cliente_id,))
-            todas_las_cuotas = cursor.fetchall()
+            # 1. Aplicamos el dinero recibido a las cuotas pendientes cronológicamente
+            cursor.execute("SELECT id, numero, fecha, valor, valor_pagado, pagado FROM pagos WHERE cliente_id = %s AND pagado = 0 ORDER BY numero ASC", (cliente_id,))
+            pagos_pendientes = cursor.fetchall()
             
-            dias_mora_real = 0
-            tiene_mora = False
-            for q in todas_las_cuotas:
-                if int(q["pagado"]) == 0:
-                    f_q = datetime.strptime(q["fecha"], "%Y-%m-%d").date() if isinstance(q["fecha"], str) else q["fecha"]
-                    if f_q < hoy_date:
-                        tiene_mora = True
-                        diff = (hoy_date - f_q).days
-                        if diff > dias_mora_real:
-                            dias_mora_real = diff
-
-            # 2. Aplicamos el dinero recibido a las cuotas pendientes y sumamos lo aplicado
-            pagos_pendientes = [q for q in todas_las_cuotas if int(q["pagado"]) == 0]
             for p in pagos_pendientes:
                 if monto_restante <= 0:
                     break
@@ -2738,18 +2727,34 @@ def api_marcar_pago(cliente_id, num_cuota):
                         "UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
                         (nuevo_pago_parcial, hoy_str, p["id"])
                     )
+
+            # 2. Evaluamos el estado REAL de la cuenta DESPUÉS de aplicar el pago
+            cursor.execute("SELECT fecha, pagado FROM pagos WHERE cliente_id = %s ORDER BY numero ASC", (cliente_id,))
+            estado_final_cuotas = cursor.fetchall()
             
-            # 3. Calculamos si quedó adelantado DESPUÉS de aplicar el pago
+            dias_mora_real = 0
+            tiene_mora = False
+            for q in estado_final_cuotas:
+                if int(q["pagado"]) == 0:
+                    f_q = datetime.strptime(q["fecha"], "%Y-%m-%d").date() if isinstance(q["fecha"], str) else q["fecha"]
+                    if f_q < hoy_date:
+                        tiene_mora = True
+                        diff = (hoy_date - f_q).days
+                        if diff > dias_mora_real:
+                            dias_mora_real = diff
+
             dias_adelanto_real = 0
             if not tiene_mora:
-                cursor.execute("SELECT fecha FROM pagos WHERE cliente_id = %s AND pagado = 1 ORDER BY numero DESC LIMIT 1", (cliente_id,))
-                ult_p = cursor.fetchone()
-                if ult_p:
-                    f_ult = datetime.strptime(ult_p["fecha"], "%Y-%m-%d").date() if isinstance(ult_p["fecha"], str) else ult_p["fecha"]
-                    if f_ult > hoy_date:
-                        dias_adelanto_real = (f_ult - hoy_date).days
+                cuotas_futuras_pagadas = [
+                    q for q in estado_final_cuotas 
+                    if int(q["pagado"]) == 1 and (datetime.strptime(q["fecha"], "%Y-%m-%d").date() if isinstance(q["fecha"], str) else q["fecha"]) > hoy_date
+                ]
+                if cuotas_futuras_pagadas:
+                    ultima_futura = cuotas_futuras_pagadas[-1]
+                    f_ult = datetime.strptime(ultima_futura["fecha"], "%Y-%m-%d").date() if isinstance(ultima_futura["fecha"], str) else ultima_futura["fecha"]
+                    dias_adelanto_real = (f_ult - hoy_date).days
 
-            # 4. Recalcular saldo total real del cliente
+            # 3. Recalcular saldo total real del cliente
             cursor.execute("SELECT nombre, telefono, monto_total FROM clientes WHERE id = %s", (cliente_id,))
             c = cursor.fetchone()
             
@@ -2761,6 +2766,17 @@ def api_marcar_pago(cliente_id, num_cuota):
                 cursor.execute("UPDATE clientes SET estado = 'Inactivo', fecha_gestion = %s, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (hoy_str, cliente_id))
             else:
                 cursor.execute("UPDATE clientes SET fecha_gestion = %s, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (hoy_str, cliente_id))
+
+            # 4. Asentar únicamente el dinero neto cobrado hoy en el balance
+            if monto_efectivamente_aplicado > 0:
+                concepto_abono = f"💵 ABONO CUOTA - CLIENTE: {c['nombre']} (ID:{cliente_id})"
+                cursor.execute(
+                    """
+                    INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
+                    VALUES ('Entrada', 'Cobranza', %s, %s, %s, '')
+                    """,
+                    (concepto_abono, monto_efectivamente_aplicado, hoy_str)
+                )
                 
             conn.commit()
     except Exception as e:
@@ -3264,7 +3280,7 @@ def seccion_pagos_hoy():
                 SELECT p.id AS pago_id, c.id AS cliente_id, c.nombre, p.numero, p.valor_pagado
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
-                WHERE p.fecha_pago_real = %s AND p.pagado = 1
+                WHERE p.fecha_pago_real = %s AND p.valor_pagado > 0
                 ORDER BY c.nombre ASC, p.numero ASC
                 """, (hoy_str,)
             )
@@ -3348,8 +3364,8 @@ def api_revertir_gestion(tipo, id_str):
     try:
         with conn.cursor() as cursor:
             if tipo == "pago":
-                # Desestructuramos los IDs del bloque agrupado (ej: "12,13,14") para revertirlos juntos
                 pago_ids = [int(x) for x in id_str.split(",") if x.strip()]
+                cliente_afectado = None
                 for p_id in pago_ids:
                     cursor.execute(
                         "UPDATE pagos SET pagado = 0, valor_pagado = 0.00, fecha_pago_real = '' WHERE id = %s RETURNING cliente_id",
@@ -3357,8 +3373,15 @@ def api_revertir_gestion(tipo, id_str):
                     )
                     res = cursor.fetchone()
                     if res:
-                        cursor.execute("UPDATE clientes SET fecha_gestion = '' WHERE id = %s", (res[0],))
-                        
+                        cliente_afectado = res["cliente_id"] if isinstance(res, dict) else res[0]
+                        cursor.execute("UPDATE clientes SET estado = 'Activo', fecha_gestion = '' WHERE id = %s", (cliente_afectado,))
+                
+                if cliente_afectado:
+                    cursor.execute(
+                        "DELETE FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s AND concepto LIKE %s",
+                        (hoy_str, f"%(ID:{cliente_afectado})%")
+                    )
+
             elif tipo == "salto":
                 cliente_id = int(id_str)
                 cursor.execute(
