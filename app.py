@@ -411,15 +411,6 @@ CONTENIDO_HTML = """
         </button>
     </div>
 
-    <script>
-    function filtrarDirectorioClientes() {
-        const q = document.getElementById('buscadorClientesDir').value.toLowerCase();
-        document.querySelectorAll('.item-cliente-dir').forEach(card => {
-            card.style.display = card.getAttribute('data-filtro').includes(q) ? 'flex' : 'none';
-        });
-    }
-    </script>
-
 {% elif vista == 'perfil_cliente' %}
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px;">
         <button type="button" onclick="navegarRuta('/menu/clientes')" style="background: #e2e8f0; border: none; padding: 8px 12px; border-radius: 8px; font-weight: bold; color: #1e293b; cursor: pointer;">❮ Volver</button>
@@ -485,90 +476,12 @@ CONTENIDO_HTML = """
                     style="flex: 1; padding: 12px; background: #f1f5f9; color: #0f2b5c; border: 1px solid #cbd5e1; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer;">
                 ✏️ Modificar
             </button>
-            <button type="button" onclick="abrirConcederCreditoPrecargado()"
+            <button type="button" onclick="abrirConcederCreditoPrecargado('{{ cliente.latitud or '' }}', '{{ cliente.longitud or '' }}')"
                     style="flex: 1.3; padding: 12px; background: #0f2b5c; color: white; border: none; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer;">
                 💵 Conceder Crédito
             </button>
         </div>
     </div>
-
-    <script>
-    let modoEdicionActivo = false;
-
-    function abrirGpsCliente(lat, lon) {
-        const esMovil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        const urlMaps = esMovil ? `geo:${lat},${lon}?q=${lat},${lon}(Ubicación+Cliente)` : `https://google.com{lat},${lon}`;
-        window.open(urlMaps, '_blank');
-    }
-
-    function toggleEdicionPerfil(clienteId) {
-        const inputs = document.querySelectorAll('.input-perfil');
-        const btn = document.getElementById('btnEditarPerfil');
-        
-        if (!modoEdicionActivo) {
-            inputs.forEach(inp => { inp.removeAttribute('readonly'); inp.style.background = '#ffffff'; inp.style.borderColor = '#2563eb'; });
-            btn.innerText = '✅ Guardar';
-            btn.style.background = '#10b981';
-            btn.style.color = 'white';
-            modoEdicionActivo = true;
-        } else {
-            const payload = {
-                nombre: document.getElementById('perf_nombre').value,
-                telefono: document.getElementById('perf_telefono').value,
-                direccion: document.getElementById('perf_direccion').value,
-                referencia: document.getElementById('perf_referencia').value,
-                fiador: document.getElementById('perf_fiador').value
-            };
-            fetch('/api/cliente/actualizar/' + clienteId, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (res.status === 'ok') {
-                    alert('✅ Datos del cliente actualizados correctamente.');
-                    navegarRuta('/menu/cliente/' + clienteId);
-                } else {
-                    alert('⚠️ Error al guardar: ' + res.message);
-                }
-            });
-        }
-    }
-
-        function abrirConcederCreditoPrecargado() {
-        const datosCliente = {
-            nombre: document.getElementById('perf_nombre').value,
-            telefono: document.getElementById('perf_telefono').value,
-            direccion: document.getElementById('perf_direccion').value,
-            referencia: document.getElementById('perf_referencia').value,
-            lat: "{{ cliente.latitud or '' }}",
-            lon: "{{ cliente.longitud or '' }}"
-        };
-        navegarRuta('/nuevo');
-        setTimeout(() => {
-            const inpNombre = document.querySelector('input[name="nombre"]');
-            const inpTel = document.querySelector('input[name="telefono"]');
-            const inpDir = document.querySelector('input[name="direccion"]');
-            const inpRef = document.querySelector('input[name="referencia"]');
-            if (inpNombre) inpNombre.value = datosCliente.nombre;
-            if (inpTel) inpTel.value = datosCliente.telefono;
-            if (inpDir) inpDir.value = datosCliente.direccion;
-            if (inpRef) inpRef.value = datosCliente.referencia;
-            
-            // IDs exactos del formulario /nuevo (líneas 789 y 790)
-            const inpLat = document.getElementById('latitud_input');
-            const inpLon = document.getElementById('longitud_input');
-            const lblGps = document.getElementById('status_gps');
-            if (inpLat && datosCliente.lat) inpLat.value = datosCliente.lat;
-            if (inpLon && datosCliente.lon) inpLon.value = datosCliente.lon;
-            if (lblGps && datosCliente.lat) {
-                lblGps.innerText = "✅ Ubicación guardada del cliente cargada";
-                lblGps.style.color = "#10b981";
-            }
-        }, 400);
-    }
-    </script>
 
 {% elif vista == 'embed_creditos_maestros' or vista == 'creditos_maestros' %}
     <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
@@ -1722,6 +1635,96 @@ function enviarCreditoAsincrono(e) {
     });
 }
 
+function filtrarDirectorioClientes() {
+    const inp = document.getElementById('buscadorClientesDir');
+    if (!inp) return;
+    const q = inp.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    document.querySelectorAll('.item-cliente-dir').forEach(card => {
+        const texto = (card.getAttribute('data-filtro') || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        card.style.display = texto.includes(q) ? 'flex' : 'none';
+    });
+}
+
+function abrirGpsCliente(lat, lon) {
+    if (!lat || !lon) {
+        alert('⚠️ Este cliente no tiene coordenadas GPS.');
+        return;
+    }
+    const esMovil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const urlMaps = esMovil ? `geo:${lat},${lon}?q=${lat},${lon}(Ubicación+Cliente)` : `https://www.google.com/maps?q=${lat},${lon}`;
+    window.open(urlMaps, '_blank');
+}
+
+let modoEdicionActivo = false;
+function toggleEdicionPerfil(clienteId) {
+    const inputs = document.querySelectorAll('.input-perfil');
+    const btn = document.getElementById('btnEditarPerfil');
+    if (!btn) return;
+    
+    if (!modoEdicionActivo) {
+        inputs.forEach(inp => { inp.removeAttribute('readonly'); inp.style.background = '#ffffff'; inp.style.borderColor = '#2563eb'; });
+        btn.innerText = '✅ Guardar';
+        btn.style.background = '#10b981';
+        btn.style.color = 'white';
+        modoEdicionActivo = true;
+    } else {
+        const payload = {
+            nombre: document.getElementById('perf_nombre').value,
+            telefono: document.getElementById('perf_telefono').value,
+            direccion: document.getElementById('perf_direccion').value,
+            referencia: document.getElementById('perf_referencia').value,
+            fiador: document.getElementById('perf_fiador').value
+        };
+        fetch('/api/cliente/actualizar/' + clienteId, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'ok') {
+                modoEdicionActivo = false;
+                alert('✅ Datos actualizados correctamente.');
+                navegarRuta('/menu/cliente/' + clienteId);
+            } else {
+                alert('⚠️ Error al guardar: ' + res.message);
+            }
+        });
+    }
+}
+
+function abrirConcederCreditoPrecargado(lat, lon) {
+    const datosCliente = {
+        nombre: document.getElementById('perf_nombre').value,
+        telefono: document.getElementById('perf_telefono').value,
+        direccion: document.getElementById('perf_direccion').value,
+        referencia: document.getElementById('perf_referencia').value,
+        lat: lat || '',
+        lon: lon || ''
+    };
+    navegarRuta('/nuevo');
+    setTimeout(() => {
+        const inpNombre = document.querySelector('input[name="nombre"]');
+        const inpTel = document.querySelector('input[name="telefono"]');
+        const inpDir = document.querySelector('input[name="direccion"]');
+        const inpRef = document.querySelector('input[name="referencia"]');
+        if (inpNombre) inpNombre.value = datosCliente.nombre;
+        if (inpTel) inpTel.value = datosCliente.telefono;
+        if (inpDir) inpDir.value = datosCliente.direccion;
+        if (inpRef) inpRef.value = datosCliente.referencia;
+        
+        const inpLat = document.getElementById('latitud_input');
+        const inpLon = document.getElementById('longitud_input');
+        const lblGps = document.getElementById('status_gps');
+        if (inpLat && datosCliente.lat) inpLat.value = datosCliente.lat;
+        if (inpLon && datosCliente.lon) inpLon.value = datosCliente.lon;
+        if (lblGps && datosCliente.lat) {
+            lblGps.innerText = "✅ Ubicación guardada del cliente cargada";
+            lblGps.style.color = "#10b981";
+        }
+    }, 450);
+}
+
 </script>
 </body>
 </html>
@@ -1974,10 +1977,10 @@ def seccion_clientes_maestro():
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
-                SELECT MAX(id) AS id, nombre, MAX(telefono) AS telefono, MAX(referencia) AS referencia 
+                SELECT MAX(id) AS id, MAX(TRIM(nombre)) AS nombre, MAX(telefono) AS telefono, MAX(referencia) AS referencia 
                 FROM clientes 
-                GROUP BY nombre 
-                ORDER BY nombre ASC
+                GROUP BY LOWER(TRIM(nombre))
+                ORDER BY MAX(TRIM(nombre)) ASC
             """)
             lista_unica = [dict(c) for c in cursor.fetchall()]
     except Exception as e:
@@ -2120,14 +2123,26 @@ def seccion_creditos_activos():
 
 @app.route("/menu/balance")
 def seccion_balance_maestro():
-    if not session.get("autenticado"): 
+    if not session.get("autenticado"):
         return "Sesión expirada"
-    hoy_str = date.today().isoformat()
-    
+        
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # # 1. CÁLCULO DINÁMICO DE CAJA BASE - ARRASTRE REAL DE CARTERA NEON
+            # Recuperamos la jornada activa para que el balance no se vacíe a medianoche
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+            row_j = cursor.fetchone()
+            if row_j and row_j["valor"]:
+                hoy_str = row_j["valor"]
+            else:
+                hoy_str = date.today().isoformat()
+                cursor.execute(
+                    "INSERT INTO configuracion (llave, valor) VALUES ('fecha_jornada_activa', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
+                    (hoy_str,)
+                )
+                conn.commit()
+
+            ## 1. CÁLCULO DINÁMICO DE CAJA BASE - ARRASTRE REAL DE CARTERA NEON
             cursor.execute(
                 """
                 SELECT 
@@ -3615,11 +3630,9 @@ def api_procesar_cierre_caja():
     if not session.get("autenticado"): 
         return redirect("/login")
         
-    hoy_str = date.today().isoformat()
     efectivo_sistema = Decimal(request.form.get("efectivo_sistema", "0.00"))
     efectivo_real = Decimal(request.form.get("efectivo_real", "0.00"))
     
-    # 📊 Calculamos si la caja cuadra exacto o tiene diferencias físicas en el bolso
     diferencia = efectivo_real - efectivo_sistema
     if diferencia == 0:
         detalle_status = f"Cuadrado Perfecto ($0.00). Real: ${float(efectivo_real):.2f}"
@@ -3631,13 +3644,25 @@ def api_procesar_cierre_caja():
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # 📌 Sello inmutable de la jornada en Neon Cloud
+            # Recuperamos la fecha de la jornada que se está cerrando
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+            row_j = cursor.fetchone()
+            fecha_cierre_real = row_j["valor"] if (row_j and row_j["valor"]) else date.today().isoformat()
+
+            # Sello inmutable de la jornada en Neon Cloud
             cursor.execute(
                 "INSERT INTO configuracion (llave, valor) VALUES (%s, %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                (f"cierre_caja_{hoy_str}", detalle_status)
+                (f"cierre_caja_{fecha_cierre_real}", detalle_status)
             )
             
-            # 🔒 CIERRE AUTOMÁTICO INTEGRADO: Pone la caja en '0' para bloquear el acceso mañana
+            # Avanzamos la jornada activa al día siguiente o la limpiamos para el próximo turno
+            proxima_jornada = (date.today() + timedelta(days=1)).isoformat() if fecha_cierre_real == date.today().isoformat() else date.today().isoformat()
+            cursor.execute(
+                "INSERT INTO configuracion (llave, valor) VALUES ('fecha_jornada_activa', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
+                (proxima_jornada,)
+            )
+            
+            # Cierre automático integrado: Bloquea el acceso hasta nueva autorización
             cursor.execute(
                 "INSERT INTO configuracion (llave, valor) VALUES ('caja_autorizada', '0') ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor"
             )
