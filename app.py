@@ -379,50 +379,196 @@ CONTENIDO_HTML = """
         </div>
     {% endfor %}
 
-{% elif vista == 'clientes_financieros' %}
-    <div class="section-header-title"><i class="fa-solid fa-users"></i> HISTORIAL GENERAL DE CLIENTES</div>
-    <p style="font-size:11px; color:#64748b; margin-bottom:12px; text-align:left; padding:0 4px;">Listado contable de todas las personas ingresadas en el sistema. Puedes auditar el capital en calle y los saldos reales generales.</p>
+{% elif vista == 'clientes_maestro' %}
+    <div class="section-header-title"><i class="fa-solid fa-users"></i> DIRECTORIO DE CLIENTES</div>
     
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente en el historial..." onkeyup="filtrarClientes()">
-    <div id="clientesContainer">
-        {% if lista_creditos %}
-            {% for c in lista_creditos %}
-                <div class="card" style="padding:14px; border-left:4px solid {% if c.estado == 'Activo' %}#10b981{% elif c.estado == 'Inactivo' %}#94a3b8{% else %}#475569{% endif %}; text-align:left; margin-bottom:10px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-                    <div class="flex-between" style="border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:8px;">
-                        <div>
-                            <span style="font-weight:800; font-size:14px; color:#0f2b5c; display:inline-block;">{{ c.nombre }}</span>
-                            {% if c.estado == 'Inactivo' %}
-                                <span class="badge-al-dia" style="background:#e2e8f0; color:#475569; margin-left:4px;">LIQUIDADO</span>
-                            {% elif c.estado == 'Lista Negra' %}
-                                <span class="badge-mora" style="background:#475569; color:white; margin-left:4px;">BLOQUEADO</span>
-                            {% endif %}
-                            <span style="font-size:10px; color:#64748b; display:block; margin-top:2px;">Modalidad: <b>{{ c.frecuencia }}</b> | Cuota: <b>${{ "%.2f"|format(c.valor_cuota) }}</b></span>
-                        </div>
-                        <div style="text-align:right;">
-                            <span style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; display:block;">Saldo Real</span>
-                            <span style="font-size:15px; font-weight:800; color:{% if c.saldo_pendiente > 0 %}#ef4444{% else %}#10b981{% endif %}; display:block;">${{ "%.2f"|format(c.saldo_pendiente) }}</span>
-                        </div>
-                    </div>
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:11px; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid #e2e8f0;">
-                        <div>
-                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Base</span>
-                            <span style="font-weight:700; color:#334155;">${{ "%.2f"|format(c.monto) }}</span>
-                        </div>
-                        <div>
-                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Cartera Total</span>
-                            <span style="font-weight:700; color:#0f2b5c;">${{ "%.2f"|format(c.monto_total) }}</span>
-                        </div>
-                        <div>
-                            <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Recaudado</span>
-                            <span style="font-weight:700; color:#10b981;">${{ "%.2f"|format(c.total_recaudado) }}</span>
-                        </div>
-                    </div>
-                </div>
-            {% endfor %}
+    <div style="padding: 0 4px 12px 4px;">
+        <input type="text" id="buscadorClientesDir" onkeyup="filtrarDirectorioClientes()" 
+               placeholder="🔍 Buscar cliente por nombre o referencia..." 
+               style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 14px; outline: none;">
+    </div>
+
+    <div id="listaDirectorioClientes" style="display: flex; flex-direction: column; gap: 8px; padding: 0 4px 70px 4px;">
+        {% for c in lista_clientes %}
+        <div class="card item-cliente-dir" data-filtro="{{ c.nombre|lower }} {{ (c.referencia or '')|lower }}"
+             onclick="navegarRuta('/menu/cliente/{{ c.id }}')"
+             style="padding: 14px; margin: 0; background: white; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+            <div style="text-align: left;">
+                <span style="font-weight: 800; color: #0f2b5c; font-size: 14px; display: block;">{{ c.nombre }}</span>
+                <span style="font-size: 11px; color: #64748b;">{{ c.referencia or 'Sin referencia' }} • 📱 {{ c.telefono or 'N/A' }}</span>
+            </div>
+            <span style="color: #94a3b8; font-weight: bold; font-size: 16px;">❯</span>
+        </div>
         {% else %}
-            <p style="font-size:11px; color:#64748b; text-align:center; padding:20px;">No se registran clientes en la base de datos.</p>
+        <div style="text-align: center; color: #94a3b8; padding: 20px;">No hay clientes registrados.</div>
+        {% endfor %}
+    </div>
+
+    <div style="position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 460px; z-index: 90;">
+        <button type="button" onclick="navegarRuta('/nuevo')"
+                style="width: 100%; padding: 14px; background: #0f2b5c; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(15,43,92,0.3); cursor: pointer;">
+            + Nuevo Cliente / Crédito
+        </button>
+    </div>
+
+    <script>
+    function filtrarDirectorioClientes() {
+        const q = document.getElementById('buscadorClientesDir').value.toLowerCase();
+        document.querySelectorAll('.item-cliente-dir').forEach(card => {
+            card.style.display = card.getAttribute('data-filtro').includes(q) ? 'flex' : 'none';
+        });
+    }
+    </script>
+
+{% elif vista == 'perfil_cliente' %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px;">
+        <button type="button" onclick="navegarRuta('/menu/clientes')" style="background: #e2e8f0; border: none; padding: 8px 12px; border-radius: 8px; font-weight: bold; color: #1e293b; cursor: pointer;">❮ Volver</button>
+        <span style="font-weight: 800; color: #0f2b5c; font-size: 14px;">EXPEDIENTE DEL CLIENTE</span>
+        <div style="width: 60px;"></div>
+    </div>
+
+    <div class="card" style="padding: 12px; margin-bottom: 12px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left;">
+        <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Historial de Créditos</div>
+        {% for cr in creditos %}
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
+            <div>
+                <span style="font-size: 12px; font-weight: bold; color: #0f2b5c;">Inicio: {{ cr.fecha_inicio }}</span>
+                <span style="display: block; font-size: 11px; color: {{ '#10b981' if cr.saldo <= 0 else '#dc2626' }}; font-weight: bold;">
+                    {{ 'LIQUIDADO' if cr.saldo <= 0 else 'ACTIVO' }}
+                </span>
+            </div>
+            <div style="text-align: right;">
+                <span style="font-size: 11px; color: #64748b; display: block;">Total: ${{ "%.2f"|format(cr.monto_total) }}</span>
+                <span style="font-size: 13px; font-weight: 800; color: #0f2b5c;">Saldo: ${{ "%.2f"|format(cr.saldo) }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div style="padding: 0 4px 12px 4px;">
+        {% if cliente.latitud and cliente.longitud %}
+        <button type="button" onclick="abrirGpsCliente('{{ cliente.latitud }}', '{{ cliente.longitud }}')"
+                style="width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 10px; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 6px rgba(16,185,129,0.3);">
+            📍 Abrir Ubicación Exacta en Google Maps
+        </button>
+        {% else %}
+        <div style="padding: 10px; background: #fef3c7; color: #b45309; border-radius: 10px; font-size: 12px; text-align: center; font-weight: bold;">
+            ⚠️ Este cliente no tiene coordenadas GPS guardadas.
+        </div>
         {% endif %}
     </div>
+
+    <div class="card" style="padding: 14px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left;">
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Nombre Completo</label>
+            <input type="text" id="perf_nombre" value="{{ cliente.nombre }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; color: #0f2b5c;">
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Teléfono / WhatsApp</label>
+            <input type="text" id="perf_telefono" value="{{ cliente.telefono or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Dirección Escrita</label>
+            <input type="text" id="perf_direccion" value="{{ cliente.direccion or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Referencia / Negocio</label>
+            <input type="text" id="perf_referencia" value="{{ cliente.referencia or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
+        </div>
+        <div style="margin-bottom: 14px;">
+            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Fiador / Garante</label>
+            <input type="text" id="perf_fiador" value="{{ cliente.fiador or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+            <button type="button" id="btnEditarPerfil" onclick="toggleEdicionPerfil({{ cliente.id }})"
+                    style="flex: 1; padding: 12px; background: #f1f5f9; color: #0f2b5c; border: 1px solid #cbd5e1; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer;">
+                ✏️ Modificar
+            </button>
+            <button type="button" onclick="abrirConcederCreditoPrecargado()"
+                    style="flex: 1.3; padding: 12px; background: #0f2b5c; color: white; border: none; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer;">
+                💵 Conceder Crédito
+            </button>
+        </div>
+    </div>
+
+    <script>
+    let modoEdicionActivo = false;
+
+    function abrirGpsCliente(lat, lon) {
+        const esMovil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const urlMaps = esMovil ? `geo:${lat},${lon}?q=${lat},${lon}(Ubicación+Cliente)` : `https://google.com{lat},${lon}`;
+        window.open(urlMaps, '_blank');
+    }
+
+    function toggleEdicionPerfil(clienteId) {
+        const inputs = document.querySelectorAll('.input-perfil');
+        const btn = document.getElementById('btnEditarPerfil');
+        
+        if (!modoEdicionActivo) {
+            inputs.forEach(inp => { inp.removeAttribute('readonly'); inp.style.background = '#ffffff'; inp.style.borderColor = '#2563eb'; });
+            btn.innerText = '✅ Guardar';
+            btn.style.background = '#10b981';
+            btn.style.color = 'white';
+            modoEdicionActivo = true;
+        } else {
+            const payload = {
+                nombre: document.getElementById('perf_nombre').value,
+                telefono: document.getElementById('perf_telefono').value,
+                direccion: document.getElementById('perf_direccion').value,
+                referencia: document.getElementById('perf_referencia').value,
+                fiador: document.getElementById('perf_fiador').value
+            };
+            fetch('/api/cliente/actualizar/' + clienteId, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'ok') {
+                    alert('✅ Datos del cliente actualizados correctamente.');
+                    navegarRuta('/menu/cliente/' + clienteId);
+                } else {
+                    alert('⚠️ Error al guardar: ' + res.message);
+                }
+            });
+        }
+    }
+
+        function abrirConcederCreditoPrecargado() {
+        const datosCliente = {
+            nombre: document.getElementById('perf_nombre').value,
+            telefono: document.getElementById('perf_telefono').value,
+            direccion: document.getElementById('perf_direccion').value,
+            referencia: document.getElementById('perf_referencia').value,
+            lat: "{{ cliente.latitud or '' }}",
+            lon: "{{ cliente.longitud or '' }}"
+        };
+        navegarRuta('/nuevo');
+        setTimeout(() => {
+            const inpNombre = document.querySelector('input[name="nombre"]');
+            const inpTel = document.querySelector('input[name="telefono"]');
+            const inpDir = document.querySelector('input[name="direccion"]');
+            const inpRef = document.querySelector('input[name="referencia"]');
+            if (inpNombre) inpNombre.value = datosCliente.nombre;
+            if (inpTel) inpTel.value = datosCliente.telefono;
+            if (inpDir) inpDir.value = datosCliente.direccion;
+            if (inpRef) inpRef.value = datosCliente.referencia;
+            
+            // IDs exactos del formulario /nuevo (líneas 789 y 790)
+            const inpLat = document.getElementById('latitud_input');
+            const inpLon = document.getElementById('longitud_input');
+            const lblGps = document.getElementById('status_gps');
+            if (inpLat && datosCliente.lat) inpLat.value = datosCliente.lat;
+            if (inpLon && datosCliente.lon) inpLon.value = datosCliente.lon;
+            if (lblGps && datosCliente.lat) {
+                lblGps.innerText = "✅ Ubicación guardada del cliente cargada";
+                lblGps.style.color = "#10b981";
+            }
+        }, 400);
+    }
+    </script>
 
 {% elif vista == 'embed_creditos_maestros' or vista == 'creditos_maestros' %}
     <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
@@ -1145,7 +1291,7 @@ function verFichaCliente(id) {
                 document.getElementById('btn_llamar').href = 'tel:' + d.data.telefono;
                 
                 // 🗺️ FIJADO: Enlace de mapas universal profundo para celulares Android/iOS
-                document.getElementById('btn_mapa').href = 'https://google.com' + d.data.latitud + ',' + d.data.longitud;
+                document.getElementById('btn_mapa').href = 'https://www.google.com/maps?q=' + d.data.latitud + ',' + d.data.longitud;
                 
                 document.getElementById('modalInfoCliente').style.display = 'flex';
             }
@@ -1821,56 +1967,90 @@ def dashboard_principal():
 
 @app.route("/menu/clientes")
 def seccion_clientes_maestro():
-    if not session.get("autenticado"): 
+    if not session.get("autenticado"):
         return "Sesión expirada"
         
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # 🛡️ FIJADO: Cambiado c.c_estado por c.estado para corregir la pantalla en blanco
-            cursor.execute(
-                """
-                SELECT c.id, c.nombre, c.monto, c.interes_porcentaje, c.monto_total, c.valor_cuota, c.frecuencia, c.estado,
-                       COALESCE(SUM(p.valor_pagado), 0) AS total_recaudado
-                FROM clientes c
-                LEFT JOIN pagos p ON c.id = p.cliente_id
-                GROUP BY c.id
-                ORDER BY c.nombre ASC
-                """
-            )
-            todos_clientes = cursor.fetchall()
+            cursor.execute("""
+                SELECT MAX(id) AS id, nombre, MAX(telefono) AS telefono, MAX(referencia) AS referencia 
+                FROM clientes 
+                GROUP BY nombre 
+                ORDER BY nombre ASC
+            """)
+            lista_unica = [dict(c) for c in cursor.fetchall()]
     except Exception as e:
-        print(f"Error al consultar historial de clientes: {e}")
-        todos_clientes = []
-    finally:
-        pass
-            
-    creditos_procesados = []
-    for cr in todos_clientes:
-        c_dict = dict(cr)
+        print(f"Error al consultar clientes: {e}")
+        lista_unica = []
         
-        # 🪙 Cálculos exactos con Decimal convertidos a float solo para el renderizado visual de Jinja
-        monto_total_dec = Decimal(str(c_dict["monto_total"]))
-        total_recaudado_dec = Decimal(str(c_dict["total_recaudado"]))
-        
-        saldo_pendiente = max(Decimal("0.00"), monto_total_dec - total_recaudado_dec)
-        
-        c_dict["saldo_pendiente"] = float(saldo_pendiente)
-        c_dict["monto"] = float(c_dict["monto"])
-        c_dict["monto_total"] = float(c_dict["monto_total"])
-        c_dict["valor_cuota"] = float(c_dict["valor_cuota"])
-        c_dict["total_recaudado"] = float(total_recaudado_dec)
-        
-        creditos_procesados.append(c_dict)
-        
-    contexto = dict(
-        vista="clientes_financieros", 
-        lista_creditos=creditos_procesados
-    )
-    
+    contexto = dict(vista="clientes_maestro", lista_clientes=lista_unica)
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
+
+
+@app.route("/menu/cliente/<int:cliente_id>")
+def perfil_cliente_detalle(cliente_id):
+    if not session.get("autenticado"):
+        return "Sesión expirada"
+        
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM clientes WHERE id = %s", (cliente_id,))
+            cliente = dict(cursor.fetchone())
+            
+            cursor.execute("""
+                SELECT c.id, c.fecha_inicio, c.monto_total, c.estado,
+                       COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado
+                FROM clientes c
+                WHERE c.nombre = %s
+                ORDER BY c.id DESC
+            """, (cliente["nombre"],))
+            historial_creditos = []
+            for cr in cursor.fetchall():
+                cr_dict = dict(cr)
+                cr_dict["saldo"] = max(Decimal("0.00"), Decimal(str(cr_dict["monto_total"])) - Decimal(str(cr_dict["pagado"])))
+                historial_creditos.append(cr_dict)
+    except Exception as e:
+        return f"Error al cargar ficha: {e}", 500
+
+    contexto = dict(vista="perfil_cliente", cliente=cliente, creditos=historial_creditos)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return render_template_string(CONTENIDO_HTML, **contexto)
+    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
+
+
+@app.route("/api/cliente/actualizar/<int:cliente_id>", methods=["POST"])
+def api_actualizar_cliente(cliente_id):
+    if not session.get("autenticado"):
+        return jsonify({"status": "error", "message": "No autorizado"})
+        
+    data = request.get_json()
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT nombre FROM clientes WHERE id = %s", (cliente_id,))
+            nombre_anterior = cursor.fetchone()["nombre"]
+            
+            cursor.execute("""
+                UPDATE clientes 
+                SET nombre = %s, telefono = %s, direccion = %s, fiador = %s, referencia = %s
+                WHERE nombre = %s
+            """, (
+                data.get("nombre").strip(),
+                data.get("telefono").strip(),
+                data.get("direccion").strip(),
+                data.get("fiador", "").strip(),
+                data.get("referencia", "").strip(),
+                nombre_anterior
+            ))
+        conn.commit()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"status": "error", "message": str(e)})
 
 @app.route("/menu/creditos")
 def seccion_creditos_activos():
