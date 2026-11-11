@@ -14,6 +14,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "avanta_secret_key_1.3_2026")
 
+# 🛡️ SISTEMA SEGURO: Lee la credencial desde el contenedor secreto de Render sin exponerla en código
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("Error crítico: DATABASE_URL no está configurada en las variables de entorno.")
