@@ -1712,7 +1712,7 @@ function toggleEdicionPerfil(clienteId) {
 
 function abrirConcederCreditoPrecargado(lat, lon) {
     // 1. Capturamos el ID del cliente actual desde la plantilla inyectada por Python
-    const clienteId = "{{ cliente.id }}"; 
+        const clienteId = "{{ cliente.id|default('') }}";
 
     // 2. Redirigimos directamente a tu ruta oficial de Renovación de Créditos
     navegarRuta('/menu/renovar/' + clienteId);
