@@ -1713,14 +1713,13 @@ function toggleEdicionPerfil(clienteId) {
     }
 }
 
+// 🛡️ BLINDAJE CRÍTICO DEL DASHBOARD PRINCIPAL: Evita que Jinja2 busque variables de clientes fuera de su sección
+{% if vista == 'perfil_cliente' and cliente %}
 function abrirConcederCreditoPrecargado(lat, lon) {
-    // 1. Capturamos el ID del cliente actual desde la plantilla inyectada por Python
-        const clienteId = "{{ cliente.id|default('') }}";
+    const clienteId = "{{ cliente.id|default('') }}"; 
 
-    // 2. Redirigimos directamente a tu ruta oficial de Renovación de Créditos
     navegarRuta('/menu/renovar/' + clienteId);
 
-    // 3. Bucle de soporte: Si la dirección o referencia faltaran en la plantilla, las asegura
     let intentos = 0;
     const chequearFormulario = setInterval(() => {
         const inpNombre = document.querySelector('input[name="nombre"]');
@@ -1735,7 +1734,6 @@ function abrirConcederCreditoPrecargado(lat, lon) {
             const inpLon = document.getElementById('longitud_input');
             const lblGps = document.getElementById('status_gps');
 
-            // Insertamos la ubicación de respaldo únicamente si el formulario de renovación vino vacío
             if (inpLat && !inpLat.value && lat) inpLat.value = lat;
             if (inpLon && !inpLon.value && lon) inpLon.value = lon;
             if (lblGps && lat) {
@@ -1749,6 +1747,7 @@ function abrirConcederCreditoPrecargado(lat, lon) {
         }
     }, 50);
 }
+{% endif %}
 
 </script>
 </body>
