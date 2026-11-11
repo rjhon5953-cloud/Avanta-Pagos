@@ -3703,6 +3703,7 @@ def api_procesar_cierre_caja():
     return redirect("/login")
 
 if __name__ == "__main__":
+    app.run(debug=True)
     # Servidor local configurado para ejecutarse en el puerto estricto 8080
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
