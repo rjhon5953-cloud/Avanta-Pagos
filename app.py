@@ -450,8 +450,8 @@ CONTENIDO_HTML = """
     </div>
 
     <div style="padding: 0 4px 12px 4px;">
-        {% if cliente.latitud and cliente.longitud %}
-        <button type="button" onclick="abrirGpsCliente('{{ cliente.latitud }}', '{{ cliente.longitud }}')"
+        {% if cliente and cliente.latitud and cliente.longitud %}
+        <button type="button" onclick="abrirGpsCliente('{{ cliente.latitud|default('') }}', '{{ cliente.longitud|default('') }}')"
                 style="width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 10px; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 6px rgba(16,185,129,0.3);">
             📍 Abrir Ubicación Exacta en Google Maps
         </button>
@@ -465,35 +465,35 @@ CONTENIDO_HTML = """
     <div class="card" style="padding: 14px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left;">
         <div style="margin-bottom: 10px;">
             <label style="font-size: 11px; font-weight: bold; color: #64748b;">Nombre Completo</label>
-            <input type="text" id="perf_nombre" value="{{ cliente.nombre }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; color: #0f2b5c;">
+            <input type="text" id="perf_nombre" value="{{ cliente.nombre if cliente else '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; color: #0f2b5c;">
         </div>
-        <!-- 🪪 CAMPO DE CÉDULA PARA TRANSFERENCIA AUTOMÁTICA -->
-        <div class="card" style="padding: 14px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 12px;">
-            <div style="margin-bottom: 0;">
-                <label style="font-size: 11px; font-weight: bold; color: #64748b;">Identificación / Cédula</label>
-                <input type="text" id="perf_cedula" value="{{ cliente.cedula or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; color: #0f2b5c;">
-            </div>
+
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Identificación / Cédula</label>
+            <input type="text" id="perf_cedula" value="{{ cliente.cedula if cliente else '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; color: #0f2b5c;">
         </div>
 
         <div style="margin-bottom: 10px;">
             <label style="font-size: 11px; font-weight: bold; color: #64748b;">Teléfono / WhatsApp</label>
-            <input type="text" id="perf_telefono" value="{{ cliente.telefono or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
-        </div>
-        <div style="margin-bottom: 10px;">
-            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Dirección Escrita</label>
-            <input type="text" id="perf_direccion" value="{{ cliente.direccion or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
-        </div>
-        <div style="margin-bottom: 10px;">
-            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Referencia / Negocio</label>
-            <input type="text" id="perf_referencia" value="{{ cliente.referencia or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
+            <input type="text" id="perf_telefono" value="{{ (cliente.telefono or '') if cliente else '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
         </div>
 
-        <div style="display: flex; gap: 8px;">
-            <button type="button" id="btnEditarPerfil" onclick="toggleEdicionPerfil({{ cliente.id }})"
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Dirección Escrita</label>
+            <input type="text" id="perf_direccion" value="{{ (cliente.direccion or '') if cliente else '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
+        </div>
+
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Referencia / Negocio</label>
+            <input type="text" id="perf_referencia" value="{{ (cliente.referencia or '') if cliente else '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 14px;">
+            <button type="button" id="btnEditarPerfil" onclick="toggleEdicionPerfil({{ cliente.id if cliente else 0 }})"
                     style="flex: 1; padding: 12px; background: #f1f5f9; color: #0f2b5c; border: 1px solid #cbd5e1; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer;">
                 ✏️ Modificar
             </button>
-            <button type="button" onclick="abrirConcederCreditoPrecargado('{{ cliente.latitud or '' }}', '{{ cliente.longitud or '' }}')"
+            <button type="button" onclick="abrirConcederCreditoPrecargado('{{ (cliente.latitud or '') if cliente else '' }}', '{{ (cliente.longitud or '') if cliente else '' }}')"
                     style="flex: 1.3; padding: 12px; background: #0f2b5c; color: white; border: none; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer;">
                 💵 Conceder Crédito
             </button>
