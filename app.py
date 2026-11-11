@@ -27,9 +27,22 @@ db_pool = SimpleConnectionPool(
 )
 
 def get_db():
-    """🛡️ FIJADO: Registra la conexión en el contexto 'g' de Flask"""
+    """🛡️ FIJADO: Registra, valida y repara la conexión en el contexto 'g' de Flask para erradicar Errores 500"""
     if 'db_conn' not in g:
         g.db_conn = db_pool.getconn()
+    else:
+        # Probamos si la conexión del pool sigue viva
+        try:
+            with g.db_conn.cursor() as cur:
+                cur.execute("SELECT 1")
+        except Exception:
+            # Si Neon cerró el socket por inactividad, la liberamos forzadamente y pedimos otra limpia
+            try:
+                db_pool.putconn(g.db_conn)
+            except Exception:
+                pass
+            g.db_conn = db_pool.getconn()
+            
     return g.db_conn
 
 def release_db(conn):
@@ -465,10 +478,6 @@ CONTENIDO_HTML = """
         <div style="margin-bottom: 10px;">
             <label style="font-size: 11px; font-weight: bold; color: #64748b;">Referencia / Negocio</label>
             <input type="text" id="perf_referencia" value="{{ cliente.referencia or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
-        </div>
-        <div style="margin-bottom: 14px;">
-            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Fiador / Garante</label>
-            <input type="text" id="perf_fiador" value="{{ cliente.fiador or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
         </div>
 
         <div style="display: flex; gap: 8px;">
@@ -1694,35 +1703,54 @@ function toggleEdicionPerfil(clienteId) {
 }
 
 function abrirConcederCreditoPrecargado(lat, lon) {
+    // 1. Capturamos los datos reales del expediente actual antes de cambiar de vista
     const datosCliente = {
-        nombre: document.getElementById('perf_nombre').value,
-        telefono: document.getElementById('perf_telefono').value,
-        direccion: document.getElementById('perf_direccion').value,
-        referencia: document.getElementById('perf_referencia').value,
+        nombre: document.getElementById('perf_nombre') ? document.getElementById('perf_nombre').value : '',
+        telefono: document.getElementById('perf_telefono') ? document.getElementById('perf_telefono').value : '',
+        direccion: document.getElementById('perf_direccion') ? document.getElementById('perf_direccion').value : '',
+        referencia: document.getElementById('perf_referencia') ? document.getElementById('perf_referencia').value : '',
         lat: lat || '',
         lon: lon || ''
     };
+
+    // 2. Ordenamos al sistema navegar a la vista de creación/renovación
     navegarRuta('/nuevo');
-    setTimeout(() => {
+
+    // 3. Bucle inteligente: Revisa cada 50ms si el formulario ya apareció en pantalla
+    let intentos = 0;
+    const chequearFormulario = setInterval(() => {
         const inpNombre = document.querySelector('input[name="nombre"]');
-        const inpTel = document.querySelector('input[name="telefono"]');
-        const inpDir = document.querySelector('input[name="direccion"]');
-        const inpRef = document.querySelector('input[name="referencia"]');
-        if (inpNombre) inpNombre.value = datosCliente.nombre;
-        if (inpTel) inpTel.value = datosCliente.telefono;
-        if (inpDir) inpDir.value = datosCliente.direccion;
-        if (inpRef) inpRef.value = datosCliente.referencia;
-        
-        const inpLat = document.getElementById('latitud_input');
-        const inpLon = document.getElementById('longitud_input');
-        const lblGps = document.getElementById('status_gps');
-        if (inpLat && datosCliente.lat) inpLat.value = datosCliente.lat;
-        if (inpLon && datosCliente.lon) inpLon.value = datosCliente.lon;
-        if (lblGps && datosCliente.lat) {
-            lblGps.innerText = "✅ Ubicación guardada del cliente cargada";
-            lblGps.style.color = "#10b981";
+        intentos++;
+
+        if (inpNombre) {
+            // ¡Formulario detectado! Frenamos el bucle y rellenamos los datos de inmediato
+            clearInterval(chequearFormulario);
+            
+            const inpTel = document.querySelector('input[name="telefono"]');
+            const inpDir = document.querySelector('input[name="direccion"]');
+            const inpRef = document.querySelector('input[name="referencia"]');
+            const inpLat = document.getElementById('latitud_input');
+            const inpLon = document.getElementById('longitud_input');
+            const lblGps = document.getElementById('status_gps');
+
+            if (inpNombre) inpNombre.value = datosCliente.nombre;
+            if (inpTel) inpTel.value = datosCliente.telefono;
+            if (inpDir) inpDir.value = datosCliente.direccion;
+            if (inpRef) inpRef.value = datosCliente.referencia;
+            
+            if (inpLat && datosCliente.lat) inpLat.value = datosCliente.lat;
+            if (inpLon && datosCliente.lon) inpLon.value = datosCliente.lon;
+            if (lblGps && datosCliente.lat) {
+                lblGps.innerText = "✅ Ubicación guardada del cliente cargada";
+                lblGps.style.color = "#10b981";
+            }
         }
-    }, 450);
+
+        // Si pasa demasiado tiempo (5 segundos) y no carga por falla de red, cancelamos
+        if (intentos > 100) {
+            clearInterval(chequearFormulario);
+        }
+    }, 50);
 }
 
 </script>
@@ -2037,15 +2065,15 @@ def api_actualizar_cliente(cliente_id):
             cursor.execute("SELECT nombre FROM clientes WHERE id = %s", (cliente_id,))
             nombre_anterior = cursor.fetchone()["nombre"]
             
+            # Actualizamos estrictamente tus campos oficiales, sin fiador
             cursor.execute("""
                 UPDATE clientes 
-                SET nombre = %s, telefono = %s, direccion = %s, fiador = %s, referencia = %s
+                SET nombre = %s, telefono = %s, direccion = %s, referencia = %s
                 WHERE nombre = %s
             """, (
                 data.get("nombre").strip(),
                 data.get("telefono").strip(),
                 data.get("direccion").strip(),
-                data.get("fiador", "").strip(),
                 data.get("referencia", "").strip(),
                 nombre_anterior
             ))
