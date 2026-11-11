@@ -449,14 +449,6 @@ CONTENIDO_HTML = """
         {% endfor %}
     </div>
 
-    <!-- 🪪 CAMPO DE CÉDULA PARA TRANSFERENCIA AUTOMÁTICA -->
-    <div class="card" style="padding: 14px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 12px;">
-        <div style="margin-bottom: 0;">
-            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Identificación / Cédula</label>
-            <input type="text" id="perf_cedula" value="{{ cliente.cedula or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; color: #0f2b5c;">
-        </div>
-    </div>
-
     <div style="padding: 0 4px 12px 4px;">
         {% if cliente.latitud and cliente.longitud %}
         <button type="button" onclick="abrirGpsCliente('{{ cliente.latitud }}', '{{ cliente.longitud }}')"
@@ -475,6 +467,14 @@ CONTENIDO_HTML = """
             <label style="font-size: 11px; font-weight: bold; color: #64748b;">Nombre Completo</label>
             <input type="text" id="perf_nombre" value="{{ cliente.nombre }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; color: #0f2b5c;">
         </div>
+        <!-- 🪪 CAMPO DE CÉDULA PARA TRANSFERENCIA AUTOMÁTICA -->
+        <div class="card" style="padding: 14px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left; margin-bottom: 12px;">
+            <div style="margin-bottom: 0;">
+                <label style="font-size: 11px; font-weight: bold; color: #64748b;">Identificación / Cédula</label>
+                <input type="text" id="perf_cedula" value="{{ cliente.cedula or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; color: #0f2b5c;">
+            </div>
+        </div>
+
         <div style="margin-bottom: 10px;">
             <label style="font-size: 11px; font-weight: bold; color: #64748b;">Teléfono / WhatsApp</label>
             <input type="text" id="perf_telefono" value="{{ cliente.telefono or '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
@@ -1711,54 +1711,37 @@ function toggleEdicionPerfil(clienteId) {
 }
 
 function abrirConcederCreditoPrecargado(lat, lon) {
-    // 1. Capturamos los datos reales del expediente actual antes de cambiar de vista
-    const datosCliente = {
-        nombre: document.getElementById('perf_nombre') ? document.getElementById('perf_nombre').value : '',
-        cedula: document.getElementById('perf_cedula') ? document.getElementById('perf_cedula').value : '',
-        telefono: document.getElementById('perf_telefono') ? document.getElementById('perf_telefono').value : '',
-        direccion: document.getElementById('perf_direccion') ? document.getElementById('perf_direccion').value : '',
-        referencia: document.getElementById('perf_referencia') ? document.getElementById('perf_referencia').value : '',
-        lat: lat || '',
-        lon: lon || ''
-    };
+    // 1. Capturamos el ID del cliente actual desde la plantilla inyectada por Python
+    const clienteId = "{{ cliente.id }}"; 
 
-    // 2. Ordenamos al sistema navegar a la vista de creación/renovación
-    navegarRuta('/nuevo');
+    // 2. Redirigimos directamente a tu ruta oficial de Renovación de Créditos
+    navegarRuta('/menu/renovar/' + clienteId);
 
-    // 3. Bucle inteligente: Revisa cada 50ms si el formulario ya apareció en pantalla
+    // 3. Bucle de soporte: Si la dirección o referencia faltaran en la plantilla, las asegura
     let intentos = 0;
     const chequearFormulario = setInterval(() => {
         const inpNombre = document.querySelector('input[name="nombre"]');
         intentos++;
 
         if (inpNombre) {
-            // ¡Formulario detectado! Frenamos el bucle y rellenamos los datos de inmediato
             clearInterval(chequearFormulario);
             
-            const inpCedula = document.querySelector('input[name="cedula"]') || document.querySelector('input[name="identificacion"]');
-            const inpTel = document.querySelector('input[name="telefono"]');
-            const inpDir = document.querySelector('input[name="direccion"]');
-            const inpRef = document.querySelector('input[name="referencia"]');
+            const inpDir = document.querySelector('input[name="direccion"]') || document.getElementById('direccion_input');
+            const inpRef = document.querySelector('input[name="referencia"]') || document.getElementById('referencia_input');
             const inpLat = document.getElementById('latitud_input');
             const inpLon = document.getElementById('longitud_input');
             const lblGps = document.getElementById('status_gps');
 
-            if (inpNombre) inpNombre.value = datosCliente.nombre;
-            if (inpCedula) inpCedula.value = datosCliente.cedula;
-            if (inpTel) inpTel.value = datosCliente.telefono;
-            if (inpDir) inpDir.value = datosCliente.direccion;
-            if (inpRef) inpRef.value = datosCliente.referencia;
-            
-            if (inpLat && datosCliente.lat) inpLat.value = datosCliente.lat;
-            if (inpLon && datosCliente.lon) inpLon.value = datosCliente.lon;
-            if (lblGps && datosCliente.lat) {
-                lblGps.innerText = "✅ Ubicación guardada del cliente cargada";
+            // Insertamos la ubicación de respaldo únicamente si el formulario de renovación vino vacío
+            if (inpLat && !inpLat.value && lat) inpLat.value = lat;
+            if (inpLon && !inpLon.value && lon) inpLon.value = lon;
+            if (lblGps && lat) {
+                lblGps.innerText = "✅ Ubicación de ruta cargada con éxito";
                 lblGps.style.color = "#10b981";
             }
         }
 
-        // Si pasa demasiado tiempo (5 segundos) y no carga por falla de red, cancelamos
-        if (intentos > 100) {
+        if (intentos > 60) {
             clearInterval(chequearFormulario);
         }
     }, 50);
