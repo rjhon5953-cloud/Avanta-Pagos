@@ -1820,7 +1820,7 @@ def dashboard_principal():
         pass
 
     # 🛡️ CONTROL MAESTRO: Lee la jornada activa real congelada desde Neon para que nada cambie a medianoche
-    cursor_j = conn.cursor()
+    cursor_j = conn_val.cursor()
     cursor_j.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
     row_j = cursor_j.fetchone()
     cursor_j.close()
