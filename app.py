@@ -1841,7 +1841,7 @@ def dashboard_principal():
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (hoy_str,))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
             
-            # 📌 2. Conteo absoluto de todos los créditos entregados hoy (Cualquier frecuencia o renovación)
+            # 📌 2. Conteo absoluto de todos los créditos entregados hoy
             cursor.execute(
                 """
                 SELECT COUNT(*) AS total_creditos 
@@ -1850,46 +1850,44 @@ def dashboard_principal():
                 """, (hoy_str,)
             )
             res_creditos = cursor.fetchone()
-            # Validación flexible por si Neon devuelve un diccionario o tupla según el cursor
             creditos_hoy = res_creditos["total_creditos"] if isinstance(res_creditos, dict) else res_creditos[0]
 
             # 3. Suma real del dinero prestado leyendo el flujo inmutable de Neon
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s", (hoy_str,))
             capital_prestado_hoy = Decimal(str(cursor.fetchone()["total"]))
+
+            # 🎯 FIJADO DIRECTO CON TUS COLUMNAS REALES (identificacion y frecuencia)
+            cursor.execute("""
+                SELECT id, nombre, telefono, direccion, referencia, identificacion, frecuencia, cuotas, valor_cuota, monto_total, orden, estado
+                FROM clientes 
+                WHERE estado = 'Activo' 
+                  AND (frecuencia = 'Diaria' OR (frecuencia = 'Semanal' AND EXTRACT(DOW FROM CAST(%s AS DATE)) = 1))
+                ORDER BY orden ASC, id DESC
+            """, (hoy_str,))
+            clientes_crudos = cursor.fetchall()
+            
+            # Reconstruimos la estructura exacta dentro del mismo bloque del cursor
+            clientes_ruta = []
+            if clientes_crudos:
+                c_ids = [c["id"] for c in clientes_crudos]
+                cursor.execute("SELECT id, cliente_id, numero, valor, valor_pagado, pagado, fecha FROM pagos WHERE cliente_id = ANY(%s) ORDER BY numero ASC", (c_ids,))
+                todos_pagos = cursor.fetchall()
+                
+                pagos_mep = defaultdict(list)
+                for pg in todos_pagos:
+                    pagos_mep[pg["cliente_id"]].append(dict(pg))
+                    
+                for c in clientes_crudos:
+                    d_cl = dict(c)
+                    d_cl["pagos"] = pagos_mep.get(c["id"], [])
+                    clientes_ruta.append(d_cl)
+
     except Exception as e:
         print(f"Error contable en Dashboard Principal: {e}")
         recaudo_hoy = Decimal("0.00")
         creditos_hoy = 0
         capital_prestado_hoy = Decimal("0.00")
-    finally:
-        pass
-
-        # 🎯 FIJADO DIRECTO: Mantiene visibles en ruta a tus clientes diarios activos y semanales según la jornada congelada
-    cursor.execute("""
-        SELECT id, nombre, telefono, direccion, referencia, cedula, modalidad, cuotas, valor_cuota, monto_total, orden, estado
-        FROM clientes 
-        WHERE estado = 'Activo' 
-          AND (modalidad = 'Diario' OR (modalidad = 'Semanal' AND EXTRACT(DOW FROM CAST(%s AS DATE)) = 1))
-        ORDER BY orden ASC, id DESC
-    """, (hoy_str,))
-    clientes_crudos = cursor.fetchall()
-    
-    # Reconstruimos la estructura exacta para que tus tarjetas de abajo no sufran cambios
-    clientes_ruta = []
-    if clientes_crudos:
-        c_ids = [c["id"] for c in clientes_crudos]
-        cursor.execute("SELECT id, cliente_id, numero, valor, valor_pagado, pagado, fecha FROM pagos WHERE cliente_id = ANY(%s) ORDER BY numero ASC", (c_ids,))
-        todos_pagos = cursor.fetchall()
-        
-        from collections import defaultdict
-        pagos_mep = defaultdict(list)
-        for pg in todos_pagos:
-            pagos_mep[pg["cliente_id"]].append(dict(pg))
-            
-        for c in clientes_crudos:
-            d_cl = dict(c)
-            d_cl["pagos"] = pagos_mep.get(c["id"], [])
-            clientes_ruta.append(d_cl)
+        clientes_ruta = []
     debido_minimo_dia = sum(Decimal(str(cl["valor_cuota"])) for cl in clientes_ruta)
     
     debido_total_acumulado = Decimal("0.00")
@@ -2032,7 +2030,7 @@ def seccion_clientes_maestro():
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
-                SELECT MAX(id) AS id, MAX(TRIM(nombre)) AS nombre, MAX(telefono) AS telefono, MAX(referencia) AS referencia, MAX(cedula) AS cedula
+                SELECT MAX(id) AS id, MAX(TRIM(nombre)) AS nombre, MAX(telefono) AS telefono, MAX(referencia) AS referencia, MAX(identificacion) AS cedula
                 FROM clientes 
                 GROUP BY LOWER(TRIM(nombre))
                 ORDER BY MAX(TRIM(nombre)) ASC
