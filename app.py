@@ -1964,11 +1964,20 @@ def dashboard_principal():
     
         cuota_p = next((p for p in c["pagos"] if int(p["pagado"]) == 0), None)
         
-        if c.get("dias_mora", 0) > 0:
-            dias_calculados = c["dias_mora"]
+        mora_real = c.get("dias_mora", 0)
+        adelanto_real = c.get("dias_adelanto", 0)
+
+        if mora_real >= 11:
+            dias_calculados = mora_real
+            estado_mora_cl = "muy_atrasado"
+        elif mora_real >= 6:
+            dias_calculados = mora_real
             estado_mora_cl = "en_mora"
-        elif c.get("dias_adelanto", 0) > 0:
-            dias_calculados = c["dias_adelanto"]
+        elif mora_real > 0:
+            dias_calculados = mora_real
+            estado_mora_cl = "al_dia"
+        elif adelanto_real > 0:
+            dias_calculados = adelanto_real
             estado_mora_cl = "adelantado"
         else:
             dias_calculados = 0
@@ -1986,10 +1995,13 @@ def dashboard_principal():
         
         # 🎨 CONFIGURACIÓN DE LOS CÍRCULOS DE FRECUENCIA EN VIVO SEGÚN EL ESTADO CONTABLE
         if saldo_restante <= 0:
-            html_indicador_mora = '<div class="circulo-frecuencia" style="border-color:#10b981 !important; color:#10b981 !important; background:#ecfdf5 !important; font-weight:900;">P</div>'
+            html_indicador_mora = '<div class="circulo-frecuencia" style="border-color:#10b981 !important; color:#10b981 !important; background:#ecfdf5 !important; font-weight:800;">P</div>'
             clase_mora_badge = "0"
+        elif estado_mora_cl == "muy_atrasado":
+            html_indicador_mora = f'<div class="circulo-frecuencia" style="border-color:#dc2626 !important; color:#dc2626 !important; background:#fef2f2 !important;">{inicial_frecuencia}</div>'
+            clase_mora_badge = "1"
         elif estado_mora_cl == "en_mora":
-            html_indicador_mora = f'<div class="circulo-frecuencia" style="border-color:#dc2626 !important; color:#dc2626 !important; background:#fff1f2 !important;">{inicial_frecuencia}</div>'
+            html_indicador_mora = f'<div class="circulo-frecuencia" style="border-color:#ea580c !important; color:#ea580c !important; background:#fff7ed !important;">{inicial_frecuencia}</div>'
             clase_mora_badge = "1"
         elif estado_mora_cl == "adelantado":
             html_indicador_mora = f'<div class="circulo-frecuencia" style="border-color:#2563eb !important; color:#2563eb !important; background:#eff6ff !important;">{inicial_frecuencia}</div>'
@@ -1997,17 +2009,20 @@ def dashboard_principal():
         else:
             html_indicador_mora = f'<div class="circulo-frecuencia al-dia">{inicial_frecuencia}</div>'
             clase_mora_badge = "0"
-            
-        # Cálculo exacto para el cuadradito de días de atraso o adelanto
-        if estado_mora_cl in ["en_mora", "entrando_mora"] and dias_calculados > 0:
+
+        # Cálculo exacto para el cuadradito de días de atraso o adelanto (4 colores)
+        if estado_mora_cl == "muy_atrasado":
             estilo_cuadro_dias = "background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; font-weight:800;"
             texto_cuadro_dias = str(dias_calculados)
-        elif estado_mora_cl == "adelantado" and dias_calculados > 0:
+        elif estado_mora_cl == "en_mora":
+            estilo_cuadro_dias = "background:#ffedd5; color:#ea580c; border:1px solid #fdba74; font-weight:800;"
+            texto_cuadro_dias = str(dias_calculados)
+        elif estado_mora_cl == "adelantado":
             estilo_cuadro_dias = "background:#dbeafe; color:#2563eb; border:1px solid #93c5fd; font-weight:800;"
             texto_cuadro_dias = str(dias_calculados)
         else:
             estilo_cuadro_dias = "background:#dcfce7; color:#16a34a; border:1px solid #86efac; font-weight:800;"
-            texto_cuadro_dias = "0"
+            texto_cuadro_dias = str(dias_calculados)
         
         js_num_cuota = str(cuota_p["numero"]) if cuota_p else "1"
         js_pendiente = f"{(cuota_p['valor'] - cuota_p['valor_pagado'])}" if cuota_p else "0"
