@@ -2934,30 +2934,35 @@ def seccion_respaldo_nube():
         estado_borde = "#e2e8f0"
         toast_msg = f"EXCELENTE: Datos salvados correctamente ({total_clientes} clientes)"
 
-    html_cloud = f"""
-    <div class="section-header-title"><i class="fa-solid fa-cloud-arrow-up"></i> Backup</div>
+        html_cloud = f"""
+    <div class="section-header-title" style="display:flex; align-items:center; gap:8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8"/><path d="m4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/></svg>
+        <span>Backup</span>
+    </div>
     
     <div style="display:flex; flex-direction:column; gap:14px; padding-bottom:24px;">
         <!-- Cabecera Visual de Sincronización App -> Nube -->
         <div style="display:flex; align-items:center; justify-content:center; gap:18px; padding:14px 0 6px 0;">
-            <div style="width:62px; height:62px; border-radius:14px; background:linear-gradient(135deg, #38bdf8, #0284c7); display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; box-shadow:0 4px 10px rgba(2,132,199,0.25); position:relative;">
-                <i class="fa-solid fa-dollar-sign" style="font-size:24px;"></i>
-                <span style="font-size:9px; font-weight:800; position:absolute; bottom:4px; right:6px; opacity:0.9;">PRO</span>
+            <div style="width:64px; height:64px; border-radius:16px; background:linear-gradient(135deg, #38bdf8, #0284c7); display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; box-shadow:0 6px 14px rgba(2,132,199,0.28); position:relative;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                <span style="font-size:9px; font-weight:800; position:absolute; bottom:5px; right:7px; opacity:0.95;">PRO</span>
             </div>
-            <i class="fa-solid fa-arrow-right" style="font-size:26px; color:#475569;"></i>
-            <div style="width:64px; height:64px; border-radius:50%; background:#0891b2; display:flex; align-items:center; justify-content:center; color:white; box-shadow:0 4px 10px rgba(8,145,178,0.25);">
-                <i class="fa-solid fa-server" style="font-size:26px;"></i>
+            
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            
+            <div style="width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg, #06b6d4, #0891b2); display:flex; align-items:center; justify-content:center; color:white; box-shadow:0 6px 14px rgba(8,145,178,0.28);">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
             </div>
         </div>
 
         <!-- Tarjeta de Estado de Conexión -->
-        <div style="background:{estado_bg}; border:1px solid {estado_borde}; border-radius:10px; padding:16px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+        <div style="background:{estado_bg}; border:1px solid {estado_borde}; border-radius:12px; padding:16px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.03);">
             <span style="color:{estado_color}; font-weight:800; font-size:15px;">{estado_texto}</span>
         </div>
 
         <!-- Tarjeta Informativa de Respaldo -->
-        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
-            <h4 style="font-size:13px; font-weight:800; color:#334155; margin:0 0 8px 0;">Respaldar información en la nube de Avanta Pagos.</h4>
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 2px 6px rgba(0,0,0,0.03);">
+            <h4 style="font-size:13px; font-weight:800; color:#1e293b; margin:0 0 8px 0;">Respaldar información en la nube de Avanta Pagos.</h4>
             <p style="font-size:12px; color:#64748b; line-height:1.45; margin:0 0 10px 0;">
                 Desde esta herramienta puedes verificar y sincronizar toda la cartera de créditos y cobros directamente hacia tu servidor central en la nube.
             </p>
@@ -2967,58 +2972,38 @@ def seccion_respaldo_nube():
         </div>
 
         <!-- Tarjeta de Información de Cuenta -->
-        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
-            <h4 style="font-size:13px; font-weight:800; color:#334155; margin:0 0 6px 0;">Información de tu cuenta Avanta Cloud</h4>
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 2px 6px rgba(0,0,0,0.03);">
+            <h4 style="font-size:13px; font-weight:800; color:#1e293b; margin:0 0 6px 0;">Información de tu cuenta Avanta Cloud</h4>
             <p style="font-size:12px; color:#64748b; line-height:1.4; margin:0 0 12px 0;">
                 Guarda esta información para mantener el control de acceso a tus datos sincronizados.
             </p>
-            <div style="background:#f1f5f9; border:1px solid #e2e8f0; border-radius:6px; padding:10px 12px; font-size:13px; font-weight:700; color:#1e293b; margin-bottom:8px;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; font-size:13px; font-weight:700; color:#1e293b; margin-bottom:8px;">
                 IdApp: AVANTA-13PROD
             </div>
-            <div style="background:#f1f5f9; border:1px solid #e2e8f0; border-radius:6px; padding:10px 12px; font-size:13px; font-weight:700; color:#1e293b;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px; font-size:13px; font-weight:700; color:#1e293b;">
                 Email: rjhon5953@gmail.com
             </div>
         </div>
 
-        <!-- Tarjeta de Ejecución y Botón Respaldar -->
-        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
-            <h4 style="font-size:13px; font-weight:800; color:#334155; margin:0 0 6px 0;">Realizar respaldo en la nube</h4>
+        <!-- Tarjeta de Ejecución y Botón Respaldar Verde -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 2px 6px rgba(0,0,0,0.03);">
+            <h4 style="font-size:13px; font-weight:800; color:#1e293b; margin:0 0 6px 0;">Realizar respaldo en la nube</h4>
             <p style="font-size:12px; color:#64748b; line-height:1.45; margin:0 0 16px 0;">
                 Asegúrate de tener conexión de internet, a continuación debes hacer click en el botón <b>Respaldar</b> para almacenar y confirmar una copia de seguridad en la nube.
             </p>
-            <button type="button" id="btnEjecutarBackup" onclick="ejecutarRespaldoNube()" 
-                    style="width:100%; background:#94a3b8; color:#ffffff; border:none; border-radius:8px; padding:13px 16px; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; position:relative; box-shadow:0 2px 4px rgba(0,0,0,0.1); transition:background 0.2s;">
+            <button type="button" id="btnEjecutarBackup" 
+                    onclick="var b=this, t=document.getElementById('toastBackup'); b.style.opacity='0.8'; b.querySelector('span').innerText='Sincronizando...'; setTimeout(function(){{ b.style.opacity='1'; b.querySelector('span').innerText='Respaldar'; t.style.visibility='visible'; t.style.opacity='1'; setTimeout(function(){{ t.style.opacity='0'; setTimeout(function(){{ t.style.visibility='hidden'; }}, 300); }}, 3200); }}, 450);" 
+                    style="width:100%; background:linear-gradient(135deg, #10b981, #059669); color:#ffffff; border:none; border-radius:10px; padding:14px 16px; font-size:15px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; position:relative; box-shadow:0 4px 12px rgba(16,185,129,0.3); transition:all 0.2s;">
                 <span>Respaldar</span>
-                <i class="fa-solid fa-cloud-arrow-up" style="position:absolute; right:16px; font-size:16px;"></i>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; right:18px;"><path d="M12 13v8"/><path d="m4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/></svg>
             </button>
         </div>
     </div>
 
     <!-- Notificación Flotante Tipo Toast Nativo -->
-    <div id="toastBackup" style="visibility:hidden; opacity:0; position:fixed; bottom:28px; left:50%; transform:translateX(-50%); background:rgba(30, 41, 59, 0.94); color:#ffffff; padding:12px 20px; border-radius:8px; font-size:13px; font-weight:600; z-index:9999; box-shadow:0 4px 12px rgba(0,0,0,0.25); transition:opacity 0.3s ease; text-align:center; min-width:260px; max-width:90%;">
+    <div id="toastBackup" style="visibility:hidden; opacity:0; position:fixed; bottom:32px; left:50%; transform:translateX(-50%); background:rgba(15, 23, 42, 0.95); color:#ffffff; padding:13px 22px; border-radius:10px; font-size:13px; font-weight:700; z-index:9999; box-shadow:0 8px 20px rgba(0,0,0,0.3); transition:opacity 0.3s ease; text-align:center; min-width:270px; max-width:90%;">
         {toast_msg}
     </div>
-
-    <script>
-        function ejecutarRespaldoNube() {{
-            const btn = document.getElementById('btnEjecutarBackup');
-            const toast = document.getElementById('toastBackup');
-            btn.style.background = '#64748b';
-            btn.querySelector('span').innerText = 'Sincronizando...';
-            
-            setTimeout(() => {{
-                btn.style.background = '#0284c7';
-                btn.querySelector('span').innerText = 'Respaldar';
-                toast.style.visibility = 'visible';
-                toast.style.opacity = '1';
-                
-                setTimeout(() => {{
-                    toast.style.opacity = '0';
-                    setTimeout(() => {{ toast.style.visibility = 'hidden'; }}, 300);
-                }}, 3200);
-            }}, 450);
-        }}
-    </script>
     """
     
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
