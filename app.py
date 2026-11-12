@@ -1881,29 +1881,19 @@ def dashboard_principal():
                 for c in clientes_crudos:
                     d_cl = dict(c)
                     d_cl["pagos"] = pagos_mep.get(c["id"], [])
-                    # 📊 CÁLCULO REAL DE MORA Y ADELANTO PARA EL CUADRITO DE LA TARJETA
+                    # 📊 CÁLCULO EXACTO POR CUOTAS HÁBILES (SIN CONTAR DOMINGOS)
                     hoy_dt = date.fromisoformat(hoy_str)
                     dias_mora = 0
-                    tiene_mora = False
-                    for p in d_cl["pagos"]:
-                        if int(p["pagado"]) == 0:
-                            f_q = datetime.strptime(p["fecha"], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
-                            if f_q < hoy_dt:
-                                tiene_mora = True
-                                diff = (hoy_dt - f_q).days
-                                if diff > dias_mora:
-                                    dias_mora = diff
-
                     dias_adelanto = 0
-                    if not tiene_mora:
-                        cuotas_futuras = [
-                            p for p in d_cl["pagos"]
-                            if int(p["pagado"]) == 1 and (datetime.strptime(p["fecha"], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]) > hoy_dt
-                        ]
-                        if cuotas_futuras:
-                            ult_f = cuotas_futuras[-1]["fecha"]
-                            f_ult = datetime.strptime(ult_f, "%Y-%m-%d").date() if isinstance(ult_f, str) else ult_f
-                            dias_adelanto = (f_ult - hoy_dt).days
+                    for p in d_cl["pagos"]:
+                        f_q = datetime.strptime(p["fecha"], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
+                        if int(p["pagado"]) == 0 and f_q < hoy_dt:
+                            dias_mora += 1
+                        elif int(p["pagado"]) == 1 and f_q > hoy_dt:
+                            dias_adelanto += 1
+
+                    if dias_mora > 0:
+                        dias_adelanto = 0
 
                     d_cl["dias_mora"] = dias_mora
                     d_cl["dias_adelanto"] = dias_adelanto
@@ -3033,26 +3023,19 @@ def api_marcar_pago(cliente_id, num_cuota):
             estado_final_cuotas = cursor.fetchall()
             
             dias_mora_real = 0
-            tiene_mora = False
-            for q in estado_final_cuotas:
-                if int(q["pagado"]) == 0:
-                    f_q = datetime.strptime(q["fecha"], "%Y-%m-%d").date() if isinstance(q["fecha"], str) else q["fecha"]
-                    if f_q < hoy_date:
-                        tiene_mora = True
-                        diff = (hoy_date - f_q).days
-                        if diff > dias_mora_real:
-                            dias_mora_real = diff
-
             dias_adelanto_real = 0
-            if not tiene_mora:
-                cuotas_futuras_pagadas = [
-                    q for q in estado_final_cuotas 
-                    if int(q["pagado"]) == 1 and (datetime.strptime(q["fecha"], "%Y-%m-%d").date() if isinstance(q["fecha"], str) else q["fecha"]) > hoy_date
-                ]
-                if cuotas_futuras_pagadas:
-                    ultima_futura = cuotas_futuras_pagadas[-1]
-                    f_ult = datetime.strptime(ultima_futura["fecha"], "%Y-%m-%d").date() if isinstance(ultima_futura["fecha"], str) else ultima_futura["fecha"]
-                    dias_adelanto_real = (f_ult - hoy_date).days
+            tiene_mora = False
+
+            for q in estado_final_cuotas:
+                f_q = datetime.strptime(q["fecha"], "%Y-%m-%d").date() if isinstance(q["fecha"], str) else q["fecha"]
+                if int(q["pagado"]) == 0 and f_q < hoy_date:
+                    tiene_mora = True
+                    dias_mora_real += 1
+                elif int(q["pagado"]) == 1 and f_q > hoy_date:
+                    dias_adelanto_real += 1
+
+            if tiene_mora:
+                dias_adelanto_real = 0
 
             # 3. Recalcular saldo total real del cliente
             cursor.execute("SELECT nombre, telefono, monto_total FROM clientes WHERE id = %s", (cliente_id,))
