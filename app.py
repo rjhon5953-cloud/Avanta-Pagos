@@ -2943,25 +2943,14 @@ def seccion_respaldo_nube():
     <div style="display:flex; flex-direction:column; gap:14px; padding-bottom:24px;">
         <!-- Cabecera Visual de Sincronización App -> Nube -->
         <div style="display:flex; align-items:center; justify-content:center; gap:18px; padding:14px 0 6px 0;">
-            <div style="width:98px; height:64px; border-radius:16px; background:linear-gradient(145deg, #0f2b5c, #1e3a8a); display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; box-shadow:0 6px 14px rgba(15,43,92,0.3); position:relative; border:1px solid rgba(255,255,255,0.12); padding:0 6px;">
-                <svg width="86" height="32" viewBox="0 0 185 50" fill="none">
-                    <!-- Letra A inicial (sin barra) -->
-                    <path d="M12 40 L25 10 L38 40" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <!-- Flecha dorada solo cruzando la primera A -->
-                    <path d="M9 41 C18 35 27 27 35 19" stroke="#fbbf24" stroke-width="4.2" stroke-linecap="round"/>
-                    <path d="M26 19 L36 18 L35 28" stroke="#fbbf24" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <!-- Letra V -->
-                    <path d="M46 10 L59 40 L72 10" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <!-- Segunda A (sin barra) -->
-                    <path d="M78 40 L91 10 L104 40" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <!-- Letra N -->
-                    <path d="M113 40 V10 L135 40 V10" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <!-- Letra T -->
-                    <path d="M144 10 H166 M155 10 V40" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <!-- Tercera A (sin barra) -->
-                    <path d="M167 40 L177 10 L187 40" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <div style="width:64px; height:64px; border-radius:16px; background:linear-gradient(145deg, #0f2b5c, #1e3a8a); display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; box-shadow:0 6px 14px rgba(15,43,92,0.3); position:relative; border:1px solid rgba(255,255,255,0.1);">
+                <svg width="34" height="34" viewBox="0 0 40 40" fill="none">
+                    <!-- Letra A estilizada de Avanta -->
+                    <path d="M20 7L9 31H14.2L20 17.5L25.8 31H31L20 7Z" fill="#ffffff"/>
+                    <!-- Flecha dorada ascendente -->
+                    <path d="M8 28.5C13.5 26 19.5 22 25.5 16.5L22.5 15L30.5 13.5L29 21.5L27.5 18.5C21.5 24 14.5 28 8 28.5Z" fill="#fbbf24"/>
                 </svg>
-                <span style="font-size:8px; font-weight:900; letter-spacing:0.6px; position:absolute; bottom:4px; right:8px; color:#fbbf24;">PRO</span>
+                <span style="font-size:8px; font-weight:900; letter-spacing:0.5px; position:absolute; bottom:4px; right:6px; color:#fbbf24;">PRO</span>
             </div>
             
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
