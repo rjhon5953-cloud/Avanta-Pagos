@@ -2943,12 +2943,23 @@ def seccion_respaldo_nube():
     <div style="display:flex; flex-direction:column; gap:14px; padding-bottom:24px;">
         <!-- Cabecera Visual de Sincronización App -> Nube -->
         <div style="display:flex; align-items:center; justify-content:center; gap:18px; padding:14px 0 6px 0;">
-            <div style="width:92px; height:64px; border-radius:16px; background:linear-gradient(145deg, #0f2b5c, #1e3a8a); display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; box-shadow:0 6px 14px rgba(15,43,92,0.3); position:relative; border:1px solid rgba(255,255,255,0.12); padding:0 6px;">
-                <svg width="80" height="36" viewBox="0 0 110 44" fill="none">
-                    <!-- Palabra AVANTA en blanco geométrico -->
-                    <text x="55" y="25" text-anchor="middle" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="19" letter-spacing="1.2">AVANTA</text>
-                    <!-- Flecha dorada ascendente cruzando por debajo -->
-                    <path d="M12 34C38 33 68 27 94 14L88 12L101 11L98 23L95 18C69 31 39 36 12 34Z" fill="#fbbf24"/>
+            <div style="width:98px; height:64px; border-radius:16px; background:linear-gradient(145deg, #0f2b5c, #1e3a8a); display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; box-shadow:0 6px 14px rgba(15,43,92,0.3); position:relative; border:1px solid rgba(255,255,255,0.12); padding:0 6px;">
+                <svg width="86" height="32" viewBox="0 0 185 50" fill="none">
+                    <!-- Letra A inicial (sin barra) -->
+                    <path d="M12 40 L25 10 L38 40" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Flecha dorada solo cruzando la primera A -->
+                    <path d="M9 41 C18 35 27 27 35 19" stroke="#fbbf24" stroke-width="4.2" stroke-linecap="round"/>
+                    <path d="M26 19 L36 18 L35 28" stroke="#fbbf24" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Letra V -->
+                    <path d="M46 10 L59 40 L72 10" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Segunda A (sin barra) -->
+                    <path d="M78 40 L91 10 L104 40" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Letra N -->
+                    <path d="M113 40 V10 L135 40 V10" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Letra T -->
+                    <path d="M144 10 H166 M155 10 V40" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Tercera A (sin barra) -->
+                    <path d="M167 40 L177 10 L187 40" stroke="#ffffff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
                 <span style="font-size:8px; font-weight:900; letter-spacing:0.6px; position:absolute; bottom:4px; right:8px; color:#fbbf24;">PRO</span>
             </div>
