@@ -1881,6 +1881,32 @@ def dashboard_principal():
                 for c in clientes_crudos:
                     d_cl = dict(c)
                     d_cl["pagos"] = pagos_mep.get(c["id"], [])
+                    # 📊 CÁLCULO REAL DE MORA Y ADELANTO PARA EL CUADRITO DE LA TARJETA
+                    hoy_dt = date.fromisoformat(hoy_str)
+                    dias_mora = 0
+                    tiene_mora = False
+                    for p in d_cl["pagos"]:
+                        if int(p["pagado"]) == 0:
+                            f_q = datetime.strptime(p["fecha"], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
+                            if f_q < hoy_dt:
+                                tiene_mora = True
+                                diff = (hoy_dt - f_q).days
+                                if diff > dias_mora:
+                                    dias_mora = diff
+
+                    dias_adelanto = 0
+                    if not tiene_mora:
+                        cuotas_futuras = [
+                            p for p in d_cl["pagos"]
+                            if int(p["pagado"]) == 1 and (datetime.strptime(p["fecha"], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]) > hoy_dt
+                        ]
+                        if cuotas_futuras:
+                            ult_f = cuotas_futuras[-1]["fecha"]
+                            f_ult = datetime.strptime(ult_f, "%Y-%m-%d").date() if isinstance(ult_f, str) else ult_f
+                            dias_adelanto = (f_ult - hoy_dt).days
+
+                    d_cl["dias_mora"] = dias_mora
+                    d_cl["dias_adelanto"] = dias_adelanto
                     clientes_ruta.append(d_cl)
 
     except Exception as e:
@@ -1938,8 +1964,15 @@ def dashboard_principal():
     
         cuota_p = next((p for p in c["pagos"] if int(p["pagado"]) == 0), None)
         
-        dias_calculados = int(c.get("cuotas_atrasadas", 0))
-        estado_mora_cl = c.get("estado_mora", "al_dia")
+        if c.get("dias_mora", 0) > 0:
+            dias_calculados = c["dias_mora"]
+            estado_mora_cl = "en_mora"
+        elif c.get("dias_adelanto", 0) > 0:
+            dias_calculados = c["dias_adelanto"]
+            estado_mora_cl = "adelantado"
+        else:
+            dias_calculados = 0
+            estado_mora_cl = "al_dia"
     
         c_id = str(c["id"])
         c_nombre = str(c["nombre"])
