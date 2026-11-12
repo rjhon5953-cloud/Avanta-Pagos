@@ -2943,9 +2943,14 @@ def seccion_respaldo_nube():
     <div style="display:flex; flex-direction:column; gap:14px; padding-bottom:24px;">
         <!-- Cabecera Visual de Sincronización App -> Nube -->
         <div style="display:flex; align-items:center; justify-content:center; gap:18px; padding:14px 0 6px 0;">
-            <div style="width:64px; height:64px; border-radius:16px; background:linear-gradient(135deg, #38bdf8, #0284c7); display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; box-shadow:0 6px 14px rgba(2,132,199,0.28); position:relative;">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                <span style="font-size:9px; font-weight:800; position:absolute; bottom:5px; right:7px; opacity:0.95;">PRO</span>
+            <div style="width:64px; height:64px; border-radius:16px; background:linear-gradient(145deg, #0f2b5c, #1e3a8a); display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; box-shadow:0 6px 14px rgba(15,43,92,0.3); position:relative; border:1px solid rgba(255,255,255,0.1);">
+                <svg width="34" height="34" viewBox="0 0 40 40" fill="none">
+                    <!-- Letra A estilizada de Avanta -->
+                    <path d="M20 7L9 31H14.2L20 17.5L25.8 31H31L20 7Z" fill="#ffffff"/>
+                    <!-- Flecha dorada ascendente -->
+                    <path d="M8 28.5C13.5 26 19.5 22 25.5 16.5L22.5 15L30.5 13.5L29 21.5L27.5 18.5C21.5 24 14.5 28 8 28.5Z" fill="#fbbf24"/>
+                </svg>
+                <span style="font-size:8px; font-weight:900; letter-spacing:0.5px; position:absolute; bottom:4px; right:6px; color:#fbbf24;">PRO</span>
             </div>
             
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
