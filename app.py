@@ -3002,6 +3002,11 @@ def seccion_respaldo_nube():
                 <span>Respaldar</span>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; right:18px;"><path d="M12 13v8"/><path d="m4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4-4 4 4"/></svg>
             </button>
+            <a href="/api/exportar_excel_backup" download
+               style="width:100%; margin-top:10px; background:#0f2b5c; color:#ffffff; border:none; border-radius:10px; padding:13px 16px; font-size:14px; font-weight:700; text-decoration:none; display:flex; align-items:center; justify-content:center; position:relative; box-shadow:0 4px 10px rgba(15,43,92,0.2);">
+                <span>Descargar Copia en Excel / CSV</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; right:18px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </a>
         </div>
     </div>
 
@@ -3014,6 +3019,45 @@ def seccion_respaldo_nube():
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(html_cloud)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_cloud))
+
+@app.route("/api/exportar_excel_backup")
+def exportar_excel_backup():
+    if not session.get("autenticado"):
+        return "No autorizado", 401
+        
+    import io, csv
+    from flask import Response
+    
+    conn = get_db()
+    output = io.StringIO()
+    output.write('\ufeff')  # Marca UTF-8 para que Excel abra tildes y eñes correctamente
+    writer = csv.writer(output, delimiter=';')
+    
+    writer.writerow(["ID", "Nombre Cliente", "Cedula", "Telefono", "Frecuencia", "Monto Total", "Cuota", "Total Pagado", "Saldo Pendiente", "Estado"])
+    
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT c.id, c.nombre, c.identificacion, c.telefono, c.frecuencia, c.monto_total, c.valor_cuota, c.estado,
+                   COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado
+            FROM clientes c
+            ORDER BY c.id ASC
+        """)
+        for row in cursor.fetchall():
+            total = Decimal(str(row["monto_total"]))
+            pagado = Decimal(str(row["pagado"]))
+            saldo = total - pagado
+            writer.writerow([
+                row["id"], row["nombre"], row["identificacion"] or "", row["telefono"] or "",
+                row["frecuencia"], f"{total:.2f}", f"{Decimal(str(row['valor_cuota'])):.2f}",
+                f"{pagado:.2f}", f"{saldo:.2f}", row["estado"]
+            ])
+            
+    fecha_hoy = date.today().isoformat()
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment;filename=Respaldo_Avanta_Pagos_{fecha_hoy}.csv"}
+    )
 
 @app.route("/api/cliente_info/<int:id>")
 def api_cliente_info(id):
