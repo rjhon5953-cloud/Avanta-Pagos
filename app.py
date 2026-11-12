@@ -2943,14 +2943,14 @@ def seccion_respaldo_nube():
     <div style="display:flex; flex-direction:column; gap:14px; padding-bottom:24px;">
         <!-- Cabecera Visual de Sincronización App -> Nube -->
         <div style="display:flex; align-items:center; justify-content:center; gap:18px; padding:14px 0 6px 0;">
-            <div style="width:64px; height:64px; border-radius:16px; background:linear-gradient(145deg, #0f2b5c, #1e3a8a); display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; box-shadow:0 6px 14px rgba(15,43,92,0.3); position:relative; border:1px solid rgba(255,255,255,0.1);">
-                <svg width="34" height="34" viewBox="0 0 40 40" fill="none">
-                    <!-- Letra A estilizada de Avanta -->
-                    <path d="M20 7L9 31H14.2L20 17.5L25.8 31H31L20 7Z" fill="#ffffff"/>
-                    <!-- Flecha dorada ascendente -->
-                    <path d="M8 28.5C13.5 26 19.5 22 25.5 16.5L22.5 15L30.5 13.5L29 21.5L27.5 18.5C21.5 24 14.5 28 8 28.5Z" fill="#fbbf24"/>
+            <div style="width:92px; height:64px; border-radius:16px; background:linear-gradient(145deg, #0f2b5c, #1e3a8a); display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; box-shadow:0 6px 14px rgba(15,43,92,0.3); position:relative; border:1px solid rgba(255,255,255,0.12); padding:0 6px;">
+                <svg width="80" height="36" viewBox="0 0 110 44" fill="none">
+                    <!-- Palabra AVANTA en blanco geométrico -->
+                    <text x="55" y="25" text-anchor="middle" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="19" letter-spacing="1.2">AVANTA</text>
+                    <!-- Flecha dorada ascendente cruzando por debajo -->
+                    <path d="M12 34C38 33 68 27 94 14L88 12L101 11L98 23L95 18C69 31 39 36 12 34Z" fill="#fbbf24"/>
                 </svg>
-                <span style="font-size:8px; font-weight:900; letter-spacing:0.5px; position:absolute; bottom:4px; right:6px; color:#fbbf24;">PRO</span>
+                <span style="font-size:8px; font-weight:900; letter-spacing:0.6px; position:absolute; bottom:4px; right:8px; color:#fbbf24;">PRO</span>
             </div>
             
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
