@@ -473,7 +473,7 @@ CONTENIDO_HTML = """
 
         <div style="margin-bottom: 10px;">
             <label style="font-size: 11px; font-weight: bold; color: #64748b;">Identificación / Cédula</label>
-            <input type="text" id="perf_cedula" value="{{ cliente.cedula if cliente else '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; color: #0f2b5c;">
+            <input type="text" id="perf_cedula" value="{{ cliente.identificacion if cliente else '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; color: #0f2b5c;">
         </div>
 
         <div style="margin-bottom: 10px;">
@@ -496,7 +496,7 @@ CONTENIDO_HTML = """
                     style="flex: 1; padding: 12px; background: #f1f5f9; color: #0f2b5c; border: 1px solid #cbd5e1; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer;">
                 ✏️ Modificar
             </button>
-            <button type="button" onclick="abrirConcederCreditoPrecargado('{{ (cliente.latitud or '') if cliente else '' }}', '{{ (cliente.longitud or '') if cliente else '' }}')"
+            <button type="button" onclick="navegarRuta('/mover_renovacion/{{ cliente.id if cliente else 0 }}')"
                     style="flex: 1.3; padding: 12px; background: #0f2b5c; color: white; border: none; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer;">
                 💵 Conceder Crédito
             </button>
@@ -1861,9 +1861,10 @@ def dashboard_principal():
                 SELECT id, nombre, telefono, direccion, referencia, identificacion, frecuencia, cuotas, valor_cuota, monto_total, orden, estado
                 FROM clientes 
                 WHERE estado = 'Activo' 
+                  AND (fecha_gestion IS NULL OR fecha_gestion != %s)
                   AND (frecuencia = 'Diaria' OR (frecuencia = 'Semanal' AND EXTRACT(DOW FROM CAST(%s AS DATE)) = 1))
                 ORDER BY orden ASC, id DESC
-            """, (hoy_str,))
+            """, (hoy_str, hoy_str))
             clientes_crudos = cursor.fetchall()
             
             # Reconstruimos la estructura exacta dentro del mismo bloque del cursor
@@ -2942,12 +2943,15 @@ def api_marcar_pago(cliente_id, num_cuota):
     if not hora_local_cliente:
         hora_local_cliente = datetime.now().strftime("%d/%m/%Y %H:%M")
             
-    hoy_str = date.today().isoformat()
-    hoy_date = date.today()
+    conn = get_db()
+    with conn.cursor() as cur_f:
+        cur_f.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+        row_f = cur_f.fetchone()
+        hoy_str = row_f["valor"] if (row_f and row_f["valor"]) else date.today().isoformat()
+        
+    hoy_date = date.fromisoformat(hoy_str)
     monto_restante = monto_recaudado
     monto_efectivamente_aplicado = Decimal("0.00")
-    
-    conn = get_db()
     try:
         with conn.cursor() as cursor:
             # 1. Aplicamos el dinero recibido a las cuotas pendientes cronológicamente
@@ -3083,8 +3087,11 @@ def api_marcar_no_pago(cliente_id):
     if not session.get("autenticado"):
         return jsonify({"status": "error", "message": "No autorizado"})
         
-    hoy_str = date.today().isoformat()
     conn = get_db()
+    with conn.cursor() as cur_f:
+        cur_f.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+        row_f = cur_f.fetchone()
+        hoy_str = row_f["valor"] if (row_f and row_f["valor"]) else date.today().isoformat()
     try:
         with conn.cursor() as cursor:
             # 🛡️ FIJADO: Incrementa el contador de saltos del día y bloquea la fuga en el pool de Neon
