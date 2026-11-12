@@ -1835,9 +1835,8 @@ def dashboard_principal():
     ahora = datetime.now()
     fecha_legible = f"{dias_semana[ahora.weekday()]}, {ahora.day:02d} de {meses[ahora.month - 1]} de {ahora.year}"
     
-    conn = get_db()
     try:
-        with conn.cursor() as cursor:
+        with conn_val.cursor() as cursor:
             # 💵 1. Suma real en dólares del recaudo asentado el día de hoy
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (hoy_str,))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
