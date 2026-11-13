@@ -1217,12 +1217,12 @@ HTML_TEMPLATE = """
         <!-- Switch Castigo -->
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <span style="font-size:14px; color:#334155; font-weight:500;">¿Enviar a estudio para castigo de cartera?</span>
-            <label style="position:relative; display:inline-block; width:46px; height:26px;">
+            <div style="position:relative; display:inline-block; width:46px; height:26px;">
                 <input type="checkbox" id="gpChkCastigo" style="opacity:0; width:0; height:0;">
                 <span onclick="var c=document.getElementById('gpChkCastigo'); c.checked=!c.checked; this.style.background=c.checked?'#16a34a':'#cbd5e1'; this.firstElementChild.style.transform=c.checked?'translateX(20px)':'translateX(0)';" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#cbd5e1; border-radius:26px; transition:.2s;">
                     <span style="position:absolute; height:20px; width:20px; left:3px; bottom:3px; background:white; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,0.3);"></span>
                 </span>
-            </label>
+            </div>
         </div>
 
         <!-- Tipo de pago (Cuota / Dinero) -->
@@ -1246,12 +1246,12 @@ HTML_TEMPLATE = """
         <!-- Switch Pagar Total -->
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <span style="font-size:14px; color:#334155; font-weight:500;">Pagar total. Cuotas:</span>
-            <label style="position:relative; display:inline-block; width:46px; height:26px;">
+            <div style="position:relative; display:inline-block; width:46px; height:26px;">
                 <input type="checkbox" id="gpChkPagarTotal" style="opacity:0; width:0; height:0;">
                 <span id="gpSwitchTotalVisual" onclick="togglePagarTotalGP()" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#cbd5e1; border-radius:26px; transition:.2s;">
                     <span style="position:absolute; height:20px; width:20px; left:3px; bottom:3px; background:white; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,0.3);"></span>
                 </span>
-            </label>
+            </div>
         </div>
 
         <!-- Valor Cuota / Monto Grande -->
@@ -1330,12 +1330,12 @@ HTML_TEMPLATE = """
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <span style="font-size:14px; color:#334155; font-weight:500;">¿Enviar a estudio para castigo de cartera?</span>
-            <label style="position:relative; display:inline-block; width:46px; height:26px;">
+            <div style="position:relative; display:inline-block; width:46px; height:26px;">
                 <input type="checkbox" id="gnpChkCastigo" style="opacity:0; width:0; height:0;">
                 <span onclick="var c=document.getElementById('gnpChkCastigo'); c.checked=!c.checked; this.style.background=c.checked?'#16a34a':'#cbd5e1'; this.firstElementChild.style.transform=c.checked?'translateX(20px)':'translateX(0)';" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#cbd5e1; border-radius:26px; transition:.2s;">
                     <span style="position:absolute; height:20px; width:20px; left:3px; bottom:3px; background:white; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,0.3);"></span>
                 </span>
-            </label>
+            </div>
         </div>
 
         <div style="margin-bottom:20px;">
@@ -1555,7 +1555,12 @@ function cerrarGestorPantallas() {
     document.getElementById('vistaGestorNoPago').style.display = 'none';
 }
 
-function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 0) {
+let gestionPreviaTipo = '';
+let gestionPreviaIds = '';
+
+function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 0, prevTipo = '', prevIds = '') {
+    gestionPreviaTipo = prevTipo;
+    gestionPreviaIds = prevIds;
     diasMoraGlobalTemporal = parseInt(diasMora) || 0;
     document.getElementById('abonoClienteId').value = clienteId;
     document.getElementById('abonoNumCuota').value = numCuota;
@@ -1679,7 +1684,7 @@ function togglePagarTotalGP() {
 }
 
 function previsualizarFotoGP(input, iconId, imgId) {
-    if (input.files && input.files) {
+    if (input.files && input.files[0]) {
         const reader = new FileReader();
         reader.onload = function(e) {
             document.getElementById(iconId).style.display = 'none';
@@ -1687,16 +1692,23 @@ function previsualizarFotoGP(input, iconId, imgId) {
             img.src = e.target.result;
             img.style.display = 'block';
         };
-        reader.readAsDataURL(input.files);
+        reader.readAsDataURL(input.files[0]);
     }
 }
 
-function confirmarAbono() {
+async function confirmarAbono() {
     const clienteId = document.getElementById('abonoClienteId').value;
     const numCuota = document.getElementById('abonoNumCuota').value;
     const monto = parseFloat(document.getElementById('abonoMontoInput').value);
     if (monto > 0) {
         cerrarGestorPantallas();
+        if (gestionPreviaTipo === 'pago' && gestionPreviaIds) {
+            await fetch('/api/revertir_gestion/pago/' + gestionPreviaIds);
+        } else if (gestionPreviaTipo === 'no_pago') {
+            await fetch('/api/revertir_gestion/salto/' + clienteId);
+        }
+        gestionPreviaTipo = '';
+        gestionPreviaIds = '';
         procesarPagoAPI(clienteId, numCuota, monto);
     } else {
         alert("Ingresa un monto válido mayor a $0.00");
@@ -1766,7 +1778,9 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
         });
 }
 
-function ejecutarNoPago(clienteId) {
+function ejecutarNoPago(clienteId, prevTipo = '', prevIds = '') {
+    gestionPreviaTipo = prevTipo;
+    gestionPreviaIds = prevIds;
     document.getElementById('gnpClienteId').value = clienteId;
     const card = document.getElementById('cliente-card-' + clienteId);
     const nombre = card ? (card.querySelector('.nombre-real')?.innerText || 'Cliente') : 'Cliente #' + clienteId;
@@ -1799,9 +1813,14 @@ function seleccionarRazonNoPago(btn, razon) {
     btn.style.fontWeight = '700';
 }
 
-function confirmarNoPagoGestor() {
+async function confirmarNoPagoGestor() {
     const clienteId = document.getElementById('gnpClienteId').value;
     cerrarGestorPantallas();
+    if (gestionPreviaTipo === 'pago' && gestionPreviaIds) {
+        await fetch('/api/revertir_gestion/pago/' + gestionPreviaIds);
+    }
+    gestionPreviaTipo = '';
+    gestionPreviaIds = '';
     fetch('/api/marcar_no_pago/' + clienteId)
         .then(res => res.json())
         .then(data => {
@@ -2540,8 +2559,8 @@ def dashboard_principal():
             display_card = "display: none !important;"
             html_col_pago = f'<span class="metric-val" style="color:#16a34a; font-weight:800;">${float(monto_pag_hoy):.2f}</span>'
             html_botones_derechos = f"""
-                <button type="button" class="btn-accion-premium cobrar" title="Deshacer Cobro" 
-                        onclick="if(confirm('¿Deseas revertir el cobro de ${float(monto_pag_hoy):.2f} de {c_nombre}?')){{ fetch('/api/revertir_gestion/pago/{pago_ids_hoy}').then(r=>r.json()).then(d=>{{ if(d.status==='ok') navegarRuta('/'); }}); }}"
+                <button type="button" class="btn-accion-premium cobrar" title="Editar Cobro" 
+                        onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados}, 'pago', '{pago_ids_hoy}')"
                         style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent;">
                     <svg width="48" height="48" viewBox="0 0 36 36" fill="none" stroke="#16a34a" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 7H31V20H19"/>
@@ -2550,7 +2569,9 @@ def dashboard_principal():
                         <path d="M21 26.5L24 29.5L30.5 23" stroke="#16a34a" stroke-width="2.5"/>
                     </svg>
                 </button>
-                <button type="button" disabled style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; padding:0; opacity:0.28; cursor:default;">
+                <button type="button" class="btn-accion-premium saltar" title="Cambiar a No Pago" 
+                        onclick="ejecutarNoPago({c_id}, 'pago', '{pago_ids_hoy}')"
+                        style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; padding:0; opacity:0.35; cursor:pointer; outline:none; -webkit-tap-highlight-color:transparent;">
                     <svg width="48" height="48" viewBox="0 0 36 36" fill="none" stroke="#64748b" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 7H31V20H19"/>
                         <text x="23.5" y="17.5" fill="#64748b" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
@@ -2564,7 +2585,9 @@ def dashboard_principal():
             display_card = "display: none !important;"
             html_col_pago = '<span class="metric-val" style="color:#ef4444; font-weight:800;">$0</span>'
             html_botones_derechos = f"""
-                <button type="button" disabled style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; padding:0; opacity:0.28; cursor:default;">
+                <button type="button" class="btn-accion-premium cobrar" title="Cambiar a Pago" 
+                        onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados}, 'no_pago', '')"
+                        style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; padding:0; opacity:0.35; cursor:pointer; outline:none; -webkit-tap-highlight-color:transparent;">
                     <svg width="48" height="48" viewBox="0 0 36 36" fill="none" stroke="#64748b" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 7H31V20H19"/>
                         <text x="23.5" y="17.5" fill="#64748b" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
@@ -2572,8 +2595,8 @@ def dashboard_principal():
                         <path d="M21 26.5L24 29.5L30.5 23" stroke="#64748b" stroke-width="2.5"/>
                     </svg>
                 </button>
-                <button type="button" class="btn-accion-premium saltar" title="Deshacer No Pago" 
-                        onclick="if(confirm('¿Deseas deshacer el No Pago de {c_nombre} y regresarlo a pendientes?')){{ fetch('/api/revertir_gestion/salto/{c_id}').then(r=>r.json()).then(d=>{{ if(d.status==='ok') navegarRuta('/'); }}); }}"
+                <button type="button" class="btn-accion-premium saltar" title="Editar No Pago" 
+                        onclick="ejecutarNoPago({c_id}, 'no_pago', '')"
                         style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent;">
                     <svg width="48" height="48" viewBox="0 0 36 36" fill="none" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 7H31V20H19"/>
