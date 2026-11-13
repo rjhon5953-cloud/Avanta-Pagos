@@ -266,7 +266,7 @@ LOGIN_HTML = """
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Avanta Pagos - Acceso</title>
     <style>
         * { box-sizing: border-box; font-family: 'Inter', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
@@ -929,7 +929,7 @@ HTML_TEMPLATE = """
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <title>AVANTA PAGOS v1.3</title>
     <!-- 🌐 FIJADO: Enlaces CDN oficiales para renderizar la tipografía y los iconos vectoriales de la captura -->
     <link href="https://googleapis.com" rel="stylesheet">
@@ -2123,7 +2123,7 @@ def dashboard_principal():
         </div>
     </div>
 
-    <div id="clientesContainer">
+    <div id="clientesContainer" style="display:flex; flex-direction:column; gap:10px; width:100%; box-sizing:border-box;">
     """
     
         # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO (DISEÑO LIMPIO EN DASHBOARD)
