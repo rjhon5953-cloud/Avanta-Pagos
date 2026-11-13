@@ -2063,8 +2063,8 @@ def dashboard_principal():
             html_botones_derechos = f"""
                 <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" 
                         onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados})"
-                        style="width:46px; height:46px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent; user-select:none;">
-                    <svg width="42" height="42" viewBox="0 0 36 36" fill="none" stroke="#16a34a" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                        style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent; user-select:none;">
+                    <svg width="48" height="48" viewBox="0 0 36 36" fill="none" stroke="#16a34a" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                         <!-- Billete con signo $ -->
                         <path d="M14 7H31V20H19"/>
                         <text x="23.5" y="17.5" fill="#16a34a" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
@@ -2076,8 +2076,8 @@ def dashboard_principal():
                 </button>
                 <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" 
                         onclick="ejecutarNoPago({c_id})"
-                        style="width:46px; height:46px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent; user-select:none;">
-                    <svg width="42" height="42" viewBox="0 0 36 36" fill="none" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                        style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent; user-select:none;">
+                    <svg width="48" height="48" viewBox="0 0 36 36" fill="none" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                         <!-- Billete con signo $ -->
                         <path d="M14 7H31V20H19"/>
                         <text x="23.5" y="17.5" fill="#ef4444" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
