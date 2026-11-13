@@ -2064,27 +2064,27 @@ def dashboard_principal():
                 <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" 
                         onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados})"
                         style="width:46px; height:46px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent; user-select:none;">
-                    <svg width="42" height="42" viewBox="0 0 36 36" fill="none" stroke="#15803d" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="42" height="42" viewBox="0 0 36 36" fill="none" stroke="#16a34a" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                         <!-- Billete con signo $ -->
                         <path d="M14 7H31V20H19"/>
-                        <text x="23.5" y="17.5" fill="#15803d" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
+                        <text x="23.5" y="17.5" fill="#16a34a" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
                         <!-- Mano sosteniendo el billete -->
                         <path d="M14 9L9 14C8 15 7.5 16.5 7.5 18L9 29H16L19 20V13C19 11.5 18 10.5 16.5 10.5C15.2 10.5 14.3 11.5 14.3 13V17.5C14.3 18.8 13.3 19.5 12.2 19.5C11.1 19.5 10.3 18.8 10.3 17.5V12.5"/>
                         <!-- Visto verde (Check) -->
-                        <path d="M21 26.5L24 29.5L30.5 23" stroke="#15803d" stroke-width="2.8"/>
+                        <path d="M21 26.5L24 29.5L30.5 23" stroke="#16a34a" stroke-width="2.5"/>
                     </svg>
                 </button>
                 <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" 
                         onclick="ejecutarNoPago({c_id})"
                         style="width:46px; height:46px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent; user-select:none;">
-                    <svg width="42" height="42" viewBox="0 0 36 36" fill="none" stroke="#b91c1c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="42" height="42" viewBox="0 0 36 36" fill="none" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                         <!-- Billete con signo $ -->
                         <path d="M14 7H31V20H19"/>
-                        <text x="23.5" y="17.5" fill="#b91c1c" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
+                        <text x="23.5" y="17.5" fill="#ef4444" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
                         <!-- Mano sosteniendo el billete -->
                         <path d="M14 9L9 14C8 15 7.5 16.5 7.5 18L9 29H16L19 20V13C19 11.5 18 10.5 16.5 10.5C15.2 10.5 14.3 11.5 14.3 13V17.5C14.3 18.8 13.3 19.5 12.2 19.5C11.1 19.5 10.3 18.8 10.3 17.5V12.5"/>
                         <!-- Equis roja (X) -->
-                        <path d="M22 23.5L29 30.5M29 23.5L22 30.5" stroke="#b91c1c" stroke-width="2.8"/>
+                        <path d="M22 23.5L29 30.5M29 23.5L22 30.5" stroke="#ef4444" stroke-width="2.5"/>
                     </svg>
                 </button>
             """
