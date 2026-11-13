@@ -1790,6 +1790,39 @@ function abrirConcederCreditoPrecargado(lat, lon) {
 }
 {% endif %}
 
+function aplicarFiltrosDashboard() {
+            const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+            const showPend = document.getElementById('chkPendientes').checked;
+            const showPagos = document.getElementById('chkPagos').checked;
+            const showNoPagos = document.getElementById('chkNoPagos').checked;
+            const fDiario = document.getElementById('chkDiario').checked;
+            const fSemanal = document.getElementById('chkSemanal').checked;
+            const filterByFreq = fDiario || fSemanal;
+
+            const cards = document.querySelectorAll('.cliente-card-premium');
+            let visibles = 0;
+
+            cards.forEach(card => {
+                const nombre = card.getAttribute('data-nombre') || '';
+                const estado = card.getAttribute('data-estado') || 'pendiente';
+                const freq = card.getAttribute('data-frecuencia') || 'diario';
+
+                const matchTexto = nombre.includes(q);
+                const matchEstado = (estado === 'pendiente' && showPend) || 
+                                    (estado === 'pago' && showPagos) || 
+                                    (estado === 'no_pago' && showNoPagos);
+                const matchFreq = !filterByFreq || (freq === 'diario' && fDiario) || (freq === 'semanal' && fSemanal);
+
+                if (matchTexto && matchEstado && matchFreq) {
+                    card.style.display = 'flex';
+                    visibles++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            document.getElementById('msgSinResultados').style.display = visibles === 0 ? 'block' : 'none';
+        }
 </script>
 </body>
 </html>
@@ -1897,19 +1930,40 @@ def dashboard_principal():
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s", (hoy_str,))
             capital_prestado_hoy = Decimal(str(cursor.fetchone()["total"]))
 
-            # 🎯 FIJADO DIRECTO CON TUS COLUMNAS REALES (identificacion y frecuencia)
+            # 🎯 FIJADO DIRECTO CON TUS COLUMNAS REALES (Incluye Pendientes, Pagos Hoy y Saltados Hoy)
             cursor.execute("""
-                SELECT id, nombre, telefono, direccion, referencia, identificacion, frecuencia, cuotas, valor_cuota, monto_total, orden, estado
+                SELECT id, nombre, telefono, direccion, referencia, identificacion, frecuencia, cuotas, valor_cuota, monto_total, orden, estado, fecha_gestion
                 FROM clientes 
                 WHERE estado = 'Activo' 
-                  AND (fecha_gestion IS NULL OR fecha_gestion != %s)
                   AND (frecuencia = 'Diaria' OR (frecuencia = 'Semanal' AND EXTRACT(DOW FROM CAST(%s AS DATE)) = 1))
                 ORDER BY orden ASC, id DESC
-            """, (hoy_str, hoy_str))
+            """, (hoy_str,))
             clientes_crudos = cursor.fetchall()
+
+            # Consultamos los pagos realizados hoy por cliente para saber cuánto abonaron y sus IDs de pago
+            cursor.execute("""
+                SELECT id, cliente_id, valor_pagado 
+                FROM pagos 
+                WHERE fecha_pago_real = %s AND pagado = 1
+            """, (hoy_str,))
+            pagos_hoy_rows = cursor.fetchall()
             
+            mapa_pagos_hoy = defaultdict(lambda: {"monto": Decimal("0.00"), "ids": []})
+            for ph in pagos_hoy_rows:
+                cid_h = ph["cliente_id"] if isinstance(ph, dict) else ph[1]
+                pid_h = ph["id"] if isinstance(ph, dict) else ph[0]
+                val_h = Decimal(str(ph["valor_pagado"] if isinstance(ph, dict) else ph[2]))
+                mapa_pagos_hoy[cid_h]["monto"] += val_h
+                mapa_pagos_hoy[cid_h]["ids"].append(str(pid_h))
+
             # Reconstruimos la estructura exacta dentro del mismo bloque del cursor
             clientes_ruta = []
+            cnt_pendientes = 0
+            cnt_pagos = 0
+            cnt_no_pagos = 0
+            cnt_diario = 0
+            cnt_semanal = 0
+
             if clientes_crudos:
                 c_ids = [c["id"] for c in clientes_crudos]
                 cursor.execute("SELECT id, cliente_id, numero, valor, valor_pagado, pagado, fecha FROM pagos WHERE cliente_id = ANY(%s) ORDER BY numero ASC", (c_ids,))
@@ -1922,6 +1976,32 @@ def dashboard_principal():
                 for c in clientes_crudos:
                     d_cl = dict(c)
                     d_cl["pagos"] = pagos_mep.get(c["id"], [])
+                    
+                    # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
+                    info_hoy = mapa_pagos_hoy.get(c["id"])
+                    f_gest = str(c["fecha_gestion"]) if c.get("fecha_gestion") else ""
+                    
+                    if info_hoy and info_hoy["monto"] > 0:
+                        d_cl["estado_hoy"] = "pago"
+                        d_cl["monto_pagado_hoy"] = info_hoy["monto"]
+                        d_cl["pago_ids_hoy"] = ",".join(info_hoy["ids"])
+                        cnt_pagos += 1
+                    elif f_gest == hoy_str:
+                        d_cl["estado_hoy"] = "no_pago"
+                        d_cl["monto_pagado_hoy"] = Decimal("0.00")
+                        d_cl["pago_ids_hoy"] = ""
+                        cnt_no_pagos += 1
+                    else:
+                        d_cl["estado_hoy"] = "pendiente"
+                        d_cl["monto_pagado_hoy"] = Decimal("0.00")
+                        d_cl["pago_ids_hoy"] = ""
+                        cnt_pendientes += 1
+
+                    if d_cl.get("frecuencia") == "Diaria":
+                        cnt_diario += 1
+                    else:
+                        cnt_semanal += 1
+
                     # 📊 CÁLCULO EXACTO POR CUOTAS HÁBILES (SIN CONTAR DOMINGOS)
                     hoy_dt = date.fromisoformat(hoy_str)
                     dias_mora = 0
@@ -1946,14 +2026,17 @@ def dashboard_principal():
         creditos_hoy = 0
         capital_prestado_hoy = Decimal("0.00")
         clientes_ruta = []
-    debido_minimo_dia = sum(Decimal(str(cl["valor_cuota"])) for cl in clientes_ruta)
+        cnt_pendientes = cnt_pagos = cnt_no_pagos = cnt_diario = cnt_semanal = 0
+
+    debido_minimo_dia = sum(Decimal(str(cl["valor_cuota"])) for cl in clientes_ruta if cl.get("estado_hoy") == "pendiente")
     
     debido_total_acumulado = Decimal("0.00")
     for cl in clientes_ruta:
-        for p in cl["pagos"]:
-            if not p["pagado"] and p["fecha"] <= hoy_str:
-                debido_total_acumulado += (Decimal(str(p["valor"])) - Decimal(str(p["valor_pagado"])))
-
+        if cl.get("estado_hoy") == "pendiente":
+            for p in cl["pagos"]:
+                if not p["pagado"] and p["fecha"] <= hoy_str:
+                    debido_total_acumulado += (Decimal(str(p["valor"])) - Decimal(str(p["valor_pagado"])))
+                
     capital_en_calle = Decimal("0.00")
     for c in clientes_ruta:
         pagado_cliente = sum(Decimal(str(p["valor_pagado"])) for p in c["pagos"])
@@ -1975,9 +2058,71 @@ def dashboard_principal():
     </div>
     <div class="expected-card">
         <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
-        <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo de Ruta: <b>${debido_minimo_dia:.2f}</b> | Acumulado Mora: <b>${debido_total_acumulado:.2f}</b></div>
+        <div class="kpi-val" style="color:#0369a1; font-size:13px;">🌊 Mínimo de Ruta: <b>${debido_minimo_dia:.2f}</b> | Acumulado Mora: <b>${debido_total_acumulado:.2f}</b></div>
     </div>
-    <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="filtrarClientes()">
+    
+    <!-- Barra de Búsqueda + Botón de Filtros -->
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
+        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="aplicarFiltrosDashboard()" style="margin-bottom:0; flex:1;">
+        <button type="button" onclick="document.getElementById('modalFiltrosRuta').style.display='flex'" 
+                style="width:44px; height:44px; border-radius:12px; background:#ffffff; border:1.5px solid #cbd5e1; color:#0f2b5c; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; box-shadow:0 2px 5px rgba(0,0,0,0.04); -webkit-tap-highlight-color:transparent;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="#ffffff"/>
+                <line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2" fill="#ffffff"/>
+                <line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="#ffffff"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Modal Profesional de Filtros -->
+    <div id="modalFiltrosRuta" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;">
+        <div style="background:#ffffff; width:100%; max-width:340px; border-radius:16px; overflow:hidden; box-shadow:0 15px 35px rgba(0,0,0,0.25); animation:fadeIn 0.15s ease;">
+            <div style="background:#0f2b5c; color:#ffffff; padding:15px 18px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:16px; font-weight:800;">Filtros</span>
+                <button type="button" onclick="document.getElementById('modalFiltrosRuta').style.display='none'" style="background:transparent; border:none; color:#ffffff; font-size:20px; font-weight:bold; cursor:pointer; padding:0 4px;">✕</button>
+            </div>
+            
+            <div style="padding:18px; text-align:left;">
+                <div style="font-size:13px; font-weight:800; color:#334155; margin-bottom:12px;">Estado de pago</div>
+                
+                <label style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; cursor:pointer; font-size:14px; color:#1e293b; font-weight:600;">
+                    <span>Pendientes ({cnt_pendientes})</span>
+                    <input type="checkbox" id="chkPendientes" checked onchange="aplicarFiltrosDashboard()" style="width:19px; height:19px; accent-color:#16a34a; cursor:pointer;">
+                </label>
+                
+                <label style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; cursor:pointer; font-size:14px; color:#1e293b; font-weight:600;">
+                    <span>Pagos ({cnt_pagos})</span>
+                    <input type="checkbox" id="chkPagos" onchange="aplicarFiltrosDashboard()" style="width:19px; height:19px; accent-color:#16a34a; cursor:pointer;">
+                </label>
+                
+                <label style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; cursor:pointer; font-size:14px; color:#1e293b; font-weight:600;">
+                    <span>No pagos ({cnt_no_pagos})</span>
+                    <input type="checkbox" id="chkNoPagos" onchange="aplicarFiltrosDashboard()" style="width:19px; height:19px; accent-color:#16a34a; cursor:pointer;">
+                </label>
+
+                <div style="height:1px; background:#e2e8f0; margin:14px 0;"></div>
+                <div style="font-size:13px; font-weight:800; color:#334155; margin-bottom:12px;">Frecuencia de pago</div>
+                
+                <label style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; cursor:pointer; font-size:14px; color:#1e293b; font-weight:600;">
+                    <span>Diario ({cnt_diario})</span>
+                    <input type="checkbox" id="chkDiario" onchange="aplicarFiltrosDashboard()" style="width:19px; height:19px; accent-color:#16a34a; cursor:pointer;">
+                </label>
+                
+                <label style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; cursor:pointer; font-size:14px; color:#1e293b; font-weight:600;">
+                    <span>Semanal ({cnt_semanal})</span>
+                    <input type="checkbox" id="chkSemanal" onchange="aplicarFiltrosDashboard()" style="width:19px; height:19px; accent-color:#16a34a; cursor:pointer;">
+                </label>
+
+                <div style="display:flex; justify-content:flex-end; margin-top:16px; padding-top:10px; border-top:1px solid #f1f5f9;">
+                    <button type="button" onclick="document.getElementById('chkPendientes').checked=true; document.getElementById('chkPagos').checked=true; document.getElementById('chkNoPagos').checked=true; document.getElementById('chkDiario').checked=false; document.getElementById('chkSemanal').checked=false; aplicarFiltrosDashboard();" 
+                            style="background:transparent; border:none; color:#0f2b5c; font-weight:800; font-size:14px; cursor:pointer; padding:4px 8px;">
+                        Ver todo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="clientesContainer">
     """
     
@@ -2058,42 +2203,93 @@ def dashboard_principal():
         js_num_cuota = str(cuota_p["numero"]) if cuota_p else "1"
         js_pendiente = f"{(cuota_p['valor'] - cuota_p['valor_pagado'])}" if cuota_p else "0"
         
-        # Lógica de botones en Python puro para que Visual Studio Code no marque errores en rojo
-        if saldo_restante > 0:
+                # Lógica de botones, barra lateral y estado visual según gestión del día
+        estado_hoy = c.get("estado_hoy", "pendiente")
+        monto_pag_hoy = c.get("monto_pagado_hoy", Decimal("0.00"))
+        pago_ids_hoy = c.get("pago_ids_hoy", "")
+        freq_slug = "diario" if c.get("frecuencia") == "Diaria" else "semanal"
+
+        if estado_hoy == "pago":
+            borde_izq_card = "border-left: 6px solid #16a34a !important;"
+            display_card = "display: none;"
+            html_col_pago = f'<span class="metric-val" style="color:#16a34a; font-weight:800;">${float(monto_pag_hoy):.2f}</span>'
             html_botones_derechos = f"""
-                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" 
-                        onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados})"
-                        style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent; user-select:none;">
+                <button type="button" class="btn-accion-premium cobrar" title="Deshacer Cobro" 
+                        onclick="if(confirm('¿Deseas revertir el cobro de ${float(monto_pag_hoy):.2f} de {c_nombre}?')){{ fetch('/api/revertir_gestion/pago/{pago_ids_hoy}').then(r=>r.json()).then(d=>{{ if(d.status==='ok') navegarRuta('/'); }}); }}"
+                        style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent;">
                     <svg width="48" height="48" viewBox="0 0 36 36" fill="none" stroke="#16a34a" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-                        <!-- Billete con signo $ -->
                         <path d="M14 7H31V20H19"/>
                         <text x="23.5" y="17.5" fill="#16a34a" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
-                        <!-- Mano sosteniendo el billete -->
                         <path d="M14 9L9 14C8 15 7.5 16.5 7.5 18L9 29H16L19 20V13C19 11.5 18 10.5 16.5 10.5C15.2 10.5 14.3 11.5 14.3 13V17.5C14.3 18.8 13.3 19.5 12.2 19.5C11.1 19.5 10.3 18.8 10.3 17.5V12.5"/>
-                        <!-- Visto verde (Check) -->
                         <path d="M21 26.5L24 29.5L30.5 23" stroke="#16a34a" stroke-width="2.5"/>
                     </svg>
                 </button>
-                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" 
-                        onclick="ejecutarNoPago({c_id})"
-                        style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent; user-select:none;">
+                <button type="button" disabled style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; padding:0; opacity:0.28; cursor:default;">
+                    <svg width="48" height="48" viewBox="0 0 36 36" fill="none" stroke="#64748b" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 7H31V20H19"/>
+                        <text x="23.5" y="17.5" fill="#64748b" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
+                        <path d="M14 9L9 14C8 15 7.5 16.5 7.5 18L9 29H16L19 20V13C19 11.5 18 10.5 16.5 10.5C15.2 10.5 14.3 11.5 14.3 13V17.5C14.3 18.8 13.3 19.5 12.2 19.5C11.1 19.5 10.3 18.8 10.3 17.5V12.5"/>
+                        <path d="M22 23.5L29 30.5M29 23.5L22 30.5" stroke="#64748b" stroke-width="2.5"/>
+                    </svg>
+                </button>
+            """
+        elif estado_hoy == "no_pago":
+            borde_izq_card = "border-left: 6px solid #ef4444 !important;"
+            display_card = "display: none;"
+            html_col_pago = '<span class="metric-val" style="color:#ef4444; font-weight:800;">$0</span>'
+            html_botones_derechos = f"""
+                <button type="button" disabled style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; padding:0; opacity:0.28; cursor:default;">
+                    <svg width="48" height="48" viewBox="0 0 36 36" fill="none" stroke="#64748b" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 7H31V20H19"/>
+                        <text x="23.5" y="17.5" fill="#64748b" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
+                        <path d="M14 9L9 14C8 15 7.5 16.5 7.5 18L9 29H16L19 20V13C19 11.5 18 10.5 16.5 10.5C15.2 10.5 14.3 11.5 14.3 13V17.5C14.3 18.8 13.3 19.5 12.2 19.5C11.1 19.5 10.3 18.8 10.3 17.5V12.5"/>
+                        <path d="M21 26.5L24 29.5L30.5 23" stroke="#64748b" stroke-width="2.5"/>
+                    </svg>
+                </button>
+                <button type="button" class="btn-accion-premium saltar" title="Deshacer No Pago" 
+                        onclick="if(confirm('¿Deseas deshacer el No Pago de {c_nombre} y regresarlo a pendientes?')){{ fetch('/api/revertir_gestion/salto/{c_id}').then(r=>r.json()).then(d=>{{ if(d.status==='ok') navegarRuta('/'); }}); }}"
+                        style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent;">
                     <svg width="48" height="48" viewBox="0 0 36 36" fill="none" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-                        <!-- Billete con signo $ -->
                         <path d="M14 7H31V20H19"/>
                         <text x="23.5" y="17.5" fill="#ef4444" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
-                        <!-- Mano sosteniendo el billete -->
                         <path d="M14 9L9 14C8 15 7.5 16.5 7.5 18L9 29H16L19 20V13C19 11.5 18 10.5 16.5 10.5C15.2 10.5 14.3 11.5 14.3 13V17.5C14.3 18.8 13.3 19.5 12.2 19.5C11.1 19.5 10.3 18.8 10.3 17.5V12.5"/>
-                        <!-- Equis roja (X) -->
                         <path d="M22 23.5L29 30.5M29 23.5L22 30.5" stroke="#ef4444" stroke-width="2.5"/>
                     </svg>
                 </button>
             """
         else:
-            html_botones_derechos = '<span style="font-size:18px; color:#10b981; font-weight:bold; padding-right:10px;">✅</span>'
-        
+            borde_izq_card = ""
+            display_card = ""
+            html_col_pago = '<span class="metric-val">-</span>'
+            if saldo_restante > 0:
+                html_botones_derechos = f"""
+                    <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" 
+                            onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados})"
+                            style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent; user-select:none;">
+                        <svg width="48" height="48" viewBox="0 0 36 36" fill="none" stroke="#16a34a" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 7H31V20H19"/>
+                            <text x="23.5" y="17.5" fill="#16a34a" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
+                            <path d="M14 9L9 14C8 15 7.5 16.5 7.5 18L9 29H16L19 20V13C19 11.5 18 10.5 16.5 10.5C15.2 10.5 14.3 11.5 14.3 13V17.5C14.3 18.8 13.3 19.5 12.2 19.5C11.1 19.5 10.3 18.8 10.3 17.5V12.5"/>
+                            <path d="M21 26.5L24 29.5L30.5 23" stroke="#16a34a" stroke-width="2.5"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" 
+                            onclick="ejecutarNoPago({c_id})"
+                            style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; outline:none; -webkit-tap-highlight-color:transparent; user-select:none;">
+                        <svg width="48" height="48" viewBox="0 0 36 36" fill="none" stroke="#ef4444" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 7H31V20H19"/>
+                            <text x="23.5" y="17.5" fill="#ef4444" stroke="none" font-family="Arial, sans-serif" font-weight="900" font-size="11.5">$</text>
+                            <path d="M14 9L9 14C8 15 7.5 16.5 7.5 18L9 29H16L19 20V13C19 11.5 18 10.5 16.5 10.5C15.2 10.5 14.3 11.5 14.3 13V17.5C14.3 18.8 13.3 19.5 12.2 19.5C11.1 19.5 10.3 18.8 10.3 17.5V12.5"/>
+                            <path d="M22 23.5L29 30.5M29 23.5L22 30.5" stroke="#ef4444" stroke-width="2.5"/>
+                        </svg>
+                    </button>
+                """
+            else:
+                html_botones_derechos = '<span style="font-size:18px; color:#10b981; font-weight:bold; padding-right:10px;">✔</span>'
+
         # Inyección limpia en las tarjetas premium
         contexto_dash += f"""
-        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}">
+        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}" style="{borde_izq_card} {display_card}">
             <div class="card-izquierda">
                 {html_indicador_mora}
                 <div class="info-bloque-texto" style="width:100%;">
@@ -2103,27 +2299,68 @@ def dashboard_principal():
                     <div class="grid-metricas-premium">
                         <div class="metric-col"><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${c_valor_cuota}</span></div>
                         <div class="metric-col"><span class="metric-lbl">Pendiente</span><span class="metric-val">{cuotas_pendientes_float:.1f} / {cuotas_totales_float:.1f}</span></div>
-                        <div class="metric-col"><span class="metric-lbl">Pago</span><span class="metric-val">—</span></div>
+                        <div class="metric-col"><span class="metric-lbl">Pago</span>{html_col_pago}</div>
                     </div>
                     
                     <div class="fila-utilidades-premium">
-                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados}); alert('📸 Adjunta el comprobante para la cuota de {c_nombre}');">📸</button>
+                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados}); activarCamaraModal();">📸</button>
                         <div class="circulo-check-cuota" style="{estilo_cuadro_dias}">{texto_cuadro_dias}</div>
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
                     </div>
                 </div>
-            </div>
-            
             <div class="card-derecha-acciones" id="acciones-{c_id}">
                 {html_botones_derechos}
             </div>
+        </div>
         """
-        contexto_dash += "</div>"
+        
+    contexto_dash += """
+    </div>
+    <div id="msgSinResultados" style="display:none; text-align:center; padding:40px 20px; color:#64748b; font-size:14px; font-weight:600;">
+        No hay recaudos disponibles con los filtros seleccionados
+    </div>
+    <script>
+        function aplicarFiltrosDashboard() {
+            const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+            const showPend = document.getElementById('chkPendientes').checked;
+            const showPagos = document.getElementById('chkPagos').checked;
+            const showNoPagos = document.getElementById('chkNoPagos').checked;
+            const fDiario = document.getElementById('chkDiario').checked;
+            const fSemanal = document.getElementById('chkSemanal').checked;
+            const filterByFreq = fDiario || fSemanal;
+
+            const cards = document.querySelectorAll('.cliente-card-premium');
+            let visibles = 0;
+
+            cards.forEach(card => {
+                const nombre = card.getAttribute('data-nombre') || '';
+                const estado = card.getAttribute('data-estado') || 'pendiente';
+                const freq = card.getAttribute('data-frecuencia') || 'diario';
+
+                const matchTexto = nombre.includes(q);
+                const matchEstado = (estado === 'pendiente' && showPend) || 
+                                    (estado === 'pago' && showPagos) || 
+                                    (estado === 'no_pago' && showNoPagos);
+                const matchFreq = !filterByFreq || (freq === 'diario' && fDiario) || (freq === 'semanal' && fSemanal);
+
+                if (matchTexto && matchEstado && matchFreq) {
+                    card.style.display = 'flex';
+                    visibles++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            document.getElementById('msgSinResultados').style.display = visibles === 0 ? 'block' : 'none';
+        }
+    </script>
+    """
     
-    # 🎨 Inyectamos el bloque procesado y controlamos el formato nativo para celulares
+    # 🎯 Inyectamos el bloque procesado y controlamos el formato nativo para celulares
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(contexto_dash)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(contexto_dash))
+
 
 @app.route("/menu/clientes")
 def seccion_clientes_maestro():
