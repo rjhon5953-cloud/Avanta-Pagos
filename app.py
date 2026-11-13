@@ -1030,17 +1030,6 @@ HTML_TEMPLATE = """
                 </a>
             </li>
 
-            <!-- 💰 PAGOS DE HOY -->
-            <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/pagos_hoy')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #f59e0b;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">💰</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Pagos de Hoy</span>
-                    </div>
-                    <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
-                </a>
-            </li>
-
             <!-- 👥 CLIENTES -->
             <li style="margin: 0;">
                 <a href="javascript:void(0)" onclick="navegarRuta('/menu/clientes')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #2563eb;">
@@ -1817,7 +1806,7 @@ function aplicarFiltrosDashboard() {
                     card.style.display = '';
                     visibles++;
                 } else {
-                    card.style.display = 'none';
+                    card.style.setProperty('display', 'none', 'important');
                 }
             });
 
@@ -2211,7 +2200,7 @@ def dashboard_principal():
 
         if estado_hoy == "pago":
             borde_izq_card = "border-left: 6px solid #16a34a !important;"
-            display_card = "display: none;"
+            display_card = "display: none !important;"
             html_col_pago = f'<span class="metric-val" style="color:#16a34a; font-weight:800;">${float(monto_pag_hoy):.2f}</span>'
             html_botones_derechos = f"""
                 <button type="button" class="btn-accion-premium cobrar" title="Deshacer Cobro" 
@@ -2235,7 +2224,7 @@ def dashboard_principal():
             """
         elif estado_hoy == "no_pago":
             borde_izq_card = "border-left: 6px solid #ef4444 !important;"
-            display_card = "display: none;"
+            display_card = "display: none !important;"
             html_col_pago = '<span class="metric-val" style="color:#ef4444; font-weight:800;">$0</span>'
             html_botones_derechos = f"""
                 <button type="button" disabled style="width:52px; height:52px; background:transparent; border:none; display:flex; align-items:center; justify-content:center; padding:0; opacity:0.28; cursor:default;">
@@ -2348,7 +2337,7 @@ def dashboard_principal():
                     card.style.display = '';
                     visibles++;
                 } else {
-                    card.style.display = 'none';
+                    card.style.setProperty('display', 'none', 'important');
                 }
             });
 
