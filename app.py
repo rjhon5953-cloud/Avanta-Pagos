@@ -1204,7 +1204,7 @@ HTML_TEMPLATE = """
             <div style="display:flex; justify-content:space-between;"><span>Nombre</span><b id="gpNombre" style="color:#0f172a;">-</b></div>
             <div style="display:flex; justify-content:space-between;"><span>Alias</span><b id="gpAlias" style="color:#0f172a;">-</b></div>
             <div style="display:flex; justify-content:space-between;"><span>Documento 1</span><b id="gpDocumento" style="color:#0f172a;">-</b></div>
-            <div style="display:flex; justify-content:space-between;"><span>Días de mora</span><b id="gpDiasMora" style="color:#0f172a;">0</b></div>
+            <div style="display:flex; justify-content:space-between;"><span id="gpLblDiasEstado">Días de mora</span><b id="gpDiasMora" style="color:#0f172a;">0</b></div>
             <div style="display:flex; justify-content:space-between;"><span>Fecha último pago</span><b id="gpUltimoPago" style="color:#0f172a;">-</b></div>
         </div>
 
@@ -1309,7 +1309,7 @@ HTML_TEMPLATE = """
             <div style="display:flex; justify-content:space-between;"><span>Nombre</span><b id="gnpNombre" style="color:#0f172a;">-</b></div>
             <div style="display:flex; justify-content:space-between;"><span>Alias</span><b id="gnpAlias" style="color:#0f172a;">-</b></div>
             <div style="display:flex; justify-content:space-between;"><span>Documento 1</span><b id="gnpDocumento" style="color:#0f172a;">-</b></div>
-            <div style="display:flex; justify-content:space-between;"><span>Días de mora</span><b id="gnpDiasMora" style="color:#0f172a;">0</b></div>
+            <div style="display:flex; justify-content:space-between;"><span id="gnpLblDiasEstado">Días de mora</span><b id="gnpDiasMora" style="color:#0f172a;">0</b></div>
             <div style="display:flex; justify-content:space-between;"><span>Fecha último pago</span><b id="gnpUltimoPago" style="color:#0f172a;">-</b></div>
         </div>
 
@@ -1578,7 +1578,12 @@ function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 
     document.getElementById('gpNombre').innerText = nombre;
     document.getElementById('gpAlias').innerText = alias;
     document.getElementById('gpDocumento').innerText = cedula;
+    const cuadroDias = card ? card.querySelector('.circulo-check-cuota') : null;
+    const bgCuadro = cuadroDias ? (cuadroDias.getAttribute('style') || '') : '';
+    const esAdelanto = bgCuadro.includes('2563eb') || bgCuadro.includes('37, 99, 235');
+    document.getElementById('gpLblDiasEstado').innerText = esAdelanto ? 'Días de adelanto' : 'Días de mora';
     document.getElementById('gpDiasMora').innerText = diasMoraGlobalTemporal;
+    document.getElementById('gpDiasMora').style.color = esAdelanto ? '#2563eb' : '#0f172a';
     document.getElementById('gpUltimoPago').innerText = card ? (card.getAttribute('data-ultpago') || 'Sin pagos previos') : '-';
     document.getElementById('gpSaldoTexto').innerText = '$' + saldoNum.toFixed(2);
 
@@ -1793,7 +1798,12 @@ function ejecutarNoPago(clienteId, prevTipo = '', prevIds = '') {
     document.getElementById('gnpNombre').innerText = nombre;
     document.getElementById('gnpAlias').innerText = alias;
     document.getElementById('gnpDocumento').innerText = cedula;
+    const cuadroDiasNp = card ? card.querySelector('.circulo-check-cuota') : null;
+    const bgCuadroNp = cuadroDiasNp ? (cuadroDiasNp.getAttribute('style') || '') : '';
+    const esAdelantoNp = bgCuadroNp.includes('2563eb') || bgCuadroNp.includes('37, 99, 235');
+    document.getElementById('gnpLblDiasEstado').innerText = esAdelantoNp ? 'Días de adelanto' : 'Días de mora';
     document.getElementById('gnpDiasMora').innerText = diasMora;
+    document.getElementById('gnpDiasMora').style.color = esAdelantoNp ? '#2563eb' : '#0f172a';
     document.getElementById('gnpUltimoPago').innerText = card ? (card.getAttribute('data-ultpago') || 'Sin pagos previos') : '-';
     document.getElementById('gnpSaldoTexto').innerText = saldoTxt;
     document.getElementById('gnpComentarios').value = '';
