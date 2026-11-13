@@ -1814,7 +1814,7 @@ function aplicarFiltrosDashboard() {
                 const matchFreq = !filterByFreq || (freq === 'diario' && fDiario) || (freq === 'semanal' && fSemanal);
 
                 if (matchTexto && matchEstado && matchFreq) {
-                    card.style.display = 'flex';
+                    card.style.display = '';
                     visibles++;
                 } else {
                     card.style.display = 'none';
@@ -2308,6 +2308,7 @@ def dashboard_principal():
                         <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
                     </div>
                 </div>
+            </div>    
             <div class="card-derecha-acciones" id="acciones-{c_id}">
                 {html_botones_derechos}
             </div>
@@ -2344,7 +2345,7 @@ def dashboard_principal():
                 const matchFreq = !filterByFreq || (freq === 'diario' && fDiario) || (freq === 'semanal' && fSemanal);
 
                 if (matchTexto && matchEstado && matchFreq) {
-                    card.style.display = 'flex';
+                    card.style.display = '';
                     visibles++;
                 } else {
                     card.style.display = 'none';
