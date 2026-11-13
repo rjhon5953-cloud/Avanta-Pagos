@@ -846,41 +846,82 @@ CONTENIDO_HTML = """
     </div>
 
 {% elif vista == 'perfil_cobrador' %}
-    <div class="section-header-title"><i class="fa-solid fa-user-gear"></i> PERFIL DEL COBRADOR ASIGNADO</div>
-    <div class="card" style="padding: 20px; text-align: left; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+    <!-- Encabezado de Sección con SVG limpio -->
+    <div class="section-header-title" style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>PERFIL DEL COBRADOR</span>
+    </div>
+
+    <!-- Credencial Corporativa Superior -->
+    <div style="background:linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 100%); border-radius:16px; padding:22px 20px; color:white; margin-bottom:16px; box-shadow:0 8px 20px rgba(15,43,92,0.22); position:relative; overflow:hidden;">
+        <!-- Detalle decorativo sutil -->
+        <div style="position:absolute; right:-20px; top:-20px; width:110px; height:110px; border-radius:50%; background:rgba(255,255,255,0.06);"></div>
+        
+        <div style="display:flex; align-items:center; gap:16px; position:relative; z-index:1;">
+            <div style="width:62px; height:62px; border-radius:50%; background:linear-gradient(135deg, #38bdf8, #0284c7); border:3px solid rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:white; flex-shrink:0; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+                {{ (nombre[:2] if nombre else 'AV')|upper }}
+            </div>
+            <div style="text-align:left; flex:1;">
+                <div style="display:inline-flex; align-items:center; gap:5px; background:rgba(16,185,129,0.2); border:1px solid rgba(16,185,129,0.4); color:#6ee7b7; padding:3px 9px; border-radius:20px; font-size:10px; font-weight:800; letter-spacing:0.4px; margin-bottom:6px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#10b981;"></span> RUTA ACTIVA
+                </div>
+                <h3 style="margin:0; font-size:18px; font-weight:800; color:#ffffff; letter-spacing:-0.3px;">{{ nombre if nombre else 'Cobrador Asignado' }}</h3>
+                <p style="margin:2px 0 0 0; font-size:12px; color:#cbd5e1; font-weight:500;">Agente Oficial • Avanta Pagos</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjeta de Información Personal y Contacto -->
+    <div class="card" style="padding:20px; text-align:left; background:white; border-radius:16px; box-shadow:0 2px 10px rgba(0,0,0,0.04); border:1px solid #e2e8f0; margin-bottom:24px;">
+        <h4 style="margin:0 0 14px 0; font-size:13px; font-weight:800; color:#0f172a; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid #f1f5f9; padding-bottom:10px;">
+            Información Personal y de Contacto
+        </h4>
+
         <form id="formPerfil" onsubmit="actualizarPerfilCompleto(event)">
-            <div style="margin-bottom: 12px;">
-                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Nombre del Cobrador</label>
-                <input type="text" id="perfilNombre" value="{{ nombre }}" placeholder="Ej: Juan Pérez" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;" required>
+            <!-- Campo oculto para mantener compatibilidad sin mostrar credenciales -->
+            <input type="hidden" id="perfilUsuario" value="{{ usuario_actual }}">
+            <input type="hidden" id="perfilClave" value="">
+
+            <div style="margin-bottom:14px;">
+                <label style="font-size:11px; font-weight:700; color:#64748b; display:flex; align-items:center; gap:6px; margin-bottom:6px; text-transform:uppercase;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Nombre Completo
+                </label>
+                <input type="text" id="perfilNombre" value="{{ nombre }}" placeholder="Ej: Jhon Ramírez" style="width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; background:#f8fafc; box-sizing:border-box;">
             </div>
-            <div style="margin-bottom: 12px;">
-                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Cédula de Identidad</label>
-                <input type="text" id="perfilCedula" value="{{ cedula }}" placeholder="Ej: 0999999999" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;">
+
+            <div style="margin-bottom:14px;">
+                <label style="font-size:11px; font-weight:700; color:#64748b; display:flex; align-items:center; gap:6px; margin-bottom:6px; text-transform:uppercase;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg>
+                    Cédula de Identidad
+                </label>
+                <input type="text" id="perfilCedula" value="{{ cedula }}" placeholder="Ej: 1314792449" style="width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; background:#f8fafc; box-sizing:border-box;">
             </div>
-            <div style="margin-bottom: 12px;">
-                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Número de Celular</label>
-                <input type="text" id="perfilCelular" value="{{ celular }}" placeholder="Ej: 0987654321" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;">
+
+            <div style="margin-bottom:14px;">
+                <label style="font-size:11px; font-weight:700; color:#64748b; display:flex; align-items:center; gap:6px; margin-bottom:6px; text-transform:uppercase;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    Número de Celular
+                </label>
+                <input type="text" id="perfilCelular" value="{{ celular }}" placeholder="Ej: 0989329300" style="width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; background:#f8fafc; box-sizing:border-box;">
             </div>
-            <div style="margin-bottom: 12px;">
-                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Correo Electrónico</label>
-                <input type="email" id="perfilCorreo" value="{{ correo }}" placeholder="correo@empresa.com" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;">
+
+            <div style="margin-bottom:20px;">
+                <label style="font-size:11px; font-weight:700; color:#64748b; display:flex; align-items:center; gap:6px; margin-bottom:6px; text-transform:uppercase;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    Correo Electrónico
+                </label>
+                <input type="email" id="perfilCorreo" value="{{ correo }}" placeholder="correo@empresa.com" style="width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; background:#f8fafc; box-sizing:border-box;">
             </div>
-            <div style="margin-bottom: 12px; border-top: 1px dashed #e2e8f0; padding-top: 12px;">
-                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Usuario de Acceso al Sistema</label>
-                <input type="text" id="perfilUsuario" value="{{ usuario_actual }}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;" required>
-            </div>
-            <div style="margin-bottom: 16px;">
-                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Nueva Contraseña (Dejar en blanco para no cambiar)</label>
-                <input type="password" id="perfilClave" placeholder="••••••••" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;">
-            </div>
-            <button type="submit" style="width: 100%; border: none; padding: 12px; background: #3b82f6; border-radius: 8px; font-weight: bold; color: white; cursor: pointer; font-size: 13px;">
-                <i class="fa-solid fa-floppy-disk"></i> Actualizar Ficha de Cobrador
+
+            <button type="submit" style="width:100%; border:none; padding:14px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); border-radius:12px; font-size:14px; font-weight:800; color:white; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(15,43,92,0.25);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <span>Guardar Cambios del Perfil</span>
             </button>
         </form>
     </div>
 {% endif %}
 """
-
 
 
 HTML_TEMPLATE = """
