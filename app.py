@@ -2060,9 +2060,27 @@ def dashboard_principal():
         
         # Lógica de botones en Python puro para que Visual Studio Code no marque errores en rojo
         if saldo_restante > 0:
-            html_botones_derechos = f"""
-            <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados})">💵✔️</button>
-            <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" onclick="ejecutarNoPago({c_id})">💵❌</button>
+                        html_botones_derechos = f"""
+                <button type="button" class="btn-accion-premium cobrar" title="Cobrar Cuota" 
+                        onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados})"
+                        style="width:40px; height:40px; border-radius:11px; background:#ecfdf5; border:1.5px solid #86efac; color:#16a34a; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 5px rgba(22,163,74,0.12); padding:0; transition:transform 0.1s;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="6" width="20" height="12" rx="2"/>
+                        <circle cx="12" cy="12" r="2"/>
+                        <path d="M6 12h.01M18 12h.01"/>
+                        <path d="M16 19l2 2 4-4" stroke="#15803d" stroke-width="2.5"/>
+                    </svg>
+                </button>
+                <button type="button" class="btn-accion-premium saltar" title="Saltar Cliente" 
+                        onclick="ejecutarNoPago({c_id})"
+                        style="width:40px; height:40px; border-radius:11px; background:#fef2f2; border:1.5px solid #fca5a5; color:#dc2626; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 5px rgba(220,38,38,0.12); padding:0; transition:transform 0.1s;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="6" width="20" height="12" rx="2"/>
+                        <circle cx="12" cy="12" r="2"/>
+                        <path d="M6 12h.01M18 12h.01"/>
+                        <path d="M17 17l4 4m0-4l-4 4" stroke="#b91c1c" stroke-width="2.5"/>
+                    </svg>
+                </button>
             """
         else:
             html_botones_derechos = '<span style="font-size:18px; color:#10b981; font-weight:bold; padding-right:10px;">✅</span>'
