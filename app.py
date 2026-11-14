@@ -269,44 +269,106 @@ LOGIN_HTML = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Avanta Pagos - Acceso</title>
     <style>
-        * { box-sizing: border-box; font-family: 'Inter', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
+        * { box-sizing: border-box; font-family: 'Inter', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         body { background: linear-gradient(135deg, #0b1329 0%, #1c2541 100%); display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 16px; }
-        .login-card { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 36px 24px; border-radius: 24px; width: 100%; max-width: 380px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); }
-        .logo-container { margin-bottom: 20px; }
-        .logo-icon { font-size: 32px; background: linear-gradient(135deg, #38bdf8, #0369a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; display: inline-block; letter-spacing: -0.5px; }
-        .logo-subtitle { color: #94a3b8; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
-        h2 { color: white; font-size: 18px; font-weight: 700; margin: 20px 0; text-align: center; letter-spacing: 0.3px; }
-        .input-group { text-align: left; margin-bottom: 18px; }
+        .login-card { background: rgba(30, 41, 59, 0.78); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 28px 24px; border-radius: 22px; width: 100%; max-width: 390px; box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45); text-align: center; }
+        .logo-container { margin-bottom: 16px; }
+        .logo-icon { font-size: 28px; background: linear-gradient(135deg, #38bdf8, #0369a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .logo-subtitle { font-size: 11px; color: #94a3b8; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+        h2 { color: white; font-size: 18px; font-weight: 700; margin: 14px 0 18px 0; text-align: center; letter-spacing: 0.3px; }
+        
+        /* Bloque de Estado Unidad y Caja */
+        .status-panel { background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 14px 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 11px; }
+        .status-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .status-lbl { display: flex; align-items: center; gap: 8px; color: #cbd5e1; font-weight: 600; }
+        .status-val { font-weight: 800; color: #ffffff; font-size: 14px; }
+        .caja-abierta { color: #34d399; }
+        .caja-cerrada { color: #f87171; }
+
+        .input-group { text-align: left; margin-bottom: 16px; position: relative; }
         label { color: #cbd5e1; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: block; letter-spacing: 0.5px; }
-        input { width: 100%; padding: 14px 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: white; font-size: 14px; font-weight: 500; outline: none; display: block; margin-top: 4px; transition: all 0.2s ease-in-out; }
+        input { width: 100%; padding: 14px 42px 14px 16px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; color: white; font-size: 15px; font-weight: 600; outline: none; transition: all 0.2s; }
         input::placeholder { color: #64748b; }
-        input:focus { border-color: #0ea5e9; background: rgba(15, 23, 42, 0.8); box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.15); }
-        .btn-access { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; font-weight: 700; font-size: 14px; border: none; padding: 14px; border-radius: 12px; width: 100%; cursor: pointer; margin-top: 14px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3); display: block; transition: all 0.2s ease-in-out; }
-        .btn-access:hover { background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 6px 16px rgba(14, 165, 233, 0.45); transform: translateY(-1px); }
-        .btn-access:active { transform: translateY(0); }
-        .version-text { color: #475569; font-size: 11px; font-weight: 600; margin-top: 24px; }
-        .error-msg { background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 8px; font-size: 12px; margin-bottom: 16px; font-weight: 600; }
+        input:focus { border-color: #0ea5e9; background: rgba(15, 23, 42, 0.85); box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.15); }
+        input:disabled { opacity: 0.45; cursor: not-allowed; }
+        
+        .toggle-eye { position: absolute; right: 12px; top: 31px; background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 4px; display: flex; align-items: center; }
+        .btn-access { width: 100%; padding: 14px; background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; font-weight: 700; font-size: 15px; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 6px 16px rgba(14, 165, 233, 0.35); transition: all 0.2s; margin-top: 4px; }
+        .btn-access:hover { background: linear-gradient(135deg, #0284c7, #0369a1); }
+        .btn-access:active { transform: translateY(1px); }
+        .btn-refresh { width: 100%; padding: 14px; background: rgba(239, 68, 68, 0.16); border: 1px solid rgba(239, 68, 68, 0.45); color: #fca5a5; font-weight: 700; font-size: 14px; border-radius: 12px; cursor: pointer; margin-top: 4px; transition: all 0.2s; }
+        .btn-refresh:active { transform: scale(0.99); }
+        
+        .version-text { color: #475569; font-size: 11px; font-weight: 600; margin-top: 20px; }
+        .error-msg { background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #fca5a5; padding: 10px; border-radius: 10px; font-size: 12px; margin-bottom: 16px; font-weight: 600; }
     </style>
 </head>
 <body>
     <div class="login-card">
         <div class="logo-container">
             <div class="logo-icon">🌐 AVANTA PAGOS</div>
-            <div class="logo-subtitle">SISTEMA PRO v1.3</div>
+            <div class="logo-subtitle">SISTEMA PRO V1.3</div>
         </div>
         <h2>Control de Acceso</h2>
-        {% if error %} <div class="error-msg">⚠️ {{ error }}</div> {% endif %}
-        <form action="/login" method="POST" onsubmit="setTimeout(() => { const b = document.getElementById('btnLoginSubmit'); if(b){ b.disabled = true; b.innerText = '⌛ Autenticando...'; b.style.opacity = '0.7'; } }, 10);">
+
+        <!-- Estado en Vivo de Unidad y Caja antes de ingresar -->
+        <div class="status-panel">
+            <div class="status-row">
+                <div class="status-lbl">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                        <circle cx="12" cy="10" r="2.5"/>
+                        <path d="M8.5 16.5c.8-1.5 2-2.2 3.5-2.2s2.7.7 3.5 2.2"/>
+                    </svg>
+                    <span>Unidad:</span>
+                </div>
+                <span class="status-val">{{ unidad_txt }}</span>
+            </div>
+            <div class="status-row">
+                <div class="status-lbl">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="10" width="20" height="10" rx="2"/>
+                        <path d="M6 10V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4"/>
+                        <line x1="6" y1="15" x2="18" y2="15"/>
+                    </svg>
+                    <span>Caja:</span>
+                </div>
+                <span class="status-val {{ caja_clase }}">{{ caja_txt }}</span>
+            </div>
+        </div>
+
+        {% if error %}<div class="error-msg">⚠️ {{ error }}</div>{% endif %}
+
+        {% if caja_abierta_bool %}
+            <form action="/login" method="POST" onsubmit="setTimeout(() => { const b = document.getElementById('btnLoginSubmit'); if(b){ b.disabled = true; b.innerText = '⏳ Autenticando...'; } }, 10);">
+                <div class="input-group">
+                    <label>Usuario Comercial</label>
+                    <input type="text" name="usuario" value="{{ usuario_default }}" required placeholder="Ingresa tu usuario">
+                </div>
+                <div class="input-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="inputClaveLogin" name="clave" required placeholder="••••••••">
+                    <button type="button" class="toggle-eye" onclick="const i=document.getElementById('inputClaveLogin'); i.type = i.type==='password'?'text':'password';" title="Ver contraseña">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
+                <button type="submit" id="btnLoginSubmit" class="btn-access">Acceder al Sistema</button>
+            </form>
+        {% else %}
             <div class="input-group">
                 <label>Usuario Comercial</label>
-                <input type="text" name="usuario" required placeholder="Ingresa tu usuario">
+                <input type="text" value="{{ usuario_default }}" disabled placeholder="Unidad cerrada">
             </div>
             <div class="input-group">
                 <label>Contraseña</label>
-                <input type="password" name="clave" required placeholder="••••••••">
+                <input type="password" disabled placeholder="••••••••">
             </div>
-            <button type="submit" id="btnLoginSubmit" class="btn-access">Acceder al Sistema</button>
-        </form>
+            <button type="button" class="btn-refresh" onclick="window.location.reload()">🔒 Caja Cerrada • Verificar Apertura</button>
+        {% endif %}
+
         <div class="version-text">Avanta Pagos versión 1.3</div>
     </div>
 </body>
@@ -2182,31 +2244,68 @@ function aplicarFiltrosDashboard() {
 </body>
 </html>
 """
+
 @app.route("/login", methods=["GET", "POST"])
 def login_route():
-    if request.method == "POST":
-        usuario_ingresado = request.form.get("usuario")
-        clave_ingresada = request.form.get("clave")
-        
-        conn = get_db()
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT valor FROM configuracion WHERE llave = 'usuario'")
-                usr_row = cursor.fetchone()
-                cursor.execute("SELECT valor FROM configuracion WHERE llave = 'clave'")
-                clv_row = cursor.fetchone()
-        finally:
-            pass
-                
-        # 🔐 FIJADO: Verificación utilizando hashes seguros criptográficos contra DictCursor
-        if usr_row and clv_row:
-            if usuario_ingresado == usr_row["valor"] and check_password_hash(clv_row["valor"], clave_ingresada):
-                session["autenticado"] = True
-                session["usuario"] = usuario_ingresado
-                return redirect("/")
-    
-        return render_template_string(LOGIN_HTML, error="Credenciales incorrectas.")
-    return render_template_string(LOGIN_HTML, error=None)
+    error_msg = None
+    usuario_def = ""
+    unidad_txt = "RUTA-01"
+    caja_txt = "Unidad cerrada"
+    caja_clase = "caja-cerrada"
+    caja_abierta_bool = False
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT llave, valor FROM configuracion WHERE llave IN ('usuario', 'clave', 'nombre_cobrador', 'caja_autorizada', 'fecha_jornada_activa')")
+            cfg = {r["llave"]: r["valor"] for r in cursor.fetchall()}
+
+            usuario_def = cfg.get("usuario", "")
+            unidad_txt = cfg.get("nombre_cobrador") or cfg.get("usuario") or "RUTA-01"
+            autorizada = str(cfg.get("caja_autorizada", "0")).strip()
+            fecha_jor = str(cfg.get("fecha_jornada_activa", "")).strip()
+
+            if autorizada == "1":
+                caja_abierta_bool = True
+                fecha_fmt = fecha_jor.replace("-", "/") if fecha_jor else date.today().strftime("%Y/%m/%d")
+                caja_txt = f"ABIERTA: {fecha_fmt}"
+                caja_clase = "caja-abierta"
+            else:
+                caja_abierta_bool = False
+                caja_txt = "Unidad cerrada"
+                caja_clase = "caja-cerrada"
+
+            if request.method == "POST":
+                if not caja_abierta_bool:
+                    error_msg = "Tu caja se encuentra cerrada. Solicita apertura al Administrador."
+                else:
+                    usuario_ingresado = request.form.get("usuario", "").strip()
+                    clave_ingresada = request.form.get("clave", "")
+                    usr_db = cfg.get("usuario", "")
+                    clv_db = cfg.get("clave", "")
+
+                    if usr_db and clv_db and usuario_ingresado == usr_db and check_password_hash(clv_db, clave_ingresada):
+                        session["autenticado"] = True
+                        session["usuario"] = usuario_ingresado
+                        return redirect("/")
+                    else:
+                        error_msg = "Credenciales incorrectas."
+                        usuario_def = usuario_ingresado
+    except Exception as e:
+        print(f"Error en login_route: {e}")
+        if request.method == "POST":
+            error_msg = "Error de conexión al validar acceso."
+
+    return render_template_string(
+        LOGIN_HTML,
+        error=error_msg,
+        usuario_default=usuario_def,
+        unidad_txt=unidad_txt,
+        caja_txt=caja_txt,
+        caja_clase=caja_clase,
+        caja_abierta_bool=caja_abierta_bool
+    )
+
 
 @app.route("/logout")
 def logout():
