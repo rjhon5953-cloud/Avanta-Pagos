@@ -2383,6 +2383,18 @@ function aplicarFiltrosDashboard() {
                 }
             });
         }
+
+        function filtrarSecuenciaRuta() {
+            const q = (document.getElementById('buscadorRutaOrden').value || '').toLowerCase().trim();
+            document.querySelectorAll('.item-ruta-orden').forEach(card => {
+                const txt = card.getAttribute('data-filtro') || '';
+                if (txt.includes(q)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.setProperty('display', 'none', 'important');
+                }
+            });
+        }
 </script>
 </body>
 </html>
@@ -3621,54 +3633,94 @@ def seccion_reordenar_ruta():
     finally:
         pass
 
-    # 🎨 FIJADO: Enlace oficial a FontAwesome para activar los iconos de las flechas en el móvil
-    html_orden = """
-    <link rel="stylesheet" href="https://cloudflare.com">
-    
-    <div class="section-header-title" style="margin-bottom: 15px; font-weight: 800; color: #0f2b5c;">
-        <i class="fa-solid fa-arrow-down-up-lock"></i> Organizar Secuencia de Ruta
+    total_ruta = len(todos)
+    html_orden = f"""
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 4px 10px 4px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:36px; height:36px; border-radius:10px; background:#0f2b5c; color:#ffffff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+            </div>
+            <div style="text-align:left;">
+                <div style="font-size:15px; font-weight:800; color:#0f2b5c; line-height:1.15;">SECUENCIA DE RUTA</div>
+                <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">{total_ruta} clientes activos en recorrido</div>
+            </div>
+        </div>
     </div>
-    <p style="font-size:11px; color:#64748b; margin-bottom:16px; text-align:left; padding:0 4px; line-height: 1.4;">
-        Ajusta el orden de visita diario. Presiona las flechas de forma consecutiva para acomodar la posición de tus cobradores al instante.
-    </p>
-    <div style="display: flex; flex-direction: column; gap: 10px;">
+
+    <div style="background:#eff6ff; border:1px solid #dbeafe; border-radius:10px; padding:9px 12px; margin:0 4px 12px 4px; display:flex; align-items:center; gap:8px; text-align:left;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <span style="font-size:11.5px; color:#1e3a8a; font-weight:600; line-height:1.3;">Usa las flechas laterales para ajustar el orden de visita de tus clientes al instante.</span>
+    </div>
+
+    <div style="position:relative; margin:0 4px 14px 4px;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:13px; top:50%; transform:translateY(-50%); pointer-events:none;">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="buscadorRutaOrden" onkeyup="filtrarSecuenciaRuta()"
+               placeholder="Buscar parada por nombre o referencia..."
+               style="width:100%; padding:12px 14px 12px 38px; border-radius:12px; border:1.5px solid #cbd5e1; font-size:13.5px; font-weight:500; color:#0f172a; background:#ffffff; outline:none; box-sizing:border-box;">
+    </div>
+
+    <div id="listaSecuenciaRuta" style="display:flex; flex-direction:column; gap:9px; padding:0 4px 28px 4px;">
     """
 
     for index, cl in enumerate(todos):
+        es_primero = (index == 0)
+        es_ultimo = (index == total_ruta - 1)
+        freq_txt = cl.get("frecuencia") or "Diaria"
+        freq_bg = "#dcfce7" if freq_txt == "Diaria" else "#fef3c7"
+        freq_col = "#15803d" if freq_txt == "Diaria" else "#b45309"
+        nombre_lower = (cl.get("nombre") or "").lower()
+        ref_lower = (cl.get("referencia") or "").lower()
+
+        btn_subir_html = (
+            '<span style="width:36px; height:36px; border-radius:10px; background:#f8fafc; color:#cbd5e1; border:1px solid #f1f5f9; display:flex; align-items:center; justify-content:center; cursor:default;">'
+            '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></span>'
+            if es_primero else
+            f'<a href="/mover/{cl["id"]}/subir" title="Subir posición" style="text-decoration:none; width:36px; height:36px; border-radius:10px; background:#eff6ff; color:#0f2b5c; border:1px solid #dbeafe; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent;">'
+            '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></a>'
+        )
+
+        btn_bajar_html = (
+            '<span style="width:36px; height:36px; border-radius:10px; background:#f8fafc; color:#cbd5e1; border:1px solid #f1f5f9; display:flex; align-items:center; justify-content:center; cursor:default;">'
+            '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>'
+            if es_ultimo else
+            f'<a href="/mover/{cl["id"]}/bajar" title="Bajar posición" style="text-decoration:none; width:36px; height:36px; border-radius:10px; background:#eff6ff; color:#0f2b5c; border:1px solid #dbeafe; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent;">'
+            '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></a>'
+        )
+
         html_orden += f"""
-        <div style="background:#ffffff; padding:12px; display:flex; justify-content:space-between; align-items:center; border-radius:12px; border-left:4px solid #0284c7; box-shadow:0 2px 5px rgba(0,0,0,0.04);">
-            <div style="text-align:left; display:flex; align-items:center; gap:10px; flex: 1; min-width: 0;">
-                <!-- 🎯 Círculo con el número de posición actual -->
-                <div style="background:#0f2b5c; color:white; font-size:11px; font-weight:800; border-radius:50%; width:26px; height:26px; display:flex; align-items:center; justify-content:center; flex-shrink: 0;">
+        <div class="item-ruta-orden" data-filtro="{nombre_lower} {ref_lower}"
+             style="background:#ffffff; padding:11px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px; border-radius:13px; border:1px solid #e2e8f0; box-shadow:0 2px 5px rgba(15,23,42,0.03);">
+            <div style="display:flex; align-items:center; gap:11px; flex:1; min-width:0; text-align:left;">
+                <div style="min-width:32px; height:32px; padding:0 6px; border-radius:9px; background:#0f2b5c; color:#ffffff; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                     {index + 1}
                 </div>
-                <div style="min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    <span style="font-weight:800; font-size:13px; color:#0f2b5c; display:block; overflow: hidden; text-overflow: ellipsis;">{cl['nombre']}</span>
-                    <span style="font-size:10px; color:#64748b; display:block; margin-top:2px; overflow: hidden; text-overflow: ellipsis;">📍 Ref: {cl['referencia'] or 'Comercio'}</span>
+                <div style="min-width:0; flex:1;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-weight:800; font-size:14px; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{cl['nombre']}</span>
+                        <span style="background:{freq_bg}; color:{freq_col}; font-size:9.5px; font-weight:800; padding:1px 6px; border-radius:5px; flex-shrink:0;">{freq_txt}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:4px; margin-top:3px; font-size:11.5px; color:#64748b; font-weight:500;">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{cl['referencia'] or 'Sin referencia'}</span>
+                    </div>
                 </div>
             </div>
-            
-            <!-- ⚡ BOTONES INTERACTIVOS CIRCULARES CON SVG CENTRADOS -->
-            <div style="display:flex; gap:8px; flex-shrink: 0; margin-left: 10px; align-items: center;">
-                <!-- Botón Subir -->
-                <a href="/mover/{cl['id']}/subir" style="text-decoration:none; width:36px; height:36px; background:#f1f5f9; color:#475569; border-radius:50%; display:flex; align-items:center; justify-content:center; transition: background 0.2s;" title="Subir">
-                    <svg xmlns="http://w3.org" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="18 15 12 9 6 15"></polyline>
-                    </svg>
-                </a>
-                <!-- Botón Bajar -->
-                <a href="/mover/{cl['id']}/bajar" style="text-decoration:none; width:36px; height:36px; background:#f1f5f9; color:#475569; border-radius:50%; display:flex; align-items:center; justify-content:center; transition: background 0.2s;" title="Bajar">
-                    <svg xmlns="http://w3.org" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                </a>
+            <div style="display:flex; gap:6px; flex-shrink:0; align-items:center;">
+                {btn_subir_html}
+                {btn_bajar_html}
             </div>
         </div>
         """
-        
+
     if not todos:
-        html_orden += '<p style="font-size:12px; color:#64748b; text-align:center; padding:30px;">👥 No hay clientes activos para ordenar en la ruta hoy.</p>'
-        
+        html_orden += """
+        <div style="text-align:center; color:#94a3b8; padding:32px 16px; background:#ffffff; border-radius:14px; border:1px dashed #cbd5e1; font-size:13.5px; font-weight:600;">
+            No hay clientes activos para ordenar en la ruta hoy.
+        </div>
+        """
+
     html_orden += "</div>"
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
