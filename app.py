@@ -3729,42 +3729,39 @@ def seccion_reordenar_ruta():
 
 @app.route("/menu/listados")
 def seccion_listados():
-    if not session.get("autenticado"): 
+    if not session.get("autenticado"):
         return "Sesión expirada"
-        
+
     fecha_filtro = request.args.get("fecha_auditoria", date.today().isoformat())
-    
+
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # 📊 Consultamos los pagos individuales con precisión contable
             cursor.execute(
                 """
-                SELECT p.numero, p.valor_pagado, c.id AS cliente_id, c.nombre 
-                FROM pagos p 
-                JOIN clientes c ON p.cliente_id = c.id 
-                WHERE p.fecha_pago_real = %s AND p.pagado = 1
+                SELECT p.numero, p.valor_pagado, c.id AS cliente_id, c.nombre
+                FROM pagos p
+                JOIN clientes c ON p.cliente_id = c.id
+                WHERE p.fecha_pago_real = %s AND p.valor_pagado > 0
                 ORDER BY c.nombre ASC, p.numero ASC
                 """, (fecha_filtro,)
             )
             pagos_f = cursor.fetchall()
-            
-            # Consultamos los créditos entregados en la fecha
-            cursor.execute("SELECT id, nombre, monto, monto_total FROM clientes WHERE fecha_inicio = %s", (fecha_filtro,))
+
+            cursor.execute("SELECT id, nombre, monto, monto_total FROM clientes WHERE fecha_inicio = %s ORDER BY nombre ASC", (fecha_filtro,))
             creditos_f = cursor.fetchall()
     except Exception as e:
         print(f"Error al consultar auditoría histórica: {e}")
         pagos_f = []
         creditos_f = []
-    finally:
-        pass
-            
-    # 🗂️ AGRUPACIÓN PARA EVITAR NOMBRES REPETIDOS
+
     mapa_pagos = {}
+    total_recaudado_dia = Decimal("0.00")
     for p in pagos_f:
         c_id = p["cliente_id"]
         v_pagado = Decimal(str(p["valor_pagado"]))
-        
+        total_recaudado_dia += v_pagado
+
         if c_id not in mapa_pagos:
             mapa_pagos[c_id] = {
                 "nombre": p["nombre"],
@@ -3775,53 +3772,115 @@ def seccion_listados():
             mapa_pagos[c_id]["cuotas"].append(p["numero"])
             mapa_pagos[c_id]["total_abonado"] += v_pagado
 
-    # 🎨 Construimos el diseño HTML limpio y consolidado
     lista_pagos_html = []
     for c_id, info in mapa_pagos.items():
         min_cuota = min(info["cuotas"])
         max_cuota = max(info["cuotas"])
-        
-        if min_cuota == max_cuota:
-            rango = f"Cuota #{min_cuota}"
-        else:
-            rango = f"Cuotas #{min_cuota} a la #{max_cuota}"
-            
-        lista_pagos_html.append(
-            f"<p style='font-size:12px; border-bottom:1px solid #f1f5f9; padding:6px 0; margin:0;'>➡️ <b>{info['nombre']}</b> — {rango} | Recaudado: <b style='color:#10b981;'>${float(info['total_abonado']):.2f}</b></p>"
-        )
-        
-    html_pagos_final = "".join(lista_pagos_html)
-    html_creditos_final = "".join([f"<p style='font-size:12px; border-bottom:1px solid #f1f5f9; padding:6px 0; margin:0;'>➡️ <b>{c['nombre']}</b> | Capital: <b>${float(c['monto']):.2f}</b> | Cartera: <b>${float(c['monto_total']):.2f}</b></p>" for c in creditos_f])
-    
-    if not html_pagos_final: 
-        html_pagos_final = "<p style='font-size:11px; color:#64748b; padding:4px 0;'>Ningún recaudo asentado en esta fecha.</p>"
-    if not html_creditos_final: 
-        html_creditos_final = "<p style='font-size:11px; color:#64748b; padding:4px 0;'>Ningún crédito entregado en esta fecha.</p>"
+        rango = f"Cuota #{min_cuota}" if min_cuota == max_cuota else f"Cuotas #{min_cuota} a la #{max_cuota}"
+
+        lista_pagos_html.append(f"""
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f1f5f9; gap:10px;">
+            <div style="display:flex; align-items:center; gap:10px; min-width:0; text-align:left;">
+                <div style="width:30px; height:30px; border-radius:8px; background:#dcfce7; color:#15803d; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div style="min-width:0;">
+                    <div style="font-weight:800; font-size:13.5px; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{info['nombre']}</div>
+                    <div style="font-size:11.5px; color:#64748b; font-weight:600; margin-top:1px;">{rango}</div>
+                </div>
+            </div>
+            <div style="font-weight:800; font-size:14px; color:#16a34a; flex-shrink:0;">${float(info['total_abonado']):.2f}</div>
+        </div>
+        """)
+
+    total_prestado_dia = Decimal("0.00")
+    lista_creditos_html = []
+    for c in creditos_f:
+        cap = Decimal(str(c["monto"] or 0))
+        cart = Decimal(str(c["monto_total"] or 0))
+        total_prestado_dia += cap
+        lista_creditos_html.append(f"""
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f1f5f9; gap:10px;">
+            <div style="display:flex; align-items:center; gap:10px; min-width:0; text-align:left;">
+                <div style="width:30px; height:30px; border-radius:8px; background:#eff6ff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                </div>
+                <div style="min-width:0;">
+                    <div style="font-weight:800; font-size:13.5px; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c['nombre']}</div>
+                    <div style="font-size:11.5px; color:#64748b; font-weight:600; margin-top:1px;">Cartera: ${float(cart):.2f}</div>
+                </div>
+            </div>
+            <div style="font-weight:800; font-size:14px; color:#0f2b5c; flex-shrink:0;">${float(cap):.2f}</div>
+        </div>
+        """)
+
+    html_pagos_final = "".join(lista_pagos_html) if lista_pagos_html else '<div style="text-align:center; font-size:12.5px; color:#94a3b8; padding:18px 8px; font-weight:600;">Ningún recaudo asentado en esta fecha.</div>'
+    html_creditos_final = "".join(lista_creditos_html) if lista_creditos_html else '<div style="text-align:center; font-size:12.5px; color:#94a3b8; padding:18px 8px; font-weight:600;">Ningún crédito entregado en esta fecha.</div>'
 
     html_listados = f"""
-    <div class="section-header-title"><i class="fa-solid fa-list-check"></i> Auditoría Histórica por Fecha</div>
-    <div class="card" style="border-radius:12px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-        <form onsubmit="event.preventDefault(); const f = document.getElementById('fecha_auditoria').value; navegarRuta('/menu/listados?fecha_auditoria=' + f);">
-            <label style="font-weight:700; color:#0f2b5c; font-size:12px;">Selecciona la Fecha a Consultar</label>
-            <input type="date" id="fecha_auditoria" value="{fecha_filtro}" required style="margin-bottom:10px; width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;">
-            <button type="submit" class="btn-accion btn-pagar" style="width:100%; padding:10px; font-weight:bold;">🔍 Consultar Historial</button>
-        </form>
-    </div>
-    
-    <div class="card" style="text-align:left; margin-top:12px; border-radius:12px;">
-        <h4 style="font-size:12px; color:#0f2b5c; margin-bottom:8px; border-bottom:2px solid #f1f5f9; padding-bottom:4px;"><i class="fa-solid fa-money-bill-wave"></i> Recaudos de la Fecha</h4>
-        {html_pagos_final}
-    </div>
-    
-    <div class="card" style="text-align:left; margin-top:12px; border-radius:12px;">
-        <h4 style="font-size:12px; color:#0f2b5c; margin-bottom:8px; border-bottom:2px solid #f1f5f9; padding-bottom:4px;"><i class="fa-solid fa-chart-line"></i> Créditos Entregados</h4>
-        {html_creditos_final}
+    <div style="padding:0 4px 28px 4px;">
+        <!-- Cabecera Corporativa -->
+        <div style="display:flex; align-items:center; gap:10px; padding:4px 0 12px 0;">
+            <div style="width:36px; height:36px; border-radius:10px; background:#0f2b5c; color:#ffffff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <div style="text-align:left;">
+                <div style="font-size:15px; font-weight:800; color:#0f2b5c; line-height:1.15;">AUDITORÍA POR FECHA</div>
+                <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">Consulta histórica de recaudos y colocación</div>
+            </div>
+        </div>
+
+        <!-- Selector de Fecha -->
+        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+            <form onsubmit="event.preventDefault(); const f = document.getElementById('fecha_auditoria').value; navegarRuta('/menu/listados?fecha_auditoria=' + f);">
+                <label style="font-weight:700; color:#334155; font-size:12px; display:block; margin-bottom:6px;">Selecciona la Fecha a Consultar</label>
+                <input type="date" id="fecha_auditoria" value="{fecha_filtro}" required
+                       style="margin-bottom:10px; width:100%; padding:11px 12px; border-radius:10px; border:1.5px solid #cbd5e1; font-size:14px; font-weight:700; color:#0f172a; box-sizing:border-box;">
+                <button type="submit" style="width:100%; padding:12px; background:linear-gradient(135deg, #16a34a, #15803d); color:#ffffff; border:none; border-radius:10px; font-weight:800; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 10px rgba(22,163,74,0.22);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    Consultar Historial
+                </button>
+            </form>
+        </div>
+
+        <!-- Tarjetas Resumen Rápido -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:12px 14px; text-align:left; box-shadow:0 2px 5px rgba(15,23,42,0.02);">
+                <div style="font-size:10.5px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.4px;">Total Recaudado</div>
+                <div style="font-size:18px; font-weight:900; color:#16a34a; margin-top:4px;">${float(total_recaudado_dia):.2f}</div>
+                <div style="font-size:10.5px; color:#64748b; font-weight:600; margin-top:2px;">{len(mapa_pagos)} clientes</div>
+            </div>
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:12px 14px; text-align:left; box-shadow:0 2px 5px rgba(15,23,42,0.02);">
+                <div style="font-size:10.5px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.4px;">Total Prestado</div>
+                <div style="font-size:18px; font-weight:900; color:#0f2b5c; margin-top:4px;">${float(total_prestado_dia):.2f}</div>
+                <div style="font-size:10.5px; color:#64748b; font-weight:600; margin-top:2px;">{len(creditos_f)} créditos</div>
+            </div>
+        </div>
+
+        <!-- Bloque Recaudos -->
+        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+            <div style="display:flex; align-items:center; gap:8px; padding-bottom:8px; margin-bottom:4px; border-bottom:1.5px solid #f1f5f9;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                <span style="font-size:13px; font-weight:800; color:#0f2b5c;">Recaudos de la Fecha</span>
+            </div>
+            {html_pagos_final}
+        </div>
+
+        <!-- Bloque Créditos Entregados -->
+        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+            <div style="display:flex; align-items:center; gap:8px; padding-bottom:8px; margin-bottom:4px; border-bottom:1.5px solid #f1f5f9;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                <span style="font-size:13px; font-weight:800; color:#0f2b5c;">Créditos Entregados</span>
+            </div>
+            {html_creditos_final}
+        </div>
     </div>
     """
-    
+
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(html_listados)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_listados))
+
 
 @app.route("/menu/agregar_lista")
 def seccion_agregar_lista():
