@@ -1149,119 +1149,169 @@ HTML_TEMPLATE = """
     </div>
 
     <div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer()"></div>
-        <div class="drawer" id="drawer" style="background: #ffffff; font-family: 'Segoe UI', system-ui, sans-serif; box-shadow: 4px 0 20px rgba(0,0,0,0.08); padding: 0;">
-        <div class="drawer-header" style="background: linear-gradient(135deg, #0f2b5c, #1e40af); padding: 16px 14px; text-align: left; color: white;">
-            <div class="drawer-logo" style="font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">🌐 AVANTA PAGOS v1.3</div>
-            <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;"><i class="fa-solid fa-user-shield"></i> {{ session.get('usuario', 'Cobrador') }}</div>
+        <div class="drawer" id="drawer" style="background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; box-shadow: 6px 0 28px rgba(15, 23, 42, 0.22); padding: 0; border-right: 1px solid #e2e8f0;">
+        <!-- Cabecera Ejecutiva con Isotipo Oficial (A + Flecha Dorada) -->
+        <div class="drawer-header" style="background: linear-gradient(145deg, #0a1f44 0%, #0f2b5c 60%, #1e3a8a 100%); padding: 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 12px;">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.22); display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative;">
+                <svg width="26" height="26" viewBox="0 0 48 48" fill="none">
+                    <path d="M12 37L24 10L36 37" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9 38C18 32 27 25 36 16" stroke="#fbbf24" stroke-width="4.2" stroke-linecap="round"/>
+                    <path d="M27 16L37 15L36 25" stroke="#fbbf24" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div style="text-align: left; min-width: 0;">
+                <div style="font-size: 15px; font-weight: 900; color: #ffffff; letter-spacing: 0.4px; line-height: 1.15;">AVANTA PAGOS</div>
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+                    <span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block;"></span>
+                    <span style="font-size: 11px; font-weight: 700; color: #cbd5e1; letter-spacing: 0.3px;">UNIDAD-01 • PRO V1.3</span>
+                </div>
+            </div>
         </div>
-        
-        <ul class="drawer-menu" style="list-style: none; padding: 14px 10px; margin: 0; display: flex; flex-direction: column; gap: 7px;">
-            <!-- 👤 MI PERFIL -->
+
+        <ul class="drawer-menu" style="list-style: none; padding: 12px 12px 20px 12px; margin: 0; display: flex; flex-direction: column; gap: 5px; overflow-y: auto; flex: 1;">
+            <!-- SECCIÓN 1: OPERACIÓN DIARIA -->
+            <li style="font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.8px; text-transform: uppercase; padding: 4px 6px 2px 6px; text-align: left;">Operación Diaria</li>
+
+            <!-- INICIO / TABLERO -->
             <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/perfil')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #3b82f6;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">👤</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Mi Perfil</span>
+                <a href="javascript:void(0)" onclick="navegarRuta('/')" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: #eff6ff; color: #0f2b5c; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                        </div>
+                        <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Inicio / Cobranza</span>
                     </div>
-                    <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
             </li>
 
-            <!-- 👥 CLIENTES -->
+            <!-- CLIENTES -->
             <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/clientes')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #2563eb;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">👥</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Clientes</span>
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/clientes')" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: #eff6ff; color: #0f2b5c; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </div>
+                        <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Clientes</span>
                     </div>
-                    <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
             </li>
 
-            <!-- 📍 RUTA -->
+            <!-- RUTA -->
             <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/ruta_orden')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #4f46e5;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">📍</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Ruta</span>
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/ruta_orden')" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: #eff6ff; color: #0f2b5c; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+                        </div>
+                        <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Ruta</span>
                     </div>
-                    <span style="background: #e0e7ff; color: #4f46e5; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">Organizar</span>
+                    <span style="background: #eff6ff; color: #1d4ed8; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px; border: 1px solid #dbeafe;">Organizar</span>
                 </a>
             </li>
 
-            <!-- 📋 LISTADOS -->
+            <!-- LISTADOS -->
             <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/listados')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #06b6d4;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">📋</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Listados</span>
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/listados')" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: #eff6ff; color: #0f2b5c; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        </div>
+                        <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Listados</span>
                     </div>
-                    <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
             </li>
 
-            <!-- 📅 BALANCE -->
+            <!-- BALANCE -->
             <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/balance')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #f97316;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">📅</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Balance</span>
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/balance')" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: #dcfce7; color: #15803d; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        </div>
+                        <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Balance</span>
                     </div>
-                    <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
             </li>
 
-            <!-- 📥 AGREGAR A LISTA -->
+            <!-- SECCIÓN 2: HERRAMIENTAS Y SISTEMA -->
+            <li style="font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.8px; text-transform: uppercase; padding: 10px 6px 2px 6px; text-align: left;">Herramientas y Sistema</li>
+
+            <!-- MI PERFIL -->
             <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/agregar_lista')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #64748b;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">📥</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Agregar a lista</span>
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/perfil')" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: #f1f5f9; color: #334155; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </div>
+                        <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Mi Perfil</span>
                     </div>
-                    <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
             </li>
 
-            <!-- 🔰 SALVAR DATOS -->
+            <!-- AGREGAR A LISTA -->
             <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/salvar_datos')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #10b981;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">🔰</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Salvar datos</span>
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/agregar_lista')" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: #f1f5f9; color: #334155; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                        </div>
+                        <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Agregar a lista</span>
                     </div>
-                    <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
             </li>
 
-            <!-- 🔌 BLUETOOTH -->
+            <!-- SALVAR DATOS -->
             <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/bluetooth')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #14b8a6;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">🔌</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Opciones Bluetooth</span>
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/salvar_datos')" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: #f1f5f9; color: #334155; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        </div>
+                        <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Salvar datos</span>
                     </div>
-                    <span style="background: #ccfbf1; color: #14b8a6; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">📡 58mm</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </a>
             </li>
 
-            <!-- 🔧 ACCIONES MAESTRO / CONFIGURACIÓN -->
+            <!-- OPCIONES BLUETOOTH -->
             <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/configuracion')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #6366f1;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">🔧</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Acciones Maestro</span>
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/bluetooth')" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: #f0fdfa; color: #0d9488; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                        </div>
+                        <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Opciones Bluetooth</span>
                     </div>
-                    <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
+                    <span style="background: #ccfbf1; color: #0f766e; font-size: 10px; font-weight: 800; padding: 3px 7px; border-radius: 6px;">58mm</span>
                 </a>
             </li>
 
-            <!-- ⏻ CERRAR SESIÓN CORREGIDO -->
-            <li style="margin: 10px 0 0 0; padding-top: 8px; border-top: 1px solid #f1f5f9;">
-                <a href="/logout" style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; background: #e11d48; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 13px; box-shadow: 0 4px 6px rgba(225, 29, 72, 0.12);">
-                    <svg xmlns="http://w3.org" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block;">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
+            <!-- ACCIONES MAESTRO -->
+            <li style="margin: 0;">
+                <a href="javascript:void(0)" onclick="navegarRuta('/menu/configuracion')" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: #f1f5f9; color: #334155; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        </div>
+                        <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Acciones Maestro</span>
+                    </div>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </a>
+            </li>
+
+            <!-- BOTÓN CERRAR SESIÓN -->
+            <li style="margin: 12px 0 0 0; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                <a href="/logout" style="display: flex; align-items: center; justify-content: center; gap: 9px; padding: 13px; background: linear-gradient(135deg, #e11d48, #be123c); color: #ffffff; text-decoration: none; border-radius: 12px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
                     </svg>
                     Cerrar Sesión
                 </a>
