@@ -1178,17 +1178,6 @@ HTML_TEMPLATE = """
                 </a>
             </li>
 
-            <!-- 💳 CRÉDITOS -->
-            <li style="margin: 0;">
-                <a href="javascript:void(0)" onclick="navegarRuta('/menu/creditos')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #0284c7;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 15px;">💳</span>
-                        <span style="font-size: 13px; font-weight: 700; color: #334155;">Créditos</span>
-                    </div>
-                    <i class="fa-solid fa-chevron-right" style="font-size: 9px; color: #cbd5e1;"></i>
-                </a>
-            </li>
-
             <!-- 📍 RUTA -->
             <li style="margin: 0;">
                 <a href="javascript:void(0)" onclick="navegarRuta('/menu/ruta_orden')" style="display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: #f8fafc; border-radius: 10px; text-decoration: none; border-left: 4px solid #4f46e5;">
@@ -3078,7 +3067,7 @@ def seccion_creditos_activos():
                 pagos_por_cliente = defaultdict(list)
                 for p in todos_los_pagos:
                     pagos_por_cliente[p["cliente_id"]].append(dict(p))
-                    
+            
             for cl in todos:
                 t_dict = dict(cl)
                 t_dict["valor_cuota"] = float(cl["valor_cuota"]) if cl["valor_cuota"] is not None else 0.00
