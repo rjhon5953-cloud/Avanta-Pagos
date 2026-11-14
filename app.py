@@ -456,34 +456,109 @@ CONTENIDO_HTML = """
     {% endfor %}
 
 {% elif vista == 'clientes_maestro' %}
-    <div class="section-header-title"><i class="fa-solid fa-users"></i> DIRECTORIO DE CLIENTES</div>
-    
-    <div style="padding: 0 4px 12px 4px;">
-        <input type="text" id="buscadorClientesDir" onkeyup="filtrarDirectorioClientes()" 
-               placeholder="🔍 Buscar cliente por nombre o referencia..." 
-               style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 14px; outline: none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 4px 12px 4px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:32px; height:32px; border-radius:9px; background:#0f2b5c; color:#ffffff; display:flex; align-items:center; justify-content:center;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div>
+                <div style="font-size:15px; font-weight:800; color:#0f2b5c; line-height:1.1;">DIRECTORIO DE CLIENTES</div>
+                <div style="font-size:11px; color:#64748b; font-weight:600;">{{ lista_clientes|length }} clientes registrados</div>
+            </div>
+        </div>
     </div>
 
-    <div id="listaDirectorioClientes" style="display: flex; flex-direction: column; gap: 8px; padding: 0 4px 70px 4px;">
+    <div style="position:relative; margin:0 4px 10px 4px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:13px; top:50%; transform:translateY(-50%); pointer-events:none;">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="buscadorClientesDir" onkeyup="filtrarDirectorioAvanta()"
+               placeholder="Buscar por nombre, negocio o teléfono..."
+               style="width:100%; padding:13px 14px 13px 40px; border-radius:12px; border:1.5px solid #cbd5e1; font-size:14px; font-weight:500; color:#0f172a; background:#ffffff; outline:none; box-sizing:border-box; box-shadow:0 2px 6px rgba(0,0,0,0.03);">
+    </div>
+
+    <div style="display:flex; gap:6px; margin:0 4px 14px 4px;">
+        <button type="button" class="tab-dir-avanta active" onclick="cambiarTabDirAvanta(this, 'todos')"
+                style="flex:1; padding:9px 6px; border-radius:10px; border:1.5px solid #0f2b5c; background:#0f2b5c; color:#ffffff; font-size:12px; font-weight:700; cursor:pointer;">
+            Todos ({{ lista_clientes|length }})
+        </button>
+        <button type="button" class="tab-dir-avanta" onclick="cambiarTabDirAvanta(this, 'activo')"
+                style="flex:1; padding:9px 6px; border-radius:10px; border:1.5px solid #cbd5e1; background:#ffffff; color:#334155; font-size:12px; font-weight:700; cursor:pointer;">
+            Con Saldo ({{ total_con_saldo|default(0) }})
+        </button>
+        <button type="button" class="tab-dir-avanta" onclick="cambiarTabDirAvanta(this, 'libre')"
+                style="flex:1; padding:9px 6px; border-radius:10px; border:1.5px solid #cbd5e1; background:#ffffff; color:#334155; font-size:12px; font-weight:700; cursor:pointer;">
+            Sin Crédito ({{ total_sin_saldo|default(0) }})
+        </button>
+    </div>
+
+    <input type="hidden" id="filtroEstadoDirActual" value="todos">
+
+    <div id="listaDirectorioClientes" style="display:flex; flex-direction:column; gap:10px; padding:0 4px 96px 4px;">
         {% for c in lista_clientes %}
-        <div class="card item-cliente-dir" data-filtro="{{ c.nombre|lower }} {{ (c.referencia or '')|lower }}"
+        {% set palabras = (c.nombre or 'CL').strip().split() %}
+        {% set p1 = palabras[0][0] if palabras|length > 0 else 'C' %}
+        {% set p2 = palabras[1][0] if palabras|length > 1 else (palabras[0][1] if palabras[0]|length > 1 else 'L') %}
+        {% set iniciales = (p1 ~ p2)|upper %}
+        {% set saldo_c = c.saldo_activo|default(0)|float %}
+        {% set estado_slug = 'activo' if saldo_c > 0 else 'libre' %}
+
+        <div class="card item-cliente-dir"
+             data-filtro="{{ (c.nombre or '')|lower }} {{ (c.referencia or '')|lower }} {{ (c.telefono or '')|lower }}"
+             data-estado="{{ estado_slug }}"
              onclick="navegarRuta('/menu/cliente/{{ c.id }}')"
-             style="padding: 14px; margin: 0; background: white; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
-            <div style="text-align: left;">
-                <span style="font-weight: 800; color: #0f2b5c; font-size: 14px; display: block;">{{ c.nombre }}</span>
-                <span style="font-size: 11px; color: #64748b;">{{ c.referencia or 'Sin referencia' }} • 📱 {{ c.telefono or 'N/A' }}</span>
+             style="padding:13px 14px; margin:0; background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer; box-shadow:0 2px 6px rgba(15,23,42,0.03); -webkit-tap-highlight-color:transparent;">
+
+            <div style="width:44px; height:44px; border-radius:12px; background:{{ 'linear-gradient(135deg, #0f2b5c, #1e3a8a)' if saldo_c > 0 else '#f1f5f9' }}; color:{{ '#ffffff' if saldo_c > 0 else '#475569' }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; flex-shrink:0; letter-spacing:0.5px;">
+                {{ iniciales }}
             </div>
-            <span style="color: #94a3b8; font-weight: bold; font-size: 16px;">❯</span>
+
+            <div style="flex:1; min-width:0; text-align:left;">
+                <div style="font-weight:800; color:#0f172a; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ c.nombre }}</div>
+                <div style="font-size:12px; color:#64748b; font-weight:500; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    {{ c.referencia or 'Sin referencia' }}
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                    {% if saldo_c > 0 %}
+                        <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:2px 8px; border-radius:6px;">
+                            Saldo: ${{ "%.2f"|format(saldo_c) }}
+                        </span>
+                    {% else %}
+                        <span style="background:#f1f5f9; color:#64748b; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px;">
+                            Disponible para crédito
+                        </span>
+                    {% endif %}
+                    <span style="font-size:11px; color:#64748b; font-weight:600; display:flex; align-items:center; gap:3px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        {{ c.telefono or 'S/N' }}
+                    </span>
+                </div>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                {% if c.telefono %}
+                <a href="tel:{{ c.telefono }}" onclick="event.stopPropagation();" title="Llamar cliente"
+                   style="width:36px; height:36px; border-radius:10px; background:#eff6ff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; text-decoration:none; border:1px solid #dbeafe;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </a>
+                {% endif %}
+                <div style="width:28px; height:28px; display:flex; align-items:center; justify-content:center; color:#94a3b8;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+            </div>
         </div>
         {% else %}
-        <div style="text-align: center; color: #94a3b8; padding: 20px;">No hay clientes registrados.</div>
+        <div style="text-align:center; color:#94a3b8; padding:32px 16px; background:#ffffff; border-radius:14px; border:1px dashed #cbd5e1; font-size:14px; font-weight:600;">
+            No hay clientes registrados en el directorio.
+        </div>
         {% endfor %}
     </div>
 
-    <div style="position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 460px; z-index: 90;">
+    <div style="position:fixed; bottom:16px; left:50%; transform:translateX(-50%); width:92%; max-width:460px; z-index:90;">
         <button type="button" onclick="navegarRuta('/nuevo')"
-                style="width: 100%; padding: 14px; background: #0f2b5c; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 14px; box-shadow: 0 4px 12px rgba(15,43,92,0.3); cursor: pointer;">
-            + Nuevo Cliente / Crédito
+                style="width:100%; padding:15px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:14px; font-weight:800; font-size:15px; box-shadow:0 8px 20px rgba(15,43,92,0.35); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nuevo Cliente / Crédito
         </button>
     </div>
 
@@ -2240,6 +2315,35 @@ function aplicarFiltrosDashboard() {
 
             document.getElementById('msgSinResultados').style.display = visibles === 0 ? 'block' : 'none';
         }
+
+        function cambiarTabDirAvanta(btn, estado) {
+            document.getElementById('filtroEstadoDirActual').value = estado;
+            document.querySelectorAll('.tab-dir-avanta').forEach(b => {
+                b.style.background = '#ffffff';
+                b.style.color = '#334155';
+                b.style.borderColor = '#cbd5e1';
+            });
+            btn.style.background = '#0f2b5c';
+            btn.style.color = '#ffffff';
+            btn.style.borderColor = '#0f2b5c';
+            filtrarDirectorioAvanta();
+        }
+
+        function filtrarDirectorioAvanta() {
+            const q = (document.getElementById('buscadorClientesDir').value || '').toLowerCase().trim();
+            const est = document.getElementById('filtroEstadoDirActual').value;
+            document.querySelectorAll('.item-cliente-dir').forEach(card => {
+                const txt = card.getAttribute('data-filtro') || '';
+                const cardEst = card.getAttribute('data-estado') || 'libre';
+                const matchTxt = txt.includes(q);
+                const matchEst = (est === 'todos') || (est === cardEst);
+                if (matchTxt && matchEst) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.setProperty('display', 'none', 'important');
+                }
+            });
+        }
 </script>
 </body>
 </html>
@@ -2839,22 +2943,46 @@ def dashboard_principal():
 def seccion_clientes_maestro():
     if not session.get("autenticado"):
         return "Sesión expirada"
-        
+
     conn = get_db()
+    total_con_saldo = 0
+    total_sin_saldo = 0
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
-                SELECT MAX(id) AS id, MAX(TRIM(nombre)) AS nombre, MAX(telefono) AS telefono, MAX(referencia) AS referencia, MAX(identificacion) AS cedula
-                FROM clientes 
-                GROUP BY LOWER(TRIM(nombre))
-                ORDER BY MAX(TRIM(nombre)) ASC
+                SELECT 
+                    MAX(c.id) AS id,
+                    MAX(TRIM(c.nombre)) AS nombre,
+                    MAX(c.telefono) AS telefono,
+                    MAX(c.referencia) AS referencia,
+                    MAX(c.identificacion) AS cedula,
+                    COALESCE(SUM(
+                        CASE WHEN c.estado = 'Activo' THEN
+                            GREATEST(0, c.monto_total - COALESCE((SELECT SUM(p.valor_pagado) FROM pagos p WHERE p.cliente_id = c.id), 0))
+                        ELSE 0 END
+                    ), 0) AS saldo_activo
+                FROM clientes c
+                GROUP BY LOWER(TRIM(c.nombre))
+                ORDER BY MAX(TRIM(c.nombre)) ASC
             """)
-            lista_unica = [dict(c) for c in cursor.fetchall()]
+            lista_unica = []
+            for r in cursor.fetchall():
+                d = dict(r)
+                if float(d.get("saldo_activo") or 0) > 0:
+                    total_con_saldo += 1
+                else:
+                    total_sin_saldo += 1
+                lista_unica.append(d)
     except Exception as e:
         print(f"Error al consultar clientes: {e}")
         lista_unica = []
-        
-    contexto = dict(vista="clientes_maestro", lista_clientes=lista_unica)
+
+    contexto = dict(
+        vista="clientes_maestro",
+        lista_clientes=lista_unica,
+        total_con_saldo=total_con_saldo,
+        total_sin_saldo=total_sin_saldo
+    )
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
