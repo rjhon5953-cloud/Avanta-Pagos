@@ -2261,7 +2261,7 @@ def login_route():
             cfg = {r["llave"]: r["valor"] for r in cursor.fetchall()}
 
             usuario_def = cfg.get("usuario", "")
-            unidad_txt = (cfg.get("nombre") or cfg.get("perfil_nombre") or cfg.get("nombre_completo") or "").strip() or "UNIDAD-01"
+            unidad_txt = (cfg.get("nombre") or cfg.get("perfil_nombre") or cfg.get("nombre_completo") or "").strip() or "Ruta-01"
             autorizada = str(cfg.get("caja_autorizada", "0")).strip()
             fecha_jor = str(cfg.get("fecha_jornada_activa", "")).strip()
 
