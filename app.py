@@ -876,111 +876,194 @@ CONTENIDO_HTML = """
     </div>
 
 {% elif vista == 'balance' or vista == 'gastos' %}
-    <div class="section-header-title"><i class="fa-solid fa-scale-balanced"></i> Estado Contable del Balance</div>
-    <div class="expected-card" style="border-left: 5px solid #10b981; background:#ecfdf5; padding:12px; border-radius:12px; margin-bottom:12px; text-align:left;">
-        <div class="kpi-title" style="color:#065f46;">Estado Actual</div>
-        <div class="kpi-val" style="color:#065f46; font-size:14px;">Sin Cerrar | Caja Base: ${{ "%.2f"|format(caja_base) }}</div>
-    </div>
-    
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
-        <div class="kpi-card" style="border-left:4px solid #10b981; background:white; padding:10px; border-radius:8px;">
-            <div class="kpi-title">Inversión / Entradas</div>
-            <div class="kpi-val" style="color:#10b981;">+${{ "%.2f"|format(entradas_totales) }}</div>
-        </div>
-        <div class="kpi-card" style="border-left:4px solid #ef4444; background:white; padding:10px; border-radius:8px;">
-            <div class="kpi-title">Salidas / Gastos</div>
-            <div class="kpi-val" style="color:#ef4444;">-${{ "%.2f"|format(salidas_totales) }}</div>
-        </div>
-    </div>
-
-    <div class="card" style="background:#0f2b5c; color:white; text-align:center; padding:12px; margin-bottom:12px;">
-        <div class="kpi-title" style="color:white; opacity:0.8;">Efectivo Líquido Neto</div>
-        <div class="kpi-val" style="color:white; font-size:20px; margin-top:2px;">${{ "%.2f"|format(efectivo_neto) }}</div>
-    </div>
-
-        <!-- 🔒 CONTROL INTEGRADO DE CIERRE DE JORNADA LABORAL PREMIUM -->
-    <div class="card" style="text-align: left; padding: 14px; border-radius: 12px; margin-bottom: 14px; background: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.02); font-family: sans-serif;">
-        <h4 style="font-size: 13px; color: #0f2b5c; margin: 0 0 8px 0; font-weight: 800;"><i class="fa-solid fa-lock-open"></i> Cierre de Jornada Diaria</h4>
-        <p style="font-size: 11px; color: #64748b; margin-bottom: 12px; line-height: 1.4; margin-top: 0;">
-            Al finalizar el día, ingresa el dinero físico real que tienes en tu bolso o cartera para realizar la auditoría y cerrar la jornada de cobranza de forma profesional. El sistema se cerrará automáticamente.
-        </p>
-
-        {% if balance_estado != 'Abierta' %}
-            <div style="background: #ecfdf5; border: 1px solid #10b981; color: #065f46; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: bold; text-align: center;">
-                🔒 CAJA CERRADA CON ÉXITO:<br>{{ balance_estado }}
+    <div style="padding:0 4px 28px 4px;">
+        <!-- Cabecera Corporativa -->
+        <div style="display:flex; align-items:center; gap:10px; padding:4px 0 12px 0;">
+            <div style="width:36px; height:36px; border-radius:10px; background:#0f2b5c; color:#ffffff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
-        {% else %}
-            <form action="/api/balance/cerrar_caja" method="POST" style="display: flex; flex-direction: column; gap: 8px;">
-                <input type="hidden" name="efectivo_sistema" value="{{ efectivo_neto }}">
-                <label style="font-size: 11px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Efectivo Físico Real en Mano ($)</label>
-                <input type="number" step="any" name="efectivo_real" required placeholder="Ej: {{ efectivo_neto }}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; box-sizing: border-box;">
-                <button type="submit" class="btn-accion btn-pagar" style="width: 100%; padding: 12px; font-weight: bold; background: #e11d48; color: white; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 3px 6px rgba(225, 29, 72, 0.2); font-size: 12px;"><i class="fa-solid fa-power-off"></i> Sellar y Cerrar Caja de Hoy</button>
-            </form>
-        {% endif %}
-    </div>
+            <div style="text-align:left;">
+                <div style="font-size:15px; font-weight:800; color:#0f2b5c; line-height:1.15;">BALANCE CONTABLE</div>
+                <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">Control de efectivo y cierre de jornada</div>
+            </div>
+        </div>
 
-    <div class="card" style="padding:16px;">
-        <div class="kpi-title" style="margin-bottom:8px;">Registrar Movimiento de Flujo</div>
-        <!-- 🔑 FIJADO: Envío tradicional cancelado. Delegado al script asíncrono controlado procesarYEnviarGasto -->
-        <form id="formBalance" method="POST" action="/api/balance/guardar_movimiento" onsubmit="procesarYEnviarGasto(event)">
-            <label>Tipo de Flujo</label>
-            <select name="tipo_mov" id="tipo_mov" required>
-                <option value="Entrada">📥 Entrada / Inversión Capital</option>
-                <option value="Salida" selected>📤 Salida / Registro de Gasto</option>
-            </select>
-            
-            <label>Categoría del Movimiento</label>
-            <select name="categoria_mov" id="categoria_mov">
-                <option value="Inversión">💰 Inversión de Capital</option>
-                <option value="Gasolina">⛽ Gasolina</option>
-                <option value="Almuerzo">🍔 Almuerzo</option>
-                <option value="Mantenimiento">🛠️ Mantenimiento Vehículo</option>
-                <option value="Viáticos">🎒 Viáticos de Ruta</option>
-                <option value="Sueldo">💵 Comisión</option>
-                <option value="Otros" selected>📦 Otros</option>
-            </select>
-            
-            <label>Descripción / Detalle</label>
-            <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Compra de repuestos de moto" required>
-            
-            <label>Monto ($)</label>
-            <input type="number" step="any" name="monto_mov" id="monto_mov" placeholder="Valor en dinero" required>
-            
-            <label>📸 Foto Factura / Comprobante</label>
-            <input type="file" id="foto_mov" accept="image/*" capture="environment" style="border:none; padding:4px 0;" onchange="procesarImagenEnCaliente()">
-            
-            <input type="hidden" id="foto_comprimida_b64" name="foto_comprimida_b64">
-            
-        <button type="submit" class="btn-accion btn-pagar" style="width:100%; padding:12px; margin-top:10px;">Guardar Registro</button>
-        </form>
-    </div>
+        <!-- Tarjeta Principal de Efectivo Líquido Neto -->
+        <div style="background:linear-gradient(145deg, #0a1f44 0%, #0f2b5c 60%, #1e3a8a 100%); border-radius:16px; padding:18px 16px; color:#ffffff; margin-bottom:10px; box-shadow:0 8px 20px rgba(15,43,92,0.22); text-align:left;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:11px; font-weight:700; color:#cbd5e1; text-transform:uppercase; letter-spacing:0.6px;">Efectivo Líquido Neto</span>
+                <span style="background:rgba(22,163,74,0.22); border:1px solid rgba(74,222,128,0.4); color:#86efac; font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:20px;">
+                    Base: ${{ "%.2f"|format(caja_base) }}
+                </span>
+            </div>
+            <div style="font-size:28px; font-weight:900; letter-spacing:-0.5px; line-height:1.1;">${{ "%.2f"|format(efectivo_neto) }}</div>
+            <div style="font-size:11px; color:#94a3b8; font-weight:600; margin-top:6px;">
+                Estado de jornada: <b style="color:#ffffff;">{{ balance_estado }}</b>
+            </div>
+        </div>
 
-    <div class="card" style="padding:16px; text-align:left;">
-        <h4 style="font-size:13px; color:#0f2b5c; margin-bottom:10px;">📋 Historial de Movimientos de Hoy</h4>
-        {% if gastos_list %}
-            {% for g in gastos_list %}
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding:8px 0; font-size:12px;">
-                    <div style="flex:1;">
-                        <b>[{{ g.categoria }}]</b> {{ g.concepto }}
-                        <span style="color: {% if g.tipo == 'Entrada' %}#10b981{% else %}#ef4444{% endif %}; font-weight:bold; margin-left:6px;">
-                                {% if g.tipo == 'Entrada' %}+{% else %}-{% endif %}${{ "%.2f"|format(g.monto) }}
-                        </span>
+        <!-- Tarjetas Entradas y Salidas -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:12px 14px; text-align:left; box-shadow:0 2px 5px rgba(15,23,42,0.02);">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:8px; height:8px; border-radius:50%; background:#16a34a;"></span>
+                    <span style="font-size:10.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Entradas</span>
+                </div>
+                <div style="font-size:17px; font-weight:900; color:#16a34a; margin-top:5px;">+${{ "%.2f"|format(entradas_totales) }}</div>
+            </div>
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:12px 14px; text-align:left; box-shadow:0 2px 5px rgba(15,23,42,0.02);">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:8px; height:8px; border-radius:50%; background:#ef4444;"></span>
+                    <span style="font-size:10.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Salidas / Gastos</span>
+                </div>
+                <div style="font-size:17px; font-weight:900; color:#ef4444; margin-top:5px;">-${{ "%.2f"|format(salidas_totales) }}</div>
+            </div>
+        </div>
+
+        <!-- Bloque Cierre de Jornada Diaria -->
+        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Cierre de Jornada Diaria</span>
+            </div>
+            <p style="font-size:11.5px; color:#64748b; line-height:1.4; margin:0 0 12px 0;">
+                Al finalizar el día, ingresa el dinero físico real en mano para auditar y cerrar la jornada de cobranza.
+            </p>
+
+            {% if balance_estado != 'Abierta' %}
+                <div style="background:#f0fdf4; border:1px solid #bbf7d0; color:#15803d; padding:12px; border-radius:10px; font-size:12px; font-weight:700; text-align:center;">
+                    JORNADA CERRADA CON ÉXITO<br><span style="font-weight:600; font-size:11.5px;">{{ balance_estado }}</span>
+                </div>
+            {% else %}
+                <form action="/api/balance/cerrar_caja" method="POST" style="display:flex; flex-direction:column; gap:10px;">
+                    <input type="hidden" name="efectivo_sistema" value="{{ efectivo_neto }}">
+                    <div>
+                        <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Efectivo Físico Real en Mano ($)</label>
+                        <input type="number" step="any" name="efectivo_real" required placeholder="Ej: {{ '%.2f'|format(efectivo_neto) }}"
+                               style="width:100%; padding:12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:16px; font-weight:800; color:#0f172a; box-sizing:border-box;">
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
+                    <button type="submit" style="width:100%; padding:13px; background:linear-gradient(135deg, #e11d48, #be123c); color:#ffffff; border:none; border-radius:10px; font-size:14px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(225,29,72,0.22);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        Sellar y Cerrar Caja de Hoy
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+
+        <!-- Bloque Registrar Movimiento de Flujo -->
+        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Registrar Movimiento de Flujo</span>
+            </div>
+
+            <form id="formBalance" method="POST" action="/api/balance/guardar_movimiento" onsubmit="procesarEnviarGasto(event)">
+                <!-- Inputs reales conectados a tu JS -->
+                <input type="hidden" name="tipo_mov" id="tipo_mov" value="Salida">
+                <input type="hidden" name="categoria_mov" id="categoria_mov" value="Otros">
+
+                <!-- Selector Táctil: Salida / Entrada -->
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:6px;">Tipo de Flujo</label>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px;">
+                    <button type="button" id="btnFlujoSalida" onclick="seleccionarTipoFlujoBal('Salida')"
+                            style="padding:11px 8px; border-radius:10px; border:1.5px solid #ef4444; background:#fef2f2; color:#b91c1c; font-size:12.5px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+                        Salida / Gasto
+                    </button>
+                    <button type="button" id="btnFlujoEntrada" onclick="seleccionarTipoFlujoBal('Entrada')"
+                            style="padding:11px 8px; border-radius:10px; border:1.5px solid #cbd5e1; background:#ffffff; color:#475569; font-size:12.5px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                        Entrada / Capital
+                    </button>
+                </div>
+
+                <!-- Cuadrícula Táctil de Categorías -->
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:6px;">Categoría del Movimiento</label>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:14px;">
+                    <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Gasolina')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Gasolina</button>
+                    <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Almuerzo')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Almuerzo</button>
+                    <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Mantenimiento')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Mantenimiento</button>
+                    <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Viáticos')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Viáticos</button>
+                    <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Sueldo')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Comisión</button>
+                    <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Inversión')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Inversión</button>
+                    <button type="button" class="btn-cat-bal active" onclick="seleccionarCatBal(this, 'Otros')" style="grid-column:span 3; padding:8px; border-radius:9px; border:1.5px solid #0f2b5c; background:#eff6ff; color:#0f2b5c; font-size:11px; font-weight:800; cursor:pointer;">Otros</button>
+                </div>
+
+                <!-- Campos Descripción, Monto y Comprobante -->
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Descripción / Detalle</label>
+                <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Compra de repuestos de moto" required
+                       style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; margin-bottom:12px; box-sizing:border-box;">
+
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Monto ($)</label>
+                <input type="number" step="any" name="monto_mov" id="monto_mov" placeholder="0.00" required
+                       style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:15px; font-weight:800; color:#0f172a; margin-bottom:12px; box-sizing:border-box;">
+
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:6px;">Foto Factura / Comprobante (Opcional)</label>
+                <label style="display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border:1.5px dashed #94a3b8; border-radius:10px; background:#f8fafc; color:#334155; font-size:12.5px; font-weight:700; cursor:pointer; margin-bottom:14px;">
+                    <input type="file" id="foto_mov" accept="image/*" capture="environment" style="display:none;" onchange="document.getElementById('lblFotoBalTxt').innerText = this.files && this.files[0] ? 'Comprobante adjuntado: ' + this.files[0].name : 'Tomar o subir foto de comprobante'; procesarImagenEnCaliente();">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <span id="lblFotoBalTxt">Tomar o subir foto de comprobante</span>
+                </label>
+                <input type="hidden" id="foto_comprimida_b64" name="foto_comprimida_b64">
+
+                <button type="submit" style="width:100%; padding:13px; background:linear-gradient(135deg, #16a34a, #15803d); color:#ffffff; border:none; border-radius:10px; font-size:14px; font-weight:800; cursor:pointer; box-shadow:0 4px 12px rgba(22,163,74,0.25);">
+                    Guardar Registro
+                </button>
+            </form>
+        </div>
+
+        <!-- Bloque Historial de Movimientos -->
+        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+            <div style="display:flex; align-items:center; gap:8px; padding-bottom:10px; margin-bottom:6px; border-bottom:1.5px solid #f1f5f9;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Historial de Movimientos de Hoy</span>
+            </div>
+
+            {% if gastos_list %}
+                {% for g in gastos_list %}
+                {% set es_entrada = (g.tipo == 'Entrada') %}
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f1f5f9; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
+                        <div style="width:30px; height:30px; border-radius:8px; background:{{ '#dcfce7' if es_entrada else '#fef2f2' }}; color:{{ '#15803d' if es_entrada else '#dc2626' }}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            {% if es_entrada %}
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                            {% else %}
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+                            {% endif %}
+                        </div>
+                        <div style="min-width:0;">
+                            <div style="font-size:10px; font-weight:800; text-transform:uppercase; color:{{ '#15803d' if es_entrada else '#dc2626' }}; letter-spacing:0.3px;">{{ g.categoria }}</div>
+                            <div style="font-size:12.5px; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ g.concepto | replace('🔸', '') | trim }}</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                        <span style="font-weight:900; font-size:13.5px; color:{{ '#16a34a' if es_entrada else '#ef4444' }};">
+                            {{ '+' if es_entrada else '-' }}${{ "%.2f"|format(g.monto) }}
+                        </span>
+
                         {% if g.comprobante and g.comprobante != "None" and g.comprobante != "" %}
-                            <button type="button" onclick="cargarYVerFoto({{ g.id }})" style="padding:4px 8px; font-size:11px; background:#00a8cc; color:white; border:none; border-radius:6px; cursor:pointer;">📷 Ver</button>
+                            <button type="button" onclick="cargarYVerFoto({{ g.id }})" title="Ver comprobante"
+                                    style="width:28px; height:28px; border-radius:7px; background:#eff6ff; color:#1d4ed8; border:1px solid #dbeafe; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            </button>
                         {% endif %}
-                        {# 🛡️ BLINDAJE CONTABLE: Oculta el borrado si es un Microseguro o Recaudación automática de cuotas #}
-                        {% if "MICROSEGURO" not in g.concepto and "RECAUDACIÓN DE CUOTAS" not in g.concepto %}
-                            <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Eliminar Gasto?')" style="color:#ef4444; text-decoration:none; font-weight:bold; font-size:14px; margin-left:4px;">🗑️</a>
+
+                        {% if "MICROSEGURO" not in g.concepto and "RECAUDACIÓN DE CUOTAS" not in g.concepto and g.id != 0 %}
+                            <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Eliminar este registro del balance?')" title="Eliminar"
+                               style="width:28px; height:28px; border-radius:7px; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; display:flex; align-items:center; justify-content:center; text-decoration:none;">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </a>
                         {% endif %}
                     </div>
                 </div>
-            {% endfor %}
-        {% else %}
-            <p style="font-size:11px; color:#64748b; text-align:center;">No hay flujos asentados hoy.</p>
-        {% endif %}
+                {% endfor %}
+            {% else %}
+                <div style="text-align:center; font-size:12.5px; color:#94a3b8; padding:18px 8px; font-weight:600;">No hay flujos asentados hoy.</div>
+            {% endif %}
+        </div>
     </div>
+
 
 {% elif vista == 'perfil_cobrador' %}
     <!-- Encabezado de Sección con SVG limpio -->
@@ -2394,6 +2477,48 @@ function aplicarFiltrosDashboard() {
                     card.style.setProperty('display', 'none', 'important');
                 }
             });
+        }
+
+        function seleccionarTipoFlujoBal(tipo) {
+            document.getElementById('tipo_mov').value = tipo;
+            const bSal = document.getElementById('btnFlujoSalida');
+            const bEnt = document.getElementById('btnFlujoEntrada');
+            if (tipo === 'Salida') {
+                bSal.style.borderColor = '#ef4444';
+                bSal.style.background = '#fef2f2';
+                bSal.style.color = '#b91c1c';
+                bSal.style.fontWeight = '800';
+                bEnt.style.borderColor = '#cbd5e1';
+                bEnt.style.background = '#ffffff';
+                bEnt.style.color = '#475569';
+                bEnt.style.fontWeight = '700';
+            } else {
+                bEnt.style.borderColor = '#16a34a';
+                bEnt.style.background = '#f0fdf4';
+                bEnt.style.color = '#15803d';
+                bEnt.style.fontWeight = '800';
+                bSal.style.borderColor = '#cbd5e1';
+                bSal.style.background = '#ffffff';
+                bSal.style.color = '#475569';
+                bSal.style.fontWeight = '700';
+            }
+        }
+
+        function seleccionarCatBal(btn, cat) {
+            document.getElementById('categoria_mov').value = cat;
+            document.querySelectorAll('.btn-cat-bal').forEach(b => {
+                b.style.borderColor = '#e2e8f0';
+                b.style.background = '#f8fafc';
+                b.style.color = '#334155';
+                b.style.fontWeight = '700';
+            });
+            btn.style.borderColor = '#0f2b5c';
+            btn.style.background = '#eff6ff';
+            btn.style.color = '#0f2b5c';
+            btn.style.fontWeight = '800';
+            if (cat === 'Inversión') {
+                seleccionarTipoFlujoBal('Entrada');
+            }
         }
 </script>
 </body>
