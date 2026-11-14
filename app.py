@@ -1000,7 +1000,7 @@ CONTENIDO_HTML = """
 
                 <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:6px;">Foto Factura / Comprobante (Opcional)</label>
                 <label style="display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border:1.5px dashed #94a3b8; border-radius:10px; background:#f8fafc; color:#334155; font-size:12.5px; font-weight:700; cursor:pointer; margin-bottom:14px;">
-                    <input type="file" id="foto_mov" accept="image/*" capture="environment" style="display:none;" onchange="document.getElementById('lblFotoBalTxt').innerText = this.files && this.files[0] ? 'Comprobante adjuntado: ' + this.files[0].name : 'Tomar o subir foto de comprobante'; procesarImagenEnCaliente();">
+                    <input type="file" id="foto_mov" accept="image/*" capture="environment" style="display:none;" onchange="document.getElementById('lblFotoBalTxt').innerText = (this.files && this.files[0]) ? 'Comprobante adjuntado: ' + this.files[0].name : 'Tomar o subir foto de comprobante'; procesarImagenEnCaliente();">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                     <span id="lblFotoBalTxt">Tomar o subir foto de comprobante</span>
                 </label>
@@ -3613,38 +3613,41 @@ def guardar_nuevo_cliente():
 
 @app.route("/api/balance/guardar_movimiento", methods=["POST"])
 def balance_guardar_movimiento():
-    if not session.get("autenticado"): 
+    if not session.get("autenticado"):
         return redirect("/login")
-        
+
     tipo = request.form.get("tipo_mov")
     categoria = request.form.get("categoria_mov", "Otros")
     concepto = request.form.get("concepto_mov", "").strip()
-    hoy_str = date.today().isoformat()
-    
-    # 💰 Captura de dinero con precisión contable exacta Decimal
+
+    # 🛡️ Captura de dinero con precisión contable exacta Decimal
     monto = Decimal(request.form.get("monto_mov", "0"))
-    
-    if not concepto: 
+
+    if not concepto:
         concepto = f"Flujo de {categoria}"
-    
+
     # 📸 Captura de la cadena de imagen comprimida en caliente desde el móvil
     base64_str = request.form.get("foto_comprimida_b64", "").strip()
-    
+
     conn = get_db()
     try:
         with conn.cursor() as cursor:
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+            row_j = cursor.fetchone()
+            hoy_str = row_j["valor"] if (row_j and row_j["valor"]) else date.today().isoformat()
+
             cursor.execute(
                 """
-                INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante) 
+                INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 """, (tipo, categoria, concepto, monto, hoy_str, base64_str)
             )
-        conn.commit()
+            conn.commit()
     except Exception as e:
         print(f"Error crítico al guardar movimiento de balance: {e}")
     finally:
         pass
-        
+
     return redirect("/menu/balance")
 
 @app.route("/api/eliminar_gasto/<int:gasto_id>")
