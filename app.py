@@ -2285,21 +2285,35 @@ def dashboard_principal():
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s", (hoy_str,))
             capital_prestado_hoy = Decimal(str(cursor.fetchone()["total"]))
 
-            # 🎯 FIJADO DIRECTO CON TUS COLUMNAS REALES (Incluye Pendientes, Pagos Hoy y Saltados Hoy)
+            # 🎯 FIJADO DIRECTO CON TUS COLUMNAS REALES
+            # Diarios: salen todos los días.
+            # Semanales: salen el día de su cuota y siguen saliendo cada día de esa semana hasta que completen la cuota (pagado = 1).
             cursor.execute("""
-                SELECT id, nombre, telefono, direccion, referencia, identificacion, frecuencia, cuotas, valor_cuota, monto_total, orden, estado, fecha_gestion
-                FROM clientes 
-                WHERE estado = 'Activo' 
-                  AND (frecuencia = 'Diaria' OR (frecuencia = 'Semanal' AND EXTRACT(DOW FROM CAST(%s AS DATE)) = 1))
-                ORDER BY orden ASC, id DESC
-            """, (hoy_str,))
+                SELECT c.id, c.nombre, c.telefono, c.direccion, c.referencia, c.identificacion, c.frecuencia, c.cuotas, c.valor_cuota, c.monto_total, c.orden, c.estado, c.fecha_gestion
+                FROM clientes c
+                WHERE c.estado = 'Activo' 
+                  AND (
+                      c.frecuencia = 'Diaria' 
+                      OR (
+                          c.frecuencia = 'Semanal' AND (
+                              EXTRACT(DOW FROM CAST(%s AS DATE)) = 1
+                              OR EXISTS (
+                                  SELECT 1 FROM pagos p 
+                                  WHERE p.cliente_id = c.id 
+                                    AND ((p.pagado = 0 AND p.fecha <= %s) OR p.fecha_pago_real = %s)
+                              )
+                          )
+                      )
+                  )
+                ORDER BY c.orden ASC, c.id DESC
+            """, (hoy_str, hoy_str, hoy_str))
             clientes_crudos = cursor.fetchall()
 
-            # Consultamos los pagos realizados hoy por cliente para saber cuánto abonaron y sus IDs de pago
+            # Consultamos todos los pagos y abonos parciales realizados hoy por cliente (valor_pagado > 0)
             cursor.execute("""
                 SELECT id, cliente_id, valor_pagado 
                 FROM pagos 
-                WHERE fecha_pago_real = %s AND pagado = 1
+                WHERE fecha_pago_real = %s AND valor_pagado > 0
             """, (hoy_str,))
             pagos_hoy_rows = cursor.fetchall()
             
