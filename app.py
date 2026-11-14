@@ -2520,6 +2520,35 @@ function aplicarFiltrosDashboard() {
                 seleccionarTipoFlujoBal('Entrada');
             }
         }
+
+        function cambiarTabEnrAvanta(btn, freq) {
+            document.getElementById('filtroFreqEnrActual').value = freq;
+            document.querySelectorAll('.tab-enr-avanta').forEach(b => {
+                b.style.background = '#ffffff';
+                b.style.color = '#334155';
+                b.style.borderColor = '#cbd5e1';
+            });
+            btn.style.background = '#0f2b5c';
+            btn.style.color = '#ffffff';
+            btn.style.borderColor = '#0f2b5c';
+            filtrarEnrutamientoAvanta();
+        }
+
+        function filtrarEnrutamientoAvanta() {
+            const q = (document.getElementById('buscadorEnrutamiento').value || '').toLowerCase().trim();
+            const freq = document.getElementById('filtroFreqEnrActual').value;
+            document.querySelectorAll('.item-enr-avanta').forEach(card => {
+                const txt = card.getAttribute('data-filtro') || '';
+                const cardFreq = card.getAttribute('data-freq') || 'Diaria';
+                const matchTxt = txt.includes(q);
+                const matchFreq = (freq === 'todos') || (freq === cardFreq);
+                if (matchTxt && matchFreq) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.setProperty('display', 'none', 'important');
+                }
+            });
+        }
 </script>
 </body>
 </html>
@@ -4012,42 +4041,121 @@ def seccion_listados():
 
 @app.route("/menu/agregar_lista")
 def seccion_agregar_lista():
-    if not session.get("autenticado"): 
+    if not session.get("autenticado"):
         return "Sesión expirada"
-        
+
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # 📊 Traemos los clientes activos ordenados alfabéticamente para el selector desplegable
-            cursor.execute("SELECT id, nombre, frecuencia FROM clientes WHERE estado = 'Activo' ORDER BY nombre ASC")
+            cursor.execute("""
+                SELECT id, nombre, referencia, frecuencia, COALESCE(enrutado_forzado, 0) AS enrutado_forzado
+                FROM clientes
+                WHERE estado = 'Activo'
+                ORDER BY
+                    CASE WHEN frecuencia = 'Semanal' THEN 0 ELSE 1 END ASC,
+                    nombre ASC
+            """)
             todos = cursor.fetchall()
     except Exception as e:
         print(f"Error al cargar enrutamiento forzado: {e}")
         todos = []
-    finally:
-        pass
 
-    # Convertimos los registros a diccionarios puros legibles por el motor de renderizado
     todos_procesados = [dict(c) for c in todos]
+    total_semanales = sum(1 for c in todos_procesados if c.get("frecuencia") == "Semanal")
 
     html_sincro = """
-    <div class="section-header-title"><i class="fa-solid fa-user-plus"></i> Enrutamiento Forzado Anticipado</div>
-    <div class="card" style="border-radius:12px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-        <form action="/api/clientes/forzar_enrutado" method="POST">
-            <label style="font-weight:700; color:#0f2b5c; font-size:12px;">Selecciona al Cliente Semanal o Mensual a Forzar Cobro Hoy</label>
-            <select name="cliente_forzar_id" required style="width:100%; padding:10px; border-radius:6px; border:1px solid #cbd5e1; margin-bottom:12px;">
-                {% for c in todos %}
-                    <option value="{{ c['id'] }}">{{ c['nombre'] }} ({{ c['frecuencia'] }})</option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="btn-accion btn-pagar" style="width:100%; padding:12px; font-weight:bold;">⚡ Forzar Aparición en Ruta</button>
-        </form>
+    <div style="padding:0 4px 28px 4px;">
+        <!-- Cabecera Corporativa -->
+        <div style="display:flex; align-items:center; gap:10px; padding:4px 0 10px 0;">
+            <div style="width:36px; height:36px; border-radius:10px; background:#0f2b5c; color:#ffffff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            </div>
+            <div style="text-align:left;">
+                <div style="font-size:15px; font-weight:800; color:#0f2b5c; line-height:1.15;">ENRUTAMIENTO ANTICIPADO</div>
+                <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">Agregar clientes programados a la ruta de hoy</div>
+            </div>
+        </div>
+
+        <!-- Nota Informativa -->
+        <div style="background:#eff6ff; border:1px solid #dbeafe; border-radius:10px; padding:9px 12px; margin-bottom:12px; display:flex; align-items:center; gap:8px; text-align:left;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span style="font-size:11.5px; color:#1e3a8a; font-weight:600; line-height:1.3;">Selecciona un cliente semanal que desee adelantar su cuota hoy para habilitarlo en tu tablero principal.</span>
+        </div>
+
+        <!-- Buscador Instantáneo -->
+        <div style="position:relative; margin-bottom:10px;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:13px; top:50%; transform:translateY(-50%); pointer-events:none;">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="buscadorEnrutamiento" onkeyup="filtrarEnrutamientoAvanta()"
+                   placeholder="Buscar cliente por nombre o referencia..."
+                   style="width:100%; padding:12px 14px 12px 38px; border-radius:12px; border:1.5px solid #cbd5e1; font-size:13.5px; font-weight:500; color:#0f172a; background:#ffffff; outline:none; box-sizing:border-box;">
+        </div>
+
+        <!-- Pestañas de Frecuencia -->
+        <div style="display:flex; gap:6px; margin-bottom:12px;">
+            <button type="button" class="tab-enr-avanta active" onclick="cambiarTabEnrAvanta(this, 'Semanal')"
+                    style="flex:1; padding:9px 8px; border-radius:10px; border:1.5px solid #0f2b5c; background:#0f2b5c; color:#ffffff; font-size:12px; font-weight:700; cursor:pointer;">
+                Semanales ({{ total_semanales }})
+            </button>
+            <button type="button" class="tab-enr-avanta" onclick="cambiarTabEnrAvanta(this, 'todos')"
+                    style="flex:1; padding:9px 8px; border-radius:10px; border:1.5px solid #cbd5e1; background:#ffffff; color:#334155; font-size:12px; font-weight:700; cursor:pointer;">
+                Todos Activos ({{ todos|length }})
+            </button>
+        </div>
+
+        <input type="hidden" id="filtroFreqEnrActual" value="Semanal">
+
+        <!-- Lista de Clientes para Enrutar -->
+        <div style="display:flex; flex-direction:column; gap:9px;">
+            {% for c in todos %}
+            {% set freq_c = c.frecuencia or 'Diaria' %}
+            {% set ya_enrutado = (c.enrutado_forzado == 1 or freq_c == 'Diaria') %}
+            <div class="item-enr-avanta"
+                 data-filtro="{{ (c.nombre or '')|lower }} {{ (c.referencia or '')|lower }}"
+                 data-freq="{{ freq_c }}"
+                 style="background:#ffffff; border-radius:13px; border:1px solid #e2e8f0; padding:11px 12px; display:{{ 'flex' if freq_c == 'Semanal' else 'none' }}; justify-content:space-between; align-items:center; gap:10px; box-shadow:0 2px 5px rgba(15,23,42,0.03);">
+
+                <div style="min-width:0; flex:1; text-align:left;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-weight:800; font-size:14px; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ c.nombre }}</span>
+                        <span style="background:{{ '#fef3c7' if freq_c == 'Semanal' else '#dcfce7' }}; color:{{ '#b45309' if freq_c == 'Semanal' else '#15803d' }}; font-size:9.5px; font-weight:800; padding:2px 6px; border-radius:5px; flex-shrink:0;">
+                            {{ freq_c }}
+                        </span>
+                    </div>
+                    <div style="font-size:11.5px; color:#64748b; font-weight:500; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        {{ c.referencia or 'Sin referencia' }}
+                    </div>
+                </div>
+
+                <div style="flex-shrink:0;">
+                    {% if ya_enrutado %}
+                        <span style="display:inline-flex; align-items:center; gap:4px; background:#f0fdf4; border:1px solid #bbf7d0; color:#15803d; font-size:11px; font-weight:800; padding:7px 10px; border-radius:9px;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            En Ruta Hoy
+                        </span>
+                    {% else %}
+                        <form action="/api/clientes/forzar_enrutado" method="POST" style="margin:0;">
+                            <input type="hidden" name="cliente_forzar_id" value="{{ c.id }}">
+                            <button type="submit" style="background:linear-gradient(135deg, #16a34a, #15803d); color:#ffffff; border:none; border-radius:9px; padding:8px 12px; font-size:11.5px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 3px 8px rgba(22,163,74,0.22);">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                Agregar Hoy
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div style="text-align:center; color:#94a3b8; padding:28px 14px; background:#ffffff; border-radius:14px; border:1px dashed #cbd5e1; font-size:13px; font-weight:600;">
+                No hay clientes activos disponibles.
+            </div>
+            {% endfor %}
+        </div>
     </div>
     """
 
-    contexto = dict(todos=todos_procesados)
+    contexto = dict(todos=todos_procesados, total_semanales=total_semanales)
 
-    # 🪙 FIJADO: Operador de comparación exacto compatible con el refresco dinámico del móvil
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(html_sincro, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_sincro, **contexto))
