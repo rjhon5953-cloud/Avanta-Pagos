@@ -2549,6 +2549,106 @@ function aplicarFiltrosDashboard() {
                 }
             });
         }
+
+        let dispositivoBluetooth = null;
+        let caracteristicaGatt = null;
+
+        async function conectarImpresoraBluetooth() {
+            const boxStatus = document.getElementById('box_bt_status');
+            const dotStatus = document.getElementById('dot_bt_status');
+            const textStatus = document.getElementById('text_bt_status');
+            const btnProbar = document.getElementById('btn_probar_print');
+
+            if (!navigator.bluetooth) {
+                alert("Tu navegador no soporta Web Bluetooth. Abre la app desde Google Chrome en Android.");
+                return;
+            }
+
+            try {
+                if (textStatus) textStatus.innerText = "Buscando dispositivos Bluetooth cercanos...";
+
+                dispositivoBluetooth = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [
+                        '000018f0-0000-1000-8000-00805f9b34fb',
+                        '0000ff00-0000-1000-8000-00805f9b34fb',
+                        '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+                        'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+                        '00001101-0000-1000-8000-00805f9b34fb'
+                    ]
+                });
+
+                if (textStatus) textStatus.innerText = "Conectando con " + (dispositivoBluetooth.name || "Impresora 58mm") + "...";
+                const servidorGatt = await dispositivoBluetooth.gatt.connect();
+                const servicios = await servidorGatt.getPrimaryServices();
+
+                caracteristicaGatt = null;
+                for (const serv of servicios) {
+                    const chars = await serv.getCharacteristics();
+                    const encontrada = chars.find(c => c.properties.write || c.properties.writeWithoutResponse);
+                    if (encontrada) {
+                        caracteristicaGatt = encontrada;
+                        break;
+                    }
+                }
+
+                if (caracteristicaGatt) {
+                    if (boxStatus) {
+                        boxStatus.style.background = "#dcfce7";
+                        boxStatus.style.color = "#15803d";
+                        boxStatus.style.borderColor = "#86efac";
+                    }
+                    if (dotStatus) dotStatus.style.background = "#16a34a";
+                    if (textStatus) {
+                        textStatus.innerHTML = "Conectada con éxito a: <b style='color:#15803d;'>" + (dispositivoBluetooth.name || "Impresora Térmica 58mm") + "</b>";
+                    }
+                    if (btnProbar) {
+                        btnProbar.disabled = false;
+                        btnProbar.style.background = "linear-gradient(135deg, #16a34a, #15803d)";
+                        btnProbar.style.color = "#ffffff";
+                        btnProbar.style.cursor = "pointer";
+                        btnProbar.style.boxShadow = "0 4px 12px rgba(22,163,74,0.25)";
+                    }
+                } else {
+                    throw new Error("El dispositivo seleccionado no tiene canal de impresión ESC/POS compatible.");
+                }
+            } catch (error) {
+                console.error("Error Bluetooth:", error);
+                if (boxStatus) {
+                    boxStatus.style.background = "#fef2f2";
+                    boxStatus.style.color = "#dc2626";
+                    boxStatus.style.borderColor = "#fecaca";
+                }
+                if (dotStatus) dotStatus.style.background = "#ef4444";
+                if (textStatus) {
+                    textStatus.innerText = "No se pudo enlazar (" + (error.message || "Cancelado") + ")";
+                }
+            }
+        }
+
+        async function probarImpresionTicket() {
+            if (!caracteristicaGatt) {
+                alert("Primero vincula tu impresora térmica de 58mm.");
+                return;
+            }
+            try {
+                const encoder = new TextEncoder();
+                const initEscPos = new Uint8Array([0x1B, 0x40, 0x1B, 0x61, 0x01]);
+                const cuerpo = encoder.encode(
+                    "AVANTA PAGOS PRO\n" +
+                    "--------------------------------\n" +
+                    "TICKET DE PRUEBA EXITOSO\n" +
+                    "Impresora Termica 58mm\n" +
+                    "Estado: EN LINEA\n" +
+                    "--------------------------------\n\n\n"
+                );
+                await caracteristicaGatt.writeValue(initEscPos);
+                await caracteristicaGatt.writeValue(cuerpo);
+                alert("Ticket de prueba enviado a la impresora.");
+            } catch (error) {
+                alert("Error al imprimir ticket: " + error.message);
+            }
+        }
 </script>
 </body>
 </html>
@@ -4545,294 +4645,290 @@ def api_marcar_no_pago(cliente_id):
 
 @app.route("/menu/bluetooth")
 def seccion_bluetooth_impresora():
-    if not session.get("autenticado"): 
+    if not session.get("autenticado"):
         return "Sesión expirada"
-        
-    # 🎨 INTERFAZ PREMIUM TÁCTIL CONTROLADA POR WEB BLUETOOTH API
+
     html_bluetooth = """
-    <link rel="stylesheet" href="https://cloudflare.com">
-    
-    <div class="section-header-title" style="margin-bottom: 12px; font-weight: 800; color: #0f2b5c;">
-        <i class="fa-solid fa-print"></i> Conexión de Impresora Térmica
-    </div>
-    <p style="font-size:11px; color:#64748b; margin-bottom:14px; text-align:left; padding:0 4px; line-height:1.4;">
-        Enlaza tu mini impresora térmica portátil de 58mm directamente desde el celular para emitir tickets físicos al instante durante la cobranza en ruta.
-    </p>
-    
-    <!-- PANEL DE ESTADO INTERACTIVO -->
-    <div class="card" style="text-align:center; padding:24px 16px; border-radius:12px; box-shadow:0 2px 4px rgba(0,0,0,0.02); margin-bottom:12px; background:#ffffff;">
-        <i class="fa-solid fa-print" id="icon_bt_status" style="font-size:48px; color:#94a3b8; margin-bottom:12px; transition: color 0.3s;"></i>
-        <h4 style="font-size:14px; color:#0f2b5c; margin:0 0 4px 0; font-weight:800;">Estado de la Impresora</h4>
-        <p id="text_bt_status" style="font-size:11px; color:#64748b; margin-bottom:16px;">Desconectada — Hardware libre</p>
-        
-        <div style="display:flex; flex-direction:column; gap:8px;">
-            <button type="button" onclick="conectarImpresoraBluetooth();" class="btn-accion btn-pagar" style="width:100%; padding:12px; font-weight:bold; font-size:12px; background:#0284c7; box-shadow:0 2px 4px rgba(2,132,199,0.2);">
-                📡 Vincular Impresora (58mm)
-            </button>
-            <button type="button" onclick="probarImpresionTicket();" id="btn_probar_print" disabled class="btn-accion" style="width:100%; padding:12px; font-weight:bold; font-size:12px; background:#64748b; color:white; border:none; border-radius:6px;">
-                📄 Imprimir Ticket de Prueba
-            </button>
+    <div style="padding:0 4px 28px 4px;">
+        <!-- Cabecera Corporativa -->
+        <div style="display:flex; align-items:center; gap:10px; padding:4px 0 10px 0;">
+            <div style="width:36px; height:36px; border-radius:10px; background:#0f2b5c; color:#ffffff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            </div>
+            <div style="text-align:left;">
+                <div style="font-size:15px; font-weight:800; color:#0f2b5c; line-height:1.15;">IMPRESORA TÉRMICA 58MM</div>
+                <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">Enlace inalámbrico ESC/POS para recibos en ruta</div>
+            </div>
+        </div>
+
+        <!-- Nota Técnica -->
+        <div style="background:#eff6ff; border:1px solid #dbeafe; border-radius:10px; padding:9px 12px; margin-bottom:12px; display:flex; align-items:center; gap:8px; text-align:left;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span style="font-size:11.5px; color:#1e3a8a; font-weight:600; line-height:1.3;">Enciende tu impresora portátil de 58mm y activa el Bluetooth y la Ubicación del celular antes de vincular.</span>
+        </div>
+
+        <!-- Panel de Estado Interactivo -->
+        <div style="background:#ffffff; border-radius:16px; border:1px solid #e2e8f0; padding:22px 16px; margin-bottom:12px; box-shadow:0 4px 12px rgba(15,23,42,0.04); text-align:center;">
+            <div id="box_bt_status" style="width:68px; height:68px; border-radius:18px; background:#f1f5f9; color:#64748b; display:flex; align-items:center; justify-content:center; margin:0 auto 14px auto; border:1.5px solid #e2e8f0; transition:all 0.3s;">
+                <svg id="icon_bt_status" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            </div>
+
+            <div style="display:inline-flex; align-items:center; gap:6px; background:#f8fafc; border:1px solid #e2e8f0; padding:4px 10px; border-radius:20px; margin-bottom:8px;">
+                <span id="dot_bt_status" style="width:8px; height:8px; border-radius:50%; background:#94a3b8;"></span>
+                <span style="font-size:10.5px; font-weight:800; color:#475569; letter-spacing:0.4px;">PROTOCOLO ESC/POS • 58MM</span>
+            </div>
+
+            <h4 style="font-size:16px; color:#0f172a; margin:4px 0 6px 0; font-weight:800;">Estado de la Impresora</h4>
+            <p id="text_bt_status" style="font-size:12.5px; color:#64748b; font-weight:600; margin:0 0 18px 0; line-height:1.4;">Desconectada • Lista para emparejar</p>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button type="button" onclick="conectarImpresoraBluetooth()"
+                        style="width:100%; padding:14px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:11px; font-weight:800; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(15,43,92,0.22);">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"/></svg>
+                    Vincular Impresora (58mm)
+                </button>
+
+                <button type="button" onclick="probarImpresionTicket()" id="btn_probar_print" disabled
+                        style="width:100%; padding:13px; background:#e2e8f0; color:#64748b; border:none; border-radius:11px; font-weight:800; font-size:13.5px; cursor:not-allowed; display:flex; align-items:center; justify-content:center; gap:8px; transition:all 0.2s;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Imprimir Ticket de Prueba
+                </button>
+            </div>
         </div>
     </div>
-
-    <!-- 🧠 MOTOR DE COMUNICACIÓN DE HARDWARE EN JAVASCRIPT (WEB BLUETOOTH) -->
-    <script>
-    let dispositivoBluetooth = null;
-    let caracteristicaGatt = null;
-
-    async function conectarImpresoraBluetooth() {
-        const iconStatus = document.getElementById('icon_bt_status');
-        const textStatus = document.getElementById('text_bt_status');
-        const btnProbar = document.getElementById('btn_probar_print');
-        
-        try {
-            textStatus.innerText = "📡 Buscando hardware térmico cercano...";
-            
-            // Filtramos la búsqueda para capturar cualquier impresora con perfil de puerto serial de fábrica
-            dispositivoBluetooth = await navigator.bluetooth.requestDevice({
-                filters: [{ services: ['00001101-0000-1000-8000-00805f9b34fb'] }],
-                optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb'] // Servicios genéricos de impresión
-            });
-            
-            textStatus.innerText = `⏳ Enlazando con ${dispositivoBluetooth.name}...`;
-            const servidorGatt = await dispositivoBluetooth.gatt.connect();
-            
-            // Intentamos capturar los canales de escritura estándar de las mini impresoras de 58mm
-            const servicios = await servidorGatt.getPrimaryServices();
-            if(servicios.length > 0) {
-                const caracteristicas = await servicios[0].getCharacteristics();
-                caracteristicaGatt = caracteristicas.find(c => c.properties.write || c.properties.writeWithoutResponse);
-            }
-            
-            if (caracteristicaGatt) {
-                iconStatus.style.color = "#10b981";
-                textStatus.innerHTML = `✅ Conectado con éxito a:<br><b>${dispositivoBluetooth.name}</b>`;
-                btnProbar.disabled = false;
-                btnProbar.style.background = "#10b981";
-                alert("🎯 ¡Impresora térmica de 58mm vinculada con éxito y lista para trabajar!");
-            } else {
-                throw new Error("No se encontró canal de escritura compatible.");
-            }
-            
-        } catch (error) {
-            console.error(error);
-            iconStatus.style.color = "#ef4444";
-            textStatus.innerText = "❌ Falla de vinculación Bluetooth.";
-            alert("⚠️ No se pudo concretar el enlace. Asegúrate de encender el Bluetooth del celular, prender la impresora térmica y dar permisos de emparejamiento.");
-        }
-    }
-
-    async function probarImpresionTicket() {
-        if (!caracteristicaGatt) return;
-        
-        try {
-            // Comandos ESC/POS nativos para limpiar, centrar y dar saltos de línea físicos
-            const encoder = new TextEncoder();
-            const comandoInicio = new Uint8Array([0x1B, 0x40, 0x1B, 0x61, 0x01]); // Reset y centrado
-            const textoTicket = encoder.encode("\\n🧾 AVANTA PAGOS 🧾\\n* Ticket de Prueba Exitoso *\\n--------------------------------\\nImpresora Termica 58mm\\nConectada Correctamente\\n--------------------------------\\n\\n\\n\\n");
-            
-            await caracteristicaGatt.writeValue(comandoInicio);
-            await caracteristicaGatt.writeValue(textoTicket);
-            alert("🖨️ ¡Comando enviado! Revisa si tu mini impresora expulsó el papel de prueba.");
-        } catch (error) {
-            alert("⚠️ Falla al transmitir datos a la impresora: " + error.message);
-        }
-    }
-    </script>
     """
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(html_bluetooth)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_bluetooth))
 
 @app.route("/menu/configuracion")
 def seccion_configuracion_sistema():
-    if not session.get("autenticado"): 
+    if not session.get("autenticado"):
         return "Sesión expirada"
-        
+
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # 📊 Recuperamos todos los parámetros dinámicos del sistema de una sola vez
             cursor.execute("SELECT llave, valor FROM configuracion")
             filas = cursor.fetchall()
             config = {f["llave"]: f["valor"] for f in filas}
     finally:
         pass
 
-    # Variables de control con valores de respaldo de seguridad
     usuario_actual = config.get("usuario", "admin")
     empresa_nombre = config.get("empresa_nombre", "AVANTA PAGOS")
     empresa_telefono = config.get("empresa_telefono", "593991234567")
     ticket_encabezado = config.get("ticket_encabezado", "¡BIENVENIDO A AVANTA PAGOS!")
-    interes_defecto = config.get("interes_defecto", "20")
-    caja_base = config.get("caja_base", "100.00")
+    ticket_pie = config.get("ticket_pie", "Gracias por su puntualidad. Conserve este comprobante.")
+    auto_ws = config.get("auto_whatsapp", "1")
+    auto_bt = config.get("auto_bluetooth", "0")
 
-    # 🎨 INTERFAZ CREATIVA MULTISECCIÓN PREMIUM (DISEÑO MÓVIL ESTILO IOS/ANDROID)
+    chk_ws_checked = "checked" if auto_ws == "1" else ""
+    bg_ws = "#16a34a" if auto_ws == "1" else "#cbd5e1"
+    tx_ws = "translateX(20px)" if auto_ws == "1" else "translateX(0)"
+
+    chk_bt_checked = "checked" if auto_bt == "1" else ""
+    bg_bt = "#16a34a" if auto_bt == "1" else "#cbd5e1"
+    tx_bt = "translateX(20px)" if auto_bt == "1" else "translateX(0)"
+
     html_config = f"""
-    <div class="section-header-title" style="margin-bottom: 15px; font-weight: 800; color: #0f2b5c;">
-        <i class="fa-solid fa-sliders"></i> Centro de Control Maestro
-    </div>
-    <p style="font-size:11px; color:#64748b; margin-bottom:16px; text-align:left; padding:0 4px; line-height: 1.4;">
-        Calibra los parámetros de la empresa, el porcentaje de rentabilidad, los tickets de WhatsApp y la seguridad física del sistema de cobros.
-    </p>
-
-    <form action="/api/configuracion/guardar_maestro" method="POST" onsubmit="alert('💾 Configuración maestra guardada y sincronizada con Neon AWS.');" style="display: flex; flex-direction: column; gap: 14px;">
-        
-        <!-- 🟢 SECCIÓN 1: PARAMETRIZACIÓN DE LA EMPRESA -->
-        <div class="card" style="text-align:left; border-radius:12px; border-left:4px solid #0284c7; padding:14px; box-shadow:0 2px 5px rgba(0,0,0,0.03); background:#ffffff;">
-            <h4 style="font-size:13px; color:#0f2b5c; margin:0 0 10px 0; font-weight:800;"><i class="fa-solid fa-building-columns"></i> Identidad Comercial</h4>
-            
-            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Nombre del Sistema / Negocio</label>
-            <input type="text" name="empresa_nombre" value="{empresa_nombre}" required style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; margin-bottom:10px; font-size:12px;">
-            
-            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">WhatsApp Emisor Central</label>
-            <input type="text" name="empresa_telefono" value="{empresa_telefono}" required style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px;">
+    <div style="padding:0 4px 28px 4px;">
+        <!-- Cabecera Corporativa -->
+        <div style="display:flex; align-items:center; gap:10px; padding:4px 0 12px 0;">
+            <div style="width:36px; height:36px; border-radius:10px; background:#0f2b5c; color:#ffffff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </div>
+            <div style="text-align:left;">
+                <div style="font-size:15px; font-weight:800; color:#0f2b5c; line-height:1.15;">CONFIGURACIÓN OPERATIVA</div>
+                <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">Recibos, preferencias de ruta y seguridad</div>
+            </div>
         </div>
 
-        <!-- 🟢 SECCIÓN 2: MATEMÁTICAS Y CRÉDITOS -->
-        <div class="card" style="text-align:left; border-radius:12px; border-left:4px solid #10b981; padding:14px; box-shadow:0 2px 5px rgba(0,0,0,0.03); background:#ffffff;">
-            <h4 style="font-size:13px; color:#0f2b5c; margin:0 0 10px 0; font-weight:800;"><i class="fa-solid fa-calculator"></i> Reglas de Negocio</h4>
+        <form action="/api/configuracion/guardar_maestro" method="POST" style="display:flex; flex-direction:column; gap:12px;">
+            <!-- SECCIÓN 1: IDENTIDAD Y RECIBOS -->
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Identidad y Comprobantes</span>
+                </div>
+
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Nombre Comercial / Empresa</label>
+                <input type="text" name="empresa_nombre" value="{empresa_nombre}" required
+                       style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:700; color:#0f172a; margin-bottom:11px; box-sizing:border-box;">
+
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Teléfono de Atención / Soporte</label>
+                <input type="text" name="empresa_telefono" value="{empresa_telefono}" required
+                       style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; margin-bottom:11px; box-sizing:border-box;">
+
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Encabezado de Ticket / WhatsApp</label>
+                <input type="text" name="ticket_encabezado" value="{ticket_encabezado}" required
+                       style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13.5px; font-weight:600; color:#0f172a; margin-bottom:11px; box-sizing:border-box;">
+
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Mensaje Pie de Recibo</label>
+                <input type="text" name="ticket_pie" value="{ticket_pie}"
+                       style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13px; font-weight:500; color:#0f172a; box-sizing:border-box;">
+            </div>
+
+            <!-- SECCIÓN 2: PREFERENCIAS OPERATIVAS EN RUTA -->
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Automatización en Ruta</span>
+                </div>
+
+                <!-- Switch WhatsApp -->
+                <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; margin-bottom:12px; border-bottom:1px solid #f1f5f9; gap:10px;">
+                    <div>
+                        <div style="font-size:13px; font-weight:700; color:#0f172a;">Comprobante WhatsApp al cobrar</div>
+                        <div style="font-size:11px; color:#64748b; margin-top:2px;">Mostrar opción de envío tras cada abono</div>
+                    </div>
+                    <div style="position:relative; display:inline-block; width:46px; height:26px; flex-shrink:0;">
+                        <input type="checkbox" name="auto_whatsapp" value="1" id="cfgChkWs" {chk_ws_checked} style="opacity:0; width:0; height:0;">
+                        <span onclick="var c=document.getElementById('cfgChkWs'); c.checked=!c.checked; this.style.background=c.checked?'#16a34a':'#cbd5e1'; this.firstElementChild.style.transform=c.checked?'translateX(20px)':'translateX(0)';" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:{bg_ws}; border-radius:26px; transition:.2s;">
+                            <span style="position:absolute; height:20px; width:20px; left:3px; bottom:3px; background:white; border-radius:50%; transition:.2s; transform:{tx_ws}; box-shadow:0 1px 3px rgba(0,0,0,0.3);"></span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Switch Bluetooth -->
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                    <div>
+                        <div style="font-size:13px; font-weight:700; color:#0f172a;">Impresión térmica 58mm</div>
+                        <div style="font-size:11px; color:#64748b; margin-top:2px;">Habilitar ticket físico si hay impresora vinculada</div>
+                    </div>
+                    <div style="position:relative; display:inline-block; width:46px; height:26px; flex-shrink:0;">
+                        <input type="checkbox" name="auto_bluetooth" value="1" id="cfgChkBt" {chk_bt_checked} style="opacity:0; width:0; height:0;">
+                        <span onclick="var c=document.getElementById('cfgChkBt'); c.checked=!c.checked; this.style.background=c.checked?'#16a34a':'#cbd5e1'; this.firstElementChild.style.transform=c.checked?'translateX(20px)':'translateX(0)';" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:{bg_bt}; border-radius:26px; transition:.2s;">
+                            <span style="position:absolute; height:20px; width:20px; left:3px; bottom:3px; background:white; border-radius:50%; transition:.2s; transform:{tx_bt}; box-shadow:0 1px 3px rgba(0,0,0,0.3);"></span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 3: SEGURIDAD DE ACCESO -->
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Seguridad de Acceso</span>
+                </div>
             
-            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Interés por Defecto (%) en Simulador</label>
-            <input type="number" step="any" name="interes_defecto" value="{interes_defecto}" required style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; margin-bottom:10px; font-size:12px;">
-            
-            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Monto de Caja Base Inicial ($)</label>
-            <input type="number" step="any" name="caja_base" value="{caja_base}" required style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px;">
+            <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Usuario Asignado (Solo lectura)</label>
+                <input type="text" value="{usuario_actual}" disabled
+                       style="width:100%; padding:11px 12px; border:1.5px solid #e2e8f0; background:#f8fafc; border-radius:10px; font-size:14px; font-weight:700; color:#64748b; margin-bottom:11px; box-sizing:border-box;">
+
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Nueva Contraseña (Dejar en blanco para conservar actual)</label>
+                <div style="position:relative;">
+                    <input type="password" id="cfgNuevaClaveInput" name="nueva_clave" placeholder="••••••••"
+                           style="width:100%; padding:11px 40px 11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; box-sizing:border-box;">
+                    <button type="button" onclick="const i=document.getElementById('cfgNuevaClaveInput'); i.type=i.type==='password'?'text':'password';"
+                            style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:flex;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" style="width:100%; padding:14px; background:linear-gradient(135deg, #16a34a, #15803d); color:#ffffff; border:none; border-radius:12px; font-weight:800; font-size:14.5px; cursor:pointer; box-shadow:0 4px 12px rgba(22,163,74,0.25);">
+                Guardar Configuración
+            </button>
+        </form>
+
+        <!-- SECCIÓN 4: MANTENIMIENTO DE JORNADA -->
+        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; margin-top:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Mantenimiento de Jornada</span>
+            </div>
+            <p style="font-size:11.5px; color:#64748b; margin:0 0 12px 0; line-height:1.35;">
+                Restablece los clientes marcados como No Pago hoy para que vuelvan a aparecer en tu lista de pendientes.
+            </p>
+            <form action="/api/configuracion/reset_saltos" method="POST" onsubmit="return confirm('¿Reiniciar los clientes marcados como No Pago hoy para volver a visitarlos?');" style="margin:0;">
+                <button type="submit" style="width:100%; padding:12px; background:#f1f5f9; border:1.5px solid #cbd5e1; color:#334155; border-radius:10px; font-weight:800; font-size:13px; cursor:pointer;">
+                    Reiniciar No Pagos de Hoy
+                </button>
+            </form>
         </div>
-
-        <!-- 🟢 SECCIÓN 3: CONFIGURACIÓN DEL TICKET DIGITAL -->
-        <div class="card" style="text-align:left; border-radius:12px; border-left:4px solid #f59e0b; padding:14px; box-shadow:0 2px 5px rgba(0,0,0,0.03); background:#ffffff;">
-            <h4 style="font-size:13px; color:#0f2b5c; margin:0 0 10px 0; font-weight:800;"><i class="fa-solid fa-receipt"></i> Personalización de Recibos</h4>
-            
-            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Encabezado del Ticket de Cobro</label>
-            <input type="text" name="ticket_encabezado" value="{ticket_encabezado}" required style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px;">
-        </div>
-
-        <!-- 🟢 SECCIÓN 4: SEGURIDAD Y ACCESO CRIPTOGRÁFICO -->
-        <div class="card" style="text-align:left; border-radius:12px; border-left:4px solid #6366f1; padding:14px; box-shadow:0 2px 5px rgba(0,0,0,0.03); background:#ffffff;">
-            <h4 style="font-size:13px; color:#0f2b5c; margin:0 0 10px 0; font-weight:800;"><i class="fa-solid fa-user-shield"></i> Seguridad del Operador</h4>
-            
-            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Usuario del Sistema</label>
-            <input type="text" name="nuevo_usuario" value="{usuario_actual}" required style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; margin-bottom:10px; font-size:12px;">
-            
-            <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Nueva Contraseña (Dejar en blanco para conservar actual)</label>
-            <input type="password" name="nueva_clave" placeholder="Escribe la nueva contraseña de seguridad" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px;">
-        </div>
-
-        <button type="submit" class="btn-accion btn-pagar" style="width:100%; padding:13px; font-weight:bold; font-size:13px; border-radius:8px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);"><i class="fa-solid fa-cloud-arrow-up"></i> Guardar y Sincronizar Cambios</button>
-    </form>
-
-    <!-- 🟢 SECCIÓN 5: ACCIONES DE MANTENIMIENTO PREVENTIVO -->
-    <div class="card" style="text-align:left; border-radius:12px; border-left:4px solid #64748b; padding:14px; margin-top:14px; box-shadow:0 2px 5px rgba(0,0,0,0.03); background:#ffffff;">
-        <h4 style="font-size:13px; color:#0f2b5c; margin:0 0 10px 0; font-weight:800;"><i class="fa-solid fa-screwdriver-wrench"></i> Herramientas de Mantenimiento</h4>
-        <button type="button" onclick="if(confirm('¿Reiniciar todos los estados del día? Los clientes saltados volverán a aparecer en ruta.')) alert('Estados de ruta diarios reiniciados con éxito.');" style="background:#475569; color:white; border:none; padding:12px; border-radius:8px; font-size:12px; font-weight:bold; width:100%; cursor:pointer;"><i class="fa-solid fa-arrow-rotate-left"></i> Resetear Estados de Cobro Diarios</button>
     </div>
     """
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest": 
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return render_template_string(html_config)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(html_config))
 
-@app.route("/api/configuracion/guardar_maestro", methods=["POST"])
-def api_guardar_configuracion_maestra():
-    if not session.get("autenticado"): 
-        return redirect("/login")
-        
-    # Recolección de variables del formulario avanzado
-    empresa_nombre = request.form.get("empresa_nombre", "").strip()
-    empresa_telefono = request.form.get("empresa_telefono", "").strip()
-    ticket_encabezado = request.form.get("ticket_encabezado", "").strip()
-    interes_defecto = request.form.get("interes_defecto", "20").strip()
-    caja_base = request.form.get("caja_base", "100.00").strip()
-    nuevo_usuario = request.form.get("nuevo_usuario", "").strip()
-    nueva_clave = request.form.get("nueva_clave", "").strip()
-    
-    conn = get_db()
-    try:
-        with conn.cursor() as cursor:
-            # Diccionario de llaves para bucle rápido de guardado masivo en Postgres
-            maestro_datos = {
-                "empresa_nombre": empresa_nombre,
-                "empresa_telefono": empresa_telefono,
-                "ticket_encabezado": ticket_encabezado,
-                "interes_defecto": interes_defecto,
-                "caja_base": caja_base,
-                "usuario": nuevo_usuario
-            }
-            
-            for llave, valor in maestro_datos.items():
-                if valor:
-                    cursor.execute(
-                        "INSERT INTO configuracion (llave, valor) VALUES (%s, %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                        (llave, valor)
-                    )
-            
-            # 🔐 Si escribiste una nueva clave, la encriptamos; si la dejaste vacía, no altera la anterior
-            if nueva_clave:
-                hash_clave = generate_password_hash(nueva_clave)
-                cursor.execute(
-                    "INSERT INTO configuracion (llave, valor) VALUES ('clave', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                    (hash_clave,)
-                )
-                
-            conn.commit()
-            session["usuario"] = nuevo_usuario
-    except Exception as e:
-        print(f"Error crítico al guardar configuración maestra: {e}")
-    finally:
-        pass
-        
-    return redirect("/menu/configuracion")
 
 @app.route("/api/configuracion/guardar_maestro", methods=["POST"])
-def api_guardar_configuracion_global():
-    if not session.get("autenticado"): 
+def api_guardar_configuracion_maestra():
+    if not session.get("autenticado"):
         return redirect("/login")
-        
-    # Recolección de variables del formulario avanzado
+
     empresa_nombre = request.form.get("empresa_nombre", "").strip()
     empresa_telefono = request.form.get("empresa_telefono", "").strip()
     ticket_encabezado = request.form.get("ticket_encabezado", "").strip()
-    interes_defecto = request.form.get("interes_defecto", "20").strip()
-    caja_base = request.form.get("caja_base", "100.00").strip()
-    nuevo_usuario = request.form.get("nuevo_usuario", "").strip()
+    ticket_pie = request.form.get("ticket_pie", "").strip()
+    auto_whatsapp = "1" if request.form.get("auto_whatsapp") == "1" else "0"
+    auto_bluetooth = "1" if request.form.get("auto_bluetooth") == "1" else "0"
     nueva_clave = request.form.get("nueva_clave", "").strip()
-    
+
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # Diccionario de llaves para bucle rápido de guardado masivo en Postgres
             maestro_datos = {
                 "empresa_nombre": empresa_nombre,
                 "empresa_telefono": empresa_telefono,
                 "ticket_encabezado": ticket_encabezado,
-                "interes_defecto": interes_defecto,
-                "caja_base": caja_base,
-                "usuario": nuevo_usuario
+                "ticket_pie": ticket_pie,
+                "auto_whatsapp": auto_whatsapp,
+                "auto_bluetooth": auto_bluetooth
             }
-            
+
             for llave, valor in maestro_datos.items():
-                if valor:
+                if valor != "":
                     cursor.execute(
                         "INSERT INTO configuracion (llave, valor) VALUES (%s, %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
                         (llave, valor)
                     )
-            
-            # 🔐 Si escribiste una nueva clave, la encriptamos de forma segura
+
             if nueva_clave:
                 hash_clave = generate_password_hash(nueva_clave)
                 cursor.execute(
                     "INSERT INTO configuracion (llave, valor) VALUES ('clave', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
                     (hash_clave,)
                 )
-                
+
             conn.commit()
-            session["usuario"] = nuevo_usuario
     except Exception as e:
-        print(f"Error crítico al guardar configuración maestra: {e}")
+        print(f"Error crítico al guardar configuración operativa: {e}")
     finally:
         pass
-        
+
     return redirect("/menu/configuracion")
+
+
+@app.route("/api/configuracion/reset_saltos", methods=["POST"])
+def api_reset_saltos_hoy():
+    if not session.get("autenticado"):
+        return redirect("/login")
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+            row_j = cursor.fetchone()
+            hoy_str = row_j["valor"] if (row_j and row_j["valor"]) else date.today().isoformat()
+
+            cursor.execute("""
+                UPDATE clientes
+                SET fecha_gestion = NULL
+                WHERE estado = 'Activo'
+                  AND fecha_gestion = %s
+                  AND id NOT IN (SELECT DISTINCT cliente_id FROM pagos WHERE fecha_pago_real = %s AND valor_pagado > 0)
+            """, (hoy_str, hoy_str))
+            conn.commit()
+    except Exception as e:
+        print(f"Error al reiniciar no pagos de hoy: {e}")
+
+    return redirect("/")
+
 
 @app.route("/api/clientes/lista_negra/<int:id>")
 def api_lista_negra(id):
