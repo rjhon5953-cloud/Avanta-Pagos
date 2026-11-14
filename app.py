@@ -2635,12 +2635,12 @@ function aplicarFiltrosDashboard() {
                 const encoder = new TextEncoder();
                 const initEscPos = new Uint8Array([0x1B, 0x40, 0x1B, 0x61, 0x01]);
                 const cuerpo = encoder.encode(
-                    "AVANTA PAGOS PRO\n" +
-                    "--------------------------------\n" +
-                    "TICKET DE PRUEBA EXITOSO\n" +
-                    "Impresora Termica 58mm\n" +
-                    "Estado: EN LINEA\n" +
-                    "--------------------------------\n\n\n"
+                    "AVANTA PAGOS PRO\\n" +
+                    "--------------------------------\\n" +
+                    "TICKET DE PRUEBA EXITOSO\\n" +
+                    "Impresora Termica 58mm\\n" +
+                    "Estado: EN LINEA\\n" +
+                    "--------------------------------\\n\\n\\n"
                 );
                 await caracteristicaGatt.writeValue(initEscPos);
                 await caracteristicaGatt.writeValue(cuerpo);
