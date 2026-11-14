@@ -2257,11 +2257,11 @@ def login_route():
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT llave, valor FROM configuracion WHERE llave IN ('usuario', 'clave', 'nombre', 'caja_autorizada', 'fecha_jornada_activa')")
+            cursor.execute("SELECT llave, valor FROM configuracion WHERE llave IN ('usuario', 'clave', 'nombre', 'perfil_nombre', 'nombre_completo', 'caja_autorizada', 'fecha_jornada_activa')")
             cfg = {r["llave"]: r["valor"] for r in cursor.fetchall()}
 
             usuario_def = cfg.get("usuario", "")
-            unidad_txt = cfg.get("nombre") or cfg.get("usuario") or "RUTA-01"
+            unidad_txt = (cfg.get("nombre") or cfg.get("perfil_nombre") or cfg.get("nombre_completo") or "").strip() or "UNIDAD-01"
             autorizada = str(cfg.get("caja_autorizada", "0")).strip()
             fecha_jor = str(cfg.get("fecha_jornada_activa", "")).strip()
 
