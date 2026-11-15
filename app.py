@@ -28,22 +28,24 @@ db_pool = SimpleConnectionPool(
 )
 
 def get_db():
-    """🛡️ FIJADO: Registra, valida y repara la conexión en el contexto 'g' de Flask para erradicar Errores 500"""
+    """🛡️ FIJADO: Registra, limpia transacciones y repara la conexión en 'g'"""
     if 'db_conn' not in g:
         g.db_conn = db_pool.getconn()
-    else:
-        # Probamos si la conexión del pool sigue viva
+    try:
+        g.db_conn.rollback()
+        with g.db_conn.cursor() as cur:
+            cur.execute("SELECT 1")
+    except Exception:
         try:
-            with g.db_conn.cursor() as cur:
-                cur.execute("SELECT 1")
+            db_pool.putconn(g.db_conn, close=True)
         except Exception:
-            # Si Neon cerró el socket por inactividad, la liberamos forzadamente y pedimos otra limpia
-            try:
-                db_pool.putconn(g.db_conn)
-            except Exception:
-                pass
-            g.db_conn = db_pool.getconn()
-            
+            pass
+        g.db_conn = db_pool.getconn()
+        try:
+            g.db_conn.rollback()
+        except Exception:
+            pass
+
     return g.db_conn
 
 def release_db(conn):
@@ -52,16 +54,17 @@ def release_db(conn):
 
 @app.teardown_appcontext
 def shutdown_session(error_context=None):
-    """
-    🛡️ FIJADO AUTOMÁTICO: Saca la conexión de 'g' y la libera de verdad
-    al terminar cada petición HTTP, evitando colgar el inicio de sesión.
-    """
+    """🛡️ FIJADO AUTOMÁTICO: Limpia cualquier transacción pendiente y libera la conexión al pool"""
     conn = g.pop('db_conn', None)
     if conn is not None:
         try:
-            db_pool.putconn(conn)
-        except Exception as e:
-            print(f"Error al liberar conexión en el pool: {e}")
+            conn.rollback()
+            db_pool.putconn(conn, close=bool(error_context))
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 def init_db():
     conn = get_db()
