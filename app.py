@@ -3015,9 +3015,11 @@ def dashboard_principal():
     cursor_j.close()
     if row_j and (row_j["valor"] if isinstance(row_j, dict) else row_j[0]):
         raw_j = row_j["valor"] if isinstance(row_j, dict) else row_j[0]
-        hoy_str = str(raw_j).split("_")[0]
+        turno_id = str(raw_j)
+        hoy_str = turno_id.split("_")[0]
     else:
         hoy_str = date.today().isoformat()
+        turno_id = hoy_str
     
     # 📅 FECHA EN TIEMPO REAL: Formateo en español para el badge superior
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
@@ -3028,7 +3030,7 @@ def dashboard_principal():
     try:
         with conn_val.cursor() as cursor:
             # 💵 1. Suma real en dólares del recaudo asentado el día de hoy
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (hoy_str,))
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (turno_id,))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
             
             # 📌 2. Conteo absoluto de todos los créditos entregados hoy
@@ -3037,13 +3039,13 @@ def dashboard_principal():
                 SELECT COUNT(*) AS total_creditos 
                 FROM balance_movimientos 
                 WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s
-                """, (hoy_str,)
+                """, (turno_id,)
             )
             res_creditos = cursor.fetchone()
             creditos_hoy = res_creditos["total_creditos"] if isinstance(res_creditos, dict) else res_creditos[0]
 
             # 3. Suma real del dinero prestado leyendo el flujo inmutable de Neon
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s", (hoy_str,))
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s", (turno_id,))
             capital_prestado_hoy = Decimal(str(cursor.fetchone()["total"]))
 
             # 🎯 FIJADO DIRECTO CON TUS COLUMNAS REALES
