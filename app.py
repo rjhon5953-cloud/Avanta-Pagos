@@ -4744,7 +4744,7 @@ def api_marcar_pago(cliente_id, num_cuota):
     with conn.cursor() as cur_f:
         cur_f.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
         row_f = cur_f.fetchone()
-        hoy_str = row_f["valor"] if (row_f and row_f["valor"]) else date.today().isoformat()
+        hoy_str = str(row_f["valor"]).split("_") if (row_f and row_f["valor"]) else date.today().isoformat()
         
     hoy_date = date.fromisoformat(hoy_str)
     monto_restante = monto_recaudado
