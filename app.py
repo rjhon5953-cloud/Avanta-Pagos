@@ -2925,7 +2925,8 @@ def login_route():
 
             if autorizada == "1":
                 caja_abierta_bool = True
-                fecha_fmt = fecha_jor.replace("-", "/") if fecha_jor else date.today().strftime("%Y/%m/%d")
+                fecha_limpia = fecha_jor.split("_")[0] if fecha_jor else date.today().isoformat()
+                fecha_fmt = fecha_limpia.replace("-", "/")
                 caja_txt = f"ABIERTA: {fecha_fmt}"
                 caja_clase = "caja-abierta"
             else:
