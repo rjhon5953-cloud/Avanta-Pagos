@@ -1040,15 +1040,12 @@ CONTENIDO_HTML = """
                 <div id="seguroDesgloseText" style="font-size:12px; color:#cbd5e1; font-weight:600; margin-top:6px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.12);">Monto Seguro: $0.00 | Neto a Entregar: $0.00</div>
             </div>
 
-            <!-- TARJETA 1.5: DOCUMENTACIÓN / FOTOS DE CÉDULA -->
-            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+                        <!-- TARJETA 1.5: DOCUMENTACIÓN / FOTOS DE CÉDULA (ESTILO GESTOR DE PAGOS) -->
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px 15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2"/><path d="M15 12h2"/><path d="M7 16h10"/></svg>
-                        <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Documento de Identidad (Cédula)</span>
-                    </div>
+                    <span style="font-size:13px; font-weight:800; color:#0f2b5c;">Adicionar fotografía de cédula</span>
                     {% if vista == 'renovar' and (cliente.foto_cedula_frente or cliente.foto_cedula_reverso) %}
-                    <span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px;">Archivada</span>
+                    <span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px;">Guardada</span>
                     {% endif %}
                 </div>
 
@@ -1058,40 +1055,45 @@ CONTENIDO_HTML = """
                 <input type="hidden" name="foto_cedula_frente" id="inputFotoCedulaFrente" value="{{ f_frente }}">
                 <input type="hidden" name="foto_cedula_reverso" id="inputFotoCedulaReverso" value="{{ f_reverso }}">
 
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:9px;">
-                    <!-- LADO FRONTAL -->
-                    <div style="border:1.5px dashed #cbd5e1; border-radius:12px; padding:10px; background:#f8fafc; text-align:center;">
-                        <div style="font-size:11px; font-weight:800; color:#334155; margin-bottom:6px;">Cédula Frontal</div>
-                        <img id="prevCedulaFrente" src="{{ f_frente }}" onclick="if(this.src && this.src.startsWith('data:image')) verFotoAmpliada(this.src)"
-                             style="width:100%; height:82px; object-fit:cover; border-radius:8px; border:1px solid #cbd5e1; margin-bottom:7px; cursor:pointer; display:{{ 'block' if f_frente else 'none' }};">
-                        <div id="placeholderCedulaFrente" style="height:82px; display:{{ 'none' if f_frente else 'flex' }}; flex-direction:column; align-items:center; justify-content:center; color:#94a3b8; margin-bottom:7px;">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                            <span style="font-size:10px; font-weight:600; margin-top:3px;">Sin foto</span>
-                        </div>
-                        <label style="display:flex; align-items:center; justify-content:center; gap:5px; width:100%; padding:8px 6px; background:#0f2b5c; color:#ffffff; border-radius:8px; font-size:11.5px; font-weight:800; cursor:pointer; box-sizing:border-box;">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                            {{ 'Cambiar' if f_frente else 'Tomar Foto' }}
+                <div style="display:flex; align-items:center; gap:18px;">
+                    <!-- CUADRO COMPACTO: CÉDULA FRONTAL -->
+                    <div style="display:flex; align-items:center; gap:9px;">
+                        <label style="width:54px; height:54px; border-radius:12px; background:#e2e8f0; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; position:relative; flex-shrink:0;">
+                            <img id="prevCedulaFrente" src="{{ f_frente }}"
+                                 style="width:100%; height:100%; object-fit:cover; display:{{ 'block' if f_frente else 'none' }};">
+                            <div id="placeholderCedulaFrente" style="display:{{ 'none' if f_frente else 'flex' }}; align-items:center; justify-content:center; color:#475569;">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                            </div>
                             <input type="file" accept="image/*" capture="environment" onchange="procesarFotoCedula(this, 'Frente')" style="display:none;">
                         </label>
+                        <div>
+                            <div style="font-size:12px; font-weight:800; color:#0f172a;">Frontal</div>
+                            <div onclick="const s=document.getElementById('prevCedulaFrente').src; if(s && s.startsWith('data:image')) verFotoAmpliada(s);"
+                                 style="font-size:10.5px; color:#1d4ed8; font-weight:700; cursor:pointer; margin-top:2px;">
+                                {{ 'Ver foto' if f_frente else 'Capturar' }}
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- LADO REVERSO -->
-                    <div style="border:1.5px dashed #cbd5e1; border-radius:12px; padding:10px; background:#f8fafc; text-align:center;">
-                        <div style="font-size:11px; font-weight:800; color:#334155; margin-bottom:6px;">Cédula Reverso</div>
-                        <img id="prevCedulaReverso" src="{{ f_reverso }}" onclick="if(this.src && this.src.startsWith('data:image')) verFotoAmpliada(this.src)"
-                             style="width:100%; height:82px; object-fit:cover; border-radius:8px; border:1px solid #cbd5e1; margin-bottom:7px; cursor:pointer; display:{{ 'block' if f_reverso else 'none' }};">
-                        <div id="placeholderCedulaReverso" style="height:82px; display:{{ 'none' if f_reverso else 'flex' }}; flex-direction:column; align-items:center; justify-content:center; color:#94a3b8; margin-bottom:7px;">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                            <span style="font-size:10px; font-weight:600; margin-top:3px;">Sin foto</span>
-                        </div>
-                        <label style="display:flex; align-items:center; justify-content:center; gap:5px; width:100%; padding:8px 6px; background:#0f2b5c; color:#ffffff; border-radius:8px; font-size:11.5px; font-weight:800; cursor:pointer; box-sizing:border-box;">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                            {{ 'Cambiar' if f_reverso else 'Tomar Foto' }}
+                    <!-- CUADRO COMPACTO: CÉDULA REVERSO -->
+                    <div style="display:flex; align-items:center; gap:9px;">
+                        <label style="width:54px; height:54px; border-radius:12px; background:#e2e8f0; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; position:relative; flex-shrink:0;">
+                            <img id="prevCedulaReverso" src="{{ f_reverso }}"
+                                 style="width:100%; height:100%; object-fit:cover; display:{{ 'block' if f_reverso else 'none' }};">
+                            <div id="placeholderCedulaReverso" style="display:{{ 'none' if f_reverso else 'flex' }}; align-items:center; justify-content:center; color:#475569;">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                            </div>
                             <input type="file" accept="image/*" capture="environment" onchange="procesarFotoCedula(this, 'Reverso')" style="display:none;">
                         </label>
+                        <div>
+                            <div style="font-size:12px; font-weight:800; color:#0f172a;">Reverso</div>
+                            <div onclick="const s=document.getElementById('prevCedulaReverso').src; if(s && s.startsWith('data:image')) verFotoAmpliada(s);"
+                                 style="font-size:10.5px; color:#1d4ed8; font-weight:700; cursor:pointer; margin-top:2px;">
+                                {{ 'Ver foto' if f_reverso else 'Capturar' }}
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div style="font-size:10.5px; color:#64748b; margin-top:7px; text-align:center;">Toca sobre la miniatura para ver la cédula en pantalla completa.</div>
             </div>
 
             <!-- TARJETA 4: GEOLOCALIZACIÓN Y GUARDADO -->
@@ -2693,8 +2695,8 @@ function toggleEdicionPerfil(clienteId) {
         .then(res => {
             if (res.status === 'ok') {
                 modoEdicionActivo = false;
-                document.getElementById('modalPerfilOk').style.display = 'flex';
-                navegarRuta('/menu/cliente/' + clienteId);
+                const mPerf = document.getElementById('modalPerfilOk');
+                if (mPerf) mPerf.style.display = 'flex';
             } else {
                 alert('⚠️ Error al guardar: ' + res.message);
             }
@@ -2712,8 +2714,8 @@ function toggleEdicionPerfil(clienteId) {
         }
 
         function procesarFotoCedula(input, lado) {
-            if (!input.files || !input.files) return;
-            const file = input.files;
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
             const reader = new FileReader();
             reader.onload = function(e) {
                 const img = new Image();
