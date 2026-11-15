@@ -563,82 +563,149 @@ CONTENIDO_HTML = """
     </div>
 
 {% elif vista == 'perfil_cliente' %}
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px;">
-        <button type="button" onclick="navegarRuta('/menu/clientes')" style="background: #e2e8f0; border: none; padding: 8px 12px; border-radius: 8px; font-weight: bold; color: #1e293b; cursor: pointer;">❮ Volver</button>
-        <span style="font-weight: 800; color: #0f2b5c; font-size: 14px;">EXPEDIENTE DEL CLIENTE</span>
-        <div style="width: 60px;"></div>
-    </div>
+    {% set palabras_p = ((cliente.nombre if cliente else 'CL') or 'CL').strip().split() %}
+    {% set ini_1 = palabras_p[0][0] if palabras_p|length > 0 else 'C' %}
+    {% set ini_2 = palabras_p[1][0] if palabras_p|length > 1 else (palabras_p[0][1] if palabras_p[0]|length > 1 else 'L') %}
+    {% set iniciales_p = (ini_1 ~ ini_2)|upper %}
+    {% set tel_limpio = ((cliente.telefono or '') if cliente else '')|replace(' ', '')|replace('-', '') %}
 
-    {% if cliente %}
-    <div class="card" style="padding: 12px; margin-bottom: 12px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left;">
-        <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Historial de Créditos</div>
-        {% for cr in creditos %}
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
-            <div>
-                <span style="font-size: 12px; font-weight: bold; color: #0f2b5c;">Inicio: {{ cr.fecha_inicio }}</span>
-                <span style="display: block; font-size: 11px; color: {{ '#10b981' if cr.saldo <= 0 else '#dc2626' }}; font-weight: bold;">
-                    {{ 'LIQUIDADO' if cr.saldo <= 0 else 'ACTIVO' }}
-                </span>
-            </div>
-            <div style="text-align: right;">
-                <span style="font-size: 11px; color: #64748b; display: block;">Total: ${{ "%.2f"|format(cr.monto_total) }}</span>
-                <span style="font-size: 13px; font-weight: 800; color: #0f2b5c;">Saldo: ${{ "%.2f"|format(cr.saldo) }}</span>
-            </div>
+    <div style="padding:0 4px 28px 4px;">
+        <!-- Barra Superior de Navegación -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0 12px 0;">
+            <button type="button" onclick="navegarRuta('/menu/clientes')"
+                    style="background:#ffffff; border:1.5px solid #cbd5e1; color:#0f2b5c; padding:8px 13px; border-radius:10px; font-weight:800; font-size:12.5px; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 2px 4px rgba(0,0,0,0.03);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Directorio
+            </button>
+            <span style="font-weight:800; color:#0f2b5c; font-size:13.5px; letter-spacing:0.3px;">EXPEDIENTE DEL CLIENTE</span>
+            <div style="width:74px;"></div>
         </div>
-        {% endfor %}
-    </div>
-    {% endif %}
 
-    <div style="padding: 0 4px 12px 4px;">
-        {% if cliente and cliente.latitud and cliente.longitud %}
-        <button type="button" onclick="abrirGpsCliente('{{ cliente.latitud|default('') }}', '{{ cliente.longitud|default('') }}')"
-                style="width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 10px; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 6px rgba(16,185,129,0.3);">
-            📍 Abrir Ubicación Exacta en Google Maps
-        </button>
-        {% else %}
-        <div style="padding: 10px; background: #fef3c7; color: #b45309; border-radius: 10px; font-size: 12px; text-align: center; font-weight: bold;">
-            ⚠️ Este cliente no tiene coordenadas GPS guardadas.
+        {% if cliente %}
+        <!-- Tarjeta Ejecutiva del Titular -->
+        <div style="background:linear-gradient(145deg, #0a1f44 0%, #0f2b5c 60%, #1e3a8a 100%); border-radius:16px; padding:16px; color:#ffffff; margin-bottom:12px; box-shadow:0 8px 20px rgba(15,43,92,0.2); display:flex; align-items:center; justify-content:space-between; gap:12px; text-align:left;">
+            <div style="display:flex; align-items:center; gap:12px; min-width:0; flex:1;">
+                <div style="width:48px; height:48px; border-radius:13px; background:rgba(255,255,255,0.14); border:1.5px solid rgba(255,255,255,0.25); color:#ffffff; font-weight:900; font-size:17px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    {{ iniciales_p }}
+                </div>
+                <div style="min-width:0;">
+                    <div style="font-size:16px; font-weight:900; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ cliente.nombre }}</div>
+                    <div style="font-size:11.5px; color:#cbd5e1; font-weight:600; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        {{ cliente.referencia or 'Sin referencia registrada' }}
+                    </div>
+                </div>
+            </div>
+
+            {% if tel_limpio %}
+            <div style="display:flex; gap:6px; flex-shrink:0;">
+                <a href="tel:{{ tel_limpio }}" title="Llamar"
+                   style="width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.22); color:#ffffff; display:flex; align-items:center; justify-content:center; text-decoration:none;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </a>
+                <a href="https://wa.me{{ tel_limpio }}" target="_blank" title="WhatsApp"
+                   style="width:36px; height:36px; border-radius:10px; background:#16a34a; color:#ffffff; display:flex; align-items:center; justify-content:center; text-decoration:none; box-shadow:0 3px 8px rgba(22,163,74,0.3);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Historial de Créditos -->
+        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+            <div style="display:flex; align-items:center; gap:8px; padding-bottom:8px; margin-bottom:4px; border-bottom:1.5px solid #f1f5f9;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                <span style="font-size:12.5px; font-weight:800; color:#0f2b5c; text-transform:uppercase; letter-spacing:0.3px;">Historial de Créditos</span>
+            </div>
+
+            {% for cr in creditos %}
+            {% set esta_liq = (cr.saldo <= 0) %}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f1f5f9; gap:8px;">
+                <div>
+                    <div style="font-size:12.5px; font-weight:800; color:#0f172a;">Inicio: {{ cr.fecha_inicio }}</div>
+                    <span style="display:inline-block; margin-top:4px; font-size:10px; font-weight:800; padding:2px 8px; border-radius:6px; background:{{ '#dcfce7' if esta_liq else '#fef2f2' }}; color:{{ '#15803d' if esta_liq else '#dc2626' }};">
+                        {{ 'LIQUIDADO' if esta_liq else 'ACTIVO' }}
+                    </span>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:11px; color:#64748b; font-weight:600;">Total: ${{ "%.2f"|format(cr.monto_total) }}</div>
+                    <div style="font-size:14px; font-weight:900; color:#0f2b5c; margin-top:2px;">Saldo: ${{ "%.2f"|format(cr.saldo) }}</div>
+                </div>
+            </div>
+            {% else %}
+            <div style="text-align:center; font-size:12px; color:#94a3b8; padding:14px 6px; font-weight:600;">Sin créditos registrados aún.</div>
+            {% endfor %}
         </div>
         {% endif %}
+
+        <!-- Geolocalización del Cliente -->
+        <div style="margin-bottom:12px;">
+            {% if cliente and cliente.latitud and cliente.longitud %}
+                <button type="button" onclick="abrirGpsCliente('{{ cliente.latitud|default('') }}', '{{ cliente.longitud|default('') }}')"
+                        style="width:100%; padding:13px; background:linear-gradient(135deg, #16a34a, #15803d); color:#ffffff; border:none; border-radius:12px; font-weight:800; font-size:13.5px; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; box-shadow:0 4px 12px rgba(22,163,74,0.22);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    Abrir Ubicación en Google Maps
+                </button>
+            {% else %}
+                <div style="padding:11px 12px; background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:12px; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:7px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    Este cliente aún no tiene coordenadas GPS guardadas.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Ficha de Datos Personales y Acciones -->
+        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span style="font-size:12.5px; font-weight:800; color:#0f2b5c; text-transform:uppercase; letter-spacing:0.3px;">Datos del Titular</span>
+            </div>
+
+            <div style="margin-bottom:10px;">
+                <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Nombre Completo</label>
+                <input type="text" id="perf_nombre" value="{{ cliente.nombre if cliente else '' }}" readonly class="input-perfil"
+                       style="width:100%; padding:11px 12px; border:1.5px solid #e2e8f0; background:#f8fafc; border-radius:10px; font-size:14px; font-weight:700; color:#0f172a; box-sizing:border-box;">
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+                <div>
+                    <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Identificación / Cédula</label>
+                    <input type="text" id="perf_cedula" value="{{ cliente.identificacion if cliente else '' }}" readonly class="input-perfil"
+                        style="width:100%; padding:11px 12px; border:1.5px solid #e2e8f0; background:#f8fafc; border-radius:10px; font-size:13.5px; font-weight:700; color:#0f172a; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Teléfono / WhatsApp</label>
+                    <input type="text" id="perf_telefono" value="{{ (cliente.telefono or '') if cliente else '' }}" readonly class="input-perfil"
+                           style="width:100%; padding:11px 12px; border:1.5px solid #e2e8f0; background:#f8fafc; border-radius:10px; font-size:13.5px; font-weight:700; color:#0f172a; box-sizing:border-box;">
+                </div>
+            </div>
+
+            <div style="margin-bottom:10px;">
+                <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Dirección Escrita</label>
+                <input type="text" id="perf_direccion" value="{{ (cliente.direccion or '') if cliente else '' }}" readonly class="input-perfil"
+                       style="width:100%; padding:11px 12px; border:1.5px solid #e2e8f0; background:#f8fafc; border-radius:10px; font-size:13.5px; font-weight:600; color:#0f172a; box-sizing:border-box;">
+            </div>
+
+            <div style="margin-bottom:14px;">
+                <label style="font-size:11.5px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Referencia / Negocio</label>
+                <input type="text" id="perf_referencia" value="{{ (cliente.referencia or '') if cliente else '' }}" readonly class="input-perfil"
+                       style="width:100%; padding:11px 12px; border:1.5px solid #e2e8f0; background:#f8fafc; border-radius:10px; font-size:13.5px; font-weight:600; color:#0f172a; box-sizing:border-box;">
+            </div>
+
+            <div style="display:flex; gap:8px;">
+                <button type="button" id="btnEditarPerfil" onclick="toggleEdicionPerfil({{ cliente.id if cliente else 0 }})"
+                        style="flex:1; padding:12px 10px; background:#f8fafc; color:#0f2b5c; border:1.5px solid #cbd5e1; border-radius:11px; font-weight:800; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Modificar
+                </button>
+                <button type="button" onclick="navegarRuta('/mover_renovacion/{{ cliente.id if cliente else 0 }}')"
+                        style="flex:1.35; padding:12px 10px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:11px; font-weight:800; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 4px 10px rgba(15,43,92,0.22);">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Conceder Crédito
+                </button>
+            </div>
+        </div>
     </div>
 
-    <div class="card" style="padding: 14px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left;">
-        <div style="margin-bottom: 10px;">
-            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Nombre Completo</label>
-            <input type="text" id="perf_nombre" value="{{ cliente.nombre if cliente else '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; color: #0f2b5c;">
-        </div>
-
-        <div style="margin-bottom: 10px;">
-            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Identificación / Cédula</label>
-            <input type="text" id="perf_cedula" value="{{ cliente.identificacion if cliente else '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; font-weight: bold; color: #0f2b5c;">
-        </div>
-
-        <div style="margin-bottom: 10px;">
-            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Teléfono / WhatsApp</label>
-            <input type="text" id="perf_telefono" value="{{ (cliente.telefono or '') if cliente else '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
-        </div>
-
-        <div style="margin-bottom: 10px;">
-            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Dirección Escrita</label>
-            <input type="text" id="perf_direccion" value="{{ (cliente.direccion or '') if cliente else '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
-        </div>
-
-        <div style="margin-bottom: 10px;">
-            <label style="font-size: 11px; font-weight: bold; color: #64748b;">Referencia / Negocio</label>
-            <input type="text" id="perf_referencia" value="{{ (cliente.referencia or '') if cliente else '' }}" readonly class="input-perfil" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc;">
-        </div>
-
-        <div style="display: flex; gap: 8px; margin-top: 14px;">
-            <button type="button" id="btnEditarPerfil" onclick="toggleEdicionPerfil({{ cliente.id if cliente else 0 }})"
-                    style="flex: 1; padding: 12px; background: #f1f5f9; color: #0f2b5c; border: 1px solid #cbd5e1; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer;">
-                ✏️ Modificar
-            </button>
-            <button type="button" onclick="navegarRuta('/mover_renovacion/{{ cliente.id if cliente else 0 }}')"
-                    style="flex: 1.3; padding: 12px; background: #0f2b5c; color: white; border: none; border-radius: 10px; font-weight: 800; font-size: 13px; cursor: pointer;">
-                💵 Conceder Crédito
-            </button>
-        </div>
-    </div>
 
 {% elif vista == 'embed_creditos_maestros' or vista == 'creditos_maestros' %}
     <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
