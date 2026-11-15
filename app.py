@@ -831,48 +831,142 @@ CONTENIDO_HTML = """
     </div>
 
 {% elif vista == 'nuevo' or vista == 'renovar' %}
-    <h3 style="margin-top:0; color:#0f2b5c;">{% if vista == 'renovar' %}🔄 Renovar Crédito a {{ cliente.nombre }}{% else %}👤 Registro de Crédito / Venta{% endif %}</h3>
-    <div class="card" style="padding:16px;">
-        <form id="formNuevoCredito" action="/api/clientes/guardar" method="POST" onsubmit="enviarCreditoAsincrono(event)">
-            {% if vista == 'renovar' %}<input type="hidden" name="cliente_id" value="{{ cliente.id }}">{% endif %}
-            <label>Nombre del Cliente</label><input type="text" name="nombre" value="{{ cliente.nombre | default('') }}" required>
-            <label>WhatsApp</label><input type="text" name="telefono" value="{{ cliente.telefono | default('') }}" required>
-            <label>Identificación / Cédula</label><input type="text" name="identificacion" value="{{ cliente.identificacion | default('') }}">
-            <label>Dirección Domiciliaria</label><input type="text" name="direccion" value="{{ cliente.direccion | default('') }}">
-            <label>Referencia Local</label><input type="text" name="referencia" value="{{ cliente.referencia | default('') }}">
-            <label>Monto Financiado ($)</label><input type="number" step="any" id="calcMonto" name="monto" oninput="calcularCuota()" required>
-            <label>Interés (%)</label>
-            <input type="number" step="any" id="calcInteres" name="interes_porcentaje" value="20" oninput="calcularCuota()" required>
-            
-            <label>Cuotas</label>
-            <input type="number" id="calcCuotas" name="cuotas" value="24" oninput="calcularCuota()" required>
-            
-            <label>Opciones de Microseguro</label>
-            <select name="aplicar_seguro" id="calcSeguroAccion" onchange="manejarTipoSeguro()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1; font-size:13px; outline:none; margin-top:4px;">
-                <option value="NO">❌ No aplicar seguro (Entrega 100%)</option>
-                <option value="2">🛡️ Seguro Básico (2%)</option>
-                <option value="4" selected>🛡️ Seguro Premium (4%)</option>
-                <option value="MANUAL">✏️ Ingresar Monto Manual</option>
-            </select>
-
-            <div id="contenedorSeguroManual" style="display: none; margin-top: 8px;">
-                <label>Monto del Seguro ($)</label>
-                <input type="number" step="any" id="calcSeguroManualVal" name="microseguro_manual_valor" value="0" oninput="calcularCuota()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #cbd5e1; font-size:13px; outline:none; margin-top:4px;">
+    <div style="padding:0 4px 28px 4px;">
+        <!-- Cabecera Corporativa -->
+        <div style="display:flex; align-items:center; gap:10px; padding:4px 0 12px 0;">
+            <div style="width:36px; height:36px; border-radius:10px; background:#0f2b5c; color:#ffffff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
             </div>
-            
-            <div id="seguroDesgloseText" style="font-size:12px; color:#475569; font-weight:700; margin-top:6px;">Monto Seguro: $0.00 | Neto a Entregar: $0.00</div>
-            <div id="simulacionText" style="font-weight:bold; color:#0369a1; margin:6px 0;">$0.00 / cuota</div>
-            <label>Frecuencia</label>
-            <select name="frecuencia"><option value="Diaria">Diaria</option><option value="Semanal">Semanal</option></select>
-            <label>Fecha de Inicio</label><input type="date" name="fecha_inicio" value="{{ hoy_str }}" required>
-            <input type="hidden" id="latitud_input" name="latitud">
-            <input type="hidden" id="longitud_input" name="longitud">
-            <div style="margin-bottom: 15px;">
-            <button type="button" onclick="obtenerCoordenadasGPS()" style="width: 100%; padding: 12px; background-color: #0284c7; color: white; border: none; border-radius: 8px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 8px;">📍 Obtener Ubicación GPS</button>
-            <p id="status_gps" style="font-size: 12px; color: #64748b; margin-top: 5px; text-align: center;">Ubicación no registrada aún.</p>
-            <!-- ⚡ CORREGIDO: Se cambia 'btn-primary' por 'btn-accion btn-pagar' para heredar el comportamiento de clic prioritario -->
-            <button type="submit" id="btnGuardarCredito" class="btn-primary" style="width:100%; padding:12px; margin-top:8px; font-size:13px; font-weight:800; background:#10b981; color:white; border:none; border-radius:8px; cursor:pointer;" onclick="setTimeout(() => { const btn = document.getElementById('btnGuardarCredito'); if(btn) { btn.disabled = true; btn.innerText = '⌛ Guardando...'; } }, 10);"> Guardar e Inicializar Tablas</button>
-       </form>
+            <div style="text-align:left; min-width:0;">
+                <div style="font-size:15px; font-weight:800; color:#0f2b5c; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    {% if vista == 'renovar' %}RENOVAR CRÉDITO{% else %}NUEVO CLIENTE / CRÉDITO{% endif %}
+                </div>
+                <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">
+                    {% if vista == 'renovar' %}Cliente: {{ cliente.nombre }}{% else %}Registro de titular, condiciones y geolocalización{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <form id="formNuevoCredito" action="/api/clientes/guardar" method="POST" onsubmit="enviarCreditoAsincrono(event)" style="display:flex; flex-direction:column; gap:12px;">
+            {% if vista == 'renovar' %}<input type="hidden" name="cliente_id" value="{{ cliente.id }}">{% endif %}
+
+            <!-- TARJETA 1: DATOS DEL TITULAR -->
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Datos del Titular</span>
+                </div>
+
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Nombre Completo del Cliente*</label>
+                <input type="text" name="nombre" value="{{ cliente.nombre | default('') }}" required placeholder="Ej: Carlos Mendoza"
+                       style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:700; color:#0f172a; margin-bottom:11px; box-sizing:border-box;">
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:11px;">
+                    <div>
+                        <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">WhatsApp / Celular*</label>
+                        <input type="text" name="telefono" value="{{ cliente.telefono | default('') }}" required placeholder="0991234567"
+                               style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Cédula / ID</label>
+                        <input type="text" name="identificacion" value="{{ cliente.identificacion | default('') }}" placeholder="Opcional"
+                               style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; box-sizing:border-box;">
+                    </div>
+                </div>
+
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Dirección Domiciliaria</label>
+                <input type="text" name="direccion" value="{{ cliente.direccion | default('') }}" placeholder="Sector, calle principal y secundaria"
+                       style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13.5px; font-weight:500; color:#0f172a; margin-bottom:11px; box-sizing:border-box;">
+
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Referencia del Negocio / Local</label>
+                <input type="text" name="referencia" value="{{ cliente.referencia | default('') }}" placeholder="Ej: Tienda esquinera color azul"
+                       style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13.5px; font-weight:500; color:#0f172a; box-sizing:border-box;">
+            </div>
+
+            <!-- TARJETA 2: CONDICIONES FINANCIERAS -->
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Condiciones del Crédito</span>
+                </div>
+
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Monto a Financiar ($)*</label>
+                <input type="number" step="any" id="calcMonto" name="monto" oninput="calcularCuota()" required placeholder="0.00"
+                       style="width:100%; padding:12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:17px; font-weight:800; color:#0f172a; margin-bottom:11px; box-sizing:border-box;">
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+                    <div>
+                        <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Interés (%)*</label>
+                        <input type="number" step="any" id="calcInteres" name="interes_porcentaje" value="20" oninput="calcularCuota()" required
+                               style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:15px; font-weight:800; color:#0f172a; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">N° Cuotas*</label>
+                        <input type="number" id="calcCuotas" name="cuotas" value="24" oninput="calcularCuota()" required
+                               style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:15px; font-weight:800; color:#0f172a; box-sizing:border-box;">
+                    </div>
+                </div>
+
+                <!-- Frecuencia Táctil -->
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Frecuencia de Cobro</label>
+                <input type="hidden" name="frecuencia" id="inputFreqCredito" value="Diaria">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+                    <button type="button" id="btnFreqDiaria" onclick="document.getElementById('inputFreqCredito').value='Diaria'; this.style.borderColor='#0f2b5c'; this.style.background='#eff6ff'; this.style.color='#0f2b5c'; document.getElementById('btnFreqSemanal').style.borderColor='#cbd5e1'; document.getElementById('btnFreqSemanal').style.background='#ffffff'; document.getElementById('btnFreqSemanal').style.color='#475569';"
+                            style="padding:10px; border-radius:10px; border:1.5px solid #0f2b5c; background:#eff6ff; color:#0f2b5c; font-size:13px; font-weight:800; cursor:pointer;">
+                        Diaria
+                    </button>
+                    <button type="button" id="btnFreqSemanal" onclick="document.getElementById('inputFreqCredito').value='Semanal'; this.style.borderColor='#cbd5e1'; this.style.background='#ffffff'; this.style.color='#475569'; document.getElementById('btnFreqDiaria').style.borderColor='#cbd5e1'; document.getElementById('btnFreqDiaria').style.background='#ffffff'; document.getElementById('btnFreqDiaria').style.color='#475569';"
+                            style="padding:10px; border-radius:10px; border:1.5px solid #cbd5e1; background:#ffffff; color:#475569; font-size:13px; font-weight:700; cursor:pointer;">
+                        Semanal
+                    </button>
+                </div>
+
+                <!-- Microseguro Limpio sin Emojis -->
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Cobertura de Microseguro</label>
+                <select name="aplicar_seguro" id="calcSeguroAccion" onchange="manejarTipoSeguro()"
+                        style="width:100%; padding:11px 12px; border-radius:10px; border:1.5px solid #cbd5e1; font-size:13px; font-weight:700; color:#0f172a; background:#f8fafc; margin-bottom:10px; box-sizing:border-box;">
+                    <option value="NO">Sin Seguro (Entrega 100%)</option>
+                    <option value="2">Seguro Básico (2%)</option>
+                    <option value="4" selected>Seguro Premium (4%)</option>
+                    <option value="MANUAL">Monto de Seguro Manual ($)</option>
+                </select>
+
+                <div id="contenedorSeguroManual" style="display: none; margin-bottom: 11px;">
+                    <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Monto Manual del Seguro ($)</label>
+                    <input type="number" step="any" id="calcSeguroManualVal" name="microseguro_manual_valor" value="0" oninput="calcularCuota()"
+                           style="width:100%; padding:10px 12px; border-radius:10px; border:1.5px solid #cbd5e1; font-size:14px; font-weight:700; color:#0f172a; box-sizing:border-box;">
+                </div>
+
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Fecha de Inicio de Cobro*</label>
+                <input type="date" name="fecha_inicio" value="{{ hoy_str }}" required
+                       style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:700; color:#0f172a; box-sizing:border-box;">
+            </div>
+
+            <!-- TARJETA 3: SIMULADOR EJECUTIVO EN VIVO -->
+            <div style="background:linear-gradient(145deg, #0a1f44 0%, #0f2b5c 60%, #1e3a8a 100%); border-radius:14px; padding:15px 16px; color:#ffffff; box-shadow:0 6px 16px rgba(15,43,92,0.2); text-align:left;">
+                <div style="font-size:10.5px; font-weight:800; color:#93c5fd; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:4px;">Proyección del Crédito</div>
+                <div id="simulacionText" style="font-size:22px; font-weight:900; color:#ffffff; letter-spacing:-0.3px;">$0.00 / cuota</div>
+                <div id="seguroDesgloseText" style="font-size:12px; color:#cbd5e1; font-weight:600; margin-top:6px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.12);">Monto Seguro: $0.00 | Neto a Entregar: $0.00</div>
+            </div>
+
+            <!-- TARJETA 4: GEOLOCALIZACIÓN Y GUARDADO -->
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; box-shadow:0 2px 6px rgba(15,23,42,0.03);">
+                <input type="hidden" id="latitud_input" name="latitud">
+                <input type="hidden" id="longitud_input" name="longitud">
+
+                <button type="button" onclick="obtenerCoordenadasGPS()"
+                        style="width:100%; padding:12px; background:#eff6ff; color:#1d4ed8; border:1.5px solid #bfdbfe; border-radius:10px; font-size:13px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    Capturar Ubicación GPS del Local
+                </button>
+                <p id="status_gps" style="font-size:11.5px; color:#64748b; font-weight:600; margin:6px 0 12px 0; text-align:center;">Ubicación GPS pendiente de captura</p>
+
+                <button type="submit" id="btnGuardarCredito" class="btn-accion btn-pagar"
+                        style="width:100%; padding:14px; font-size:14.5px; font-weight:800; background:linear-gradient(135deg, #16a34a, #15803d); color:#ffffff; border:none; border-radius:11px; cursor:pointer; box-shadow:0 4px 12px rgba(22,163,74,0.25);">
+                    Guardar y Crear Crédito
+                </button>
+            </div>
+        </form>
     </div>
 
 {% elif vista == 'balance' or vista == 'gastos' %}
@@ -1428,12 +1522,31 @@ HTML_TEMPLATE = """
     </div>
 
     <div class="modal" id="modalWs">
-        <div class="modal-content">
-            <h3 style="color:#10b981;"><i class="fa-solid fa-circle-check"></i> Pago Procesado</h3>
-            <p id="modalMsg" style="margin:10px 0;"></p>
-            <a href="javascript:void(0)" id="modalWsBtn" target="_blank" class="btn-ws"><i class="fa-brands fa-whatsapp"></i> WhatsApp Nativo</a>
-            <button onclick="imprimirTicket()" class="btn-primary" style="background:#0f2b5c; margin-top:8px; color:white; border:none; padding:10px; border-radius:8px; width:100%; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-print"></i> Imprimir Recibo</button>
-            <button onclick="window.location.reload();" class="btn-modal-close">Continuar</button>
+        <div class="modal-content" style="border-radius:20px; padding:24px 20px; max-width:360px; box-shadow:0 20px 45px rgba(15,23,42,0.35);">
+            <div style="width:56px; height:56px; border-radius:50%; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto; border:2px solid #86efac;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h3 style="color:#0f172a; font-size:18px; font-weight:900; margin:0 0 6px 0;">Pago Procesado</h3>
+            <p id="modalMsg" style="margin:0 0 18px 0; font-size:13.5px; color:#475569; font-weight:600; line-height:1.4;"></p>
+
+            <div style="display:flex; flex-direction:column; gap:9px;">
+                <a href="javascript:void(0)" id="modalWsBtn" target="_blank"
+                   style="display:flex; align-items:center; justify-content:center; gap:8px; padding:13px; background:linear-gradient(135deg, #16a34a, #15803d); color:#ffffff; text-decoration:none; border-radius:11px; font-weight:800; font-size:14px; box-shadow:0 4px 12px rgba(22,163,74,0.25);">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                    Enviar Comprobante WhatsApp
+                </a>
+
+                <button type="button" onclick="imprimirTicket()"
+                        style="width:100%; padding:12px; background:#eff6ff; color:#0f2b5c; border:1.5px solid #bfdbfe; border-radius:11px; font-weight:800; font-size:13.5px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Imprimir Ticket (58mm)
+                </button>
+
+                <button type="button" onclick="window.location.reload();"
+                        style="width:100%; padding:12px; background:#0f2b5c; color:#ffffff; border:none; border-radius:11px; font-weight:800; font-size:13.5px; cursor:pointer; margin-top:2px;">
+                    Continuar en Ruta
+                </button>
+            </div>
         </div>
     </div>
 
