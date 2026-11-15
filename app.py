@@ -1070,7 +1070,7 @@ CONTENIDO_HTML = """
                             <div style="font-size:12px; font-weight:800; color:#0f172a;">Frontal</div>
                             <div onclick="const s=document.getElementById('prevCedulaFrente').src; if(s && s.startsWith('data:image')) verFotoAmpliada(s);"
                                  style="font-size:10.5px; color:#1d4ed8; font-weight:700; cursor:pointer; margin-top:2px;">
-                                {{ 'Ver foto' if f_frente else 'Capturar' }}
+                                {{ 'Ver foto' if f_frente else 'Mostrar' }}
                             </div>
                         </div>
                     </div>
@@ -1089,7 +1089,7 @@ CONTENIDO_HTML = """
                             <div style="font-size:12px; font-weight:800; color:#0f172a;">Reverso</div>
                             <div onclick="const s=document.getElementById('prevCedulaReverso').src; if(s && s.startsWith('data:image')) verFotoAmpliada(s);"
                                  style="font-size:10.5px; color:#1d4ed8; font-weight:700; cursor:pointer; margin-top:2px;">
-                                {{ 'Ver foto' if f_reverso else 'Capturar' }}
+                                {{ 'Ver foto' if f_reverso else 'Mostrar' }}
                             </div>
                         </div>
                     </div>
@@ -1169,7 +1169,7 @@ CONTENIDO_HTML = """
                 <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Cierre de Jornada Diaria</span>
             </div>
             <p style="font-size:11.5px; color:#64748b; line-height:1.4; margin:0 0 12px 0;">
-                Al finalizar el día, ingresa el dinero físico real en mano para auditar y cerrar la jornada de cobranza.
+                Al finalizar el día, ingresa el dinero neto del balance para auditar y cerrar la jornada de cobranza.
             </p>
 
             {% if balance_estado != 'Abierta' %}
@@ -1180,13 +1180,13 @@ CONTENIDO_HTML = """
                 <form action="/api/balance/cerrar_caja" method="POST" style="display:flex; flex-direction:column; gap:10px;">
                     <input type="hidden" name="efectivo_sistema" value="{{ efectivo_neto }}">
                     <div>
-                        <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Efectivo Físico Real en Mano ($)</label>
+                        <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Ingrese Efectivo ($)</label>
                         <input type="number" step="any" name="efectivo_real" required placeholder="Ej: {{ '%.2f'|format(efectivo_neto) }}"
                                style="width:100%; padding:12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:16px; font-weight:800; color:#0f172a; box-sizing:border-box;">
                     </div>
                     <button type="submit" style="width:100%; padding:13px; background:linear-gradient(135deg, #e11d48, #be123c); color:#ffffff; border:none; border-radius:10px; font-size:14px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(225,29,72,0.22);">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                        Sellar y Cerrar Caja de Hoy
+                        Cerrar Caja
                     </button>
                 </form>
             {% endif %}
@@ -1224,7 +1224,7 @@ CONTENIDO_HTML = """
                 <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:14px;">
                     <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Gasolina')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Gasolina</button>
                     <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Almuerzo')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Almuerzo</button>
-                    <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Mantenimiento')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Mantenimiento</button>
+                    <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Transporte')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Transporte</button>
                     <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Viáticos')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Viáticos</button>
                     <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Sueldo')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Comisión</button>
                     <button type="button" class="btn-cat-bal" onclick="seleccionarCatBal(this, 'Inversión')" style="padding:9px 4px; border-radius:9px; border:1.5px solid #e2e8f0; background:#f8fafc; color:#334155; font-size:11px; font-weight:700; cursor:pointer;">Inversión</button>
@@ -1233,7 +1233,7 @@ CONTENIDO_HTML = """
 
                 <!-- Campos Descripción, Monto y Comprobante -->
                 <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Descripción / Detalle</label>
-                <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Compra de repuestos de moto" required
+                <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Compra de repuestos de moto" optional
                        style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; margin-bottom:12px; box-sizing:border-box;">
 
                 <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Monto ($)</label>
@@ -1488,7 +1488,7 @@ HTML_TEMPLATE = """
                 <div style="font-size: 15px; font-weight: 900; color: #ffffff; letter-spacing: 0.4px; line-height: 1.15;">AVANTA PAGOS</div>
                 <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
                     <span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block;"></span>
-                    <span style="font-size: 11px; font-weight: 700; color: #cbd5e1; letter-spacing: 0.3px;">UNIDAD-01 • PRO V1.3</span>
+                    <span style="font-size: 11px; font-weight: 700; color: #cbd5e1; letter-spacing: 0.3px;">RUTA-01 • PRO V1.3</span>
                 </div>
             </div>
         </div>
