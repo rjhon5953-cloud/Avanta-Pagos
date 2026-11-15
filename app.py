@@ -570,7 +570,12 @@ CONTENIDO_HTML = """
     {% set ini_1 = palabras_p[0][0] if palabras_p|length > 0 else 'C' %}
     {% set ini_2 = palabras_p[1][0] if palabras_p|length > 1 else (palabras_p[0][1] if palabras_p[0]|length > 1 else 'L') %}
     {% set iniciales_p = (ini_1 ~ ini_2)|upper %}
-    {% set tel_limpio = ((cliente.telefono or '') if cliente else '')|replace(' ', '')|replace('-', '') %}
+    {% set tel_puro = ((cliente.telefono or '') if cliente else '')|replace(' ', '')|replace('-', '')|replace('+', '') %}
+    {% if tel_puro.startswith('0') and tel_puro|length == 10 %}
+        {% set tel_limpio = '593' ~ tel_puro[1:] %}
+    {% else %}
+        {% set tel_limpio = tel_puro %}
+    {% endif %}
 
     <div style="padding:0 4px 28px 4px;">
         <!-- Barra Superior de Navegación -->
@@ -605,7 +610,7 @@ CONTENIDO_HTML = """
                    style="width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.22); color:#ffffff; display:flex; align-items:center; justify-content:center; text-decoration:none;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 </a>
-                <a href="https://wa.me{{ tel_limpio }}" target="_blank" title="WhatsApp"
+                <a href="https://wa.me/{{ tel_limpio }}" target="_blank" title="WhatsApp"
                    style="width:36px; height:36px; border-radius:10px; background:#16a34a; color:#ffffff; display:flex; align-items:center; justify-content:center; text-decoration:none; box-shadow:0 3px 8px rgba(22,163,74,0.3);">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
                 </a>
