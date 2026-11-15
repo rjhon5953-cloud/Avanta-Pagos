@@ -1232,8 +1232,8 @@ CONTENIDO_HTML = """
                 </div>
 
                 <!-- Campos Descripción, Monto y Comprobante -->
-                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Descripción / Detalle</label>
-                <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Compra de repuestos de moto" optional
+                <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Descripción / Detalle (Opcional)</label>
+                <input type="text" name="concepto_mov" id="concepto_mov" placeholder="Ej: Compra de repuestos de moto"
                        style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; margin-bottom:12px; box-sizing:border-box;">
 
                 <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Monto ($)</label>
@@ -4154,7 +4154,7 @@ def balance_guardar_movimiento():
 
     tipo = request.form.get("tipo_mov")
     categoria = request.form.get("categoria_mov", "Otros")
-    concepto = request.form.get("concepto_mov", "").strip()
+    concepto = request.form.get("concepto_mov", "").strip()  or categoria
 
     # 🛡️ Captura de dinero con precisión contable exacta Decimal
     monto = Decimal(request.form.get("monto_mov", "0"))
