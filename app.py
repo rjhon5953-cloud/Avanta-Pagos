@@ -1040,6 +1040,60 @@ CONTENIDO_HTML = """
                 <div id="seguroDesgloseText" style="font-size:12px; color:#cbd5e1; font-weight:600; margin-top:6px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.12);">Monto Seguro: $0.00 | Neto a Entregar: $0.00</div>
             </div>
 
+            <!-- TARJETA 1.5: DOCUMENTACIÓN / FOTOS DE CÉDULA -->
+            <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2"/><path d="M15 12h2"/><path d="M7 16h10"/></svg>
+                        <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Documento de Identidad (Cédula)</span>
+                    </div>
+                    {% if vista == 'renovar' and (cliente.foto_cedula_frente or cliente.foto_cedula_reverso) %}
+                    <span style="background:#dcfce7; color:#15803d; font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px;">Archivada</span>
+                    {% endif %}
+                </div>
+
+                {% set f_frente = (cliente.foto_cedula_frente if (cliente and cliente.foto_cedula_frente) else '') %}
+                {% set f_reverso = (cliente.foto_cedula_reverso if (cliente and cliente.foto_cedula_reverso) else '') %}
+
+                <input type="hidden" name="foto_cedula_frente" id="inputFotoCedulaFrente" value="{{ f_frente }}">
+                <input type="hidden" name="foto_cedula_reverso" id="inputFotoCedulaReverso" value="{{ f_reverso }}">
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:9px;">
+                    <!-- LADO FRONTAL -->
+                    <div style="border:1.5px dashed #cbd5e1; border-radius:12px; padding:10px; background:#f8fafc; text-align:center;">
+                        <div style="font-size:11px; font-weight:800; color:#334155; margin-bottom:6px;">Cédula Frontal</div>
+                        <img id="prevCedulaFrente" src="{{ f_frente }}" onclick="if(this.src && this.src.startsWith('data:image')) verFotoAmpliada(this.src)"
+                             style="width:100%; height:82px; object-fit:cover; border-radius:8px; border:1px solid #cbd5e1; margin-bottom:7px; cursor:pointer; display:{{ 'block' if f_frente else 'none' }};">
+                        <div id="placeholderCedulaFrente" style="height:82px; display:{{ 'none' if f_frente else 'flex' }}; flex-direction:column; align-items:center; justify-content:center; color:#94a3b8; margin-bottom:7px;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                            <span style="font-size:10px; font-weight:600; margin-top:3px;">Sin foto</span>
+                        </div>
+                        <label style="display:flex; align-items:center; justify-content:center; gap:5px; width:100%; padding:8px 6px; background:#0f2b5c; color:#ffffff; border-radius:8px; font-size:11.5px; font-weight:800; cursor:pointer; box-sizing:border-box;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                            {{ 'Cambiar' if f_frente else 'Tomar Foto' }}
+                            <input type="file" accept="image/*" capture="environment" onchange="procesarFotoCedula(this, 'Frente')" style="display:none;">
+                        </label>
+                    </div>
+
+                    <!-- LADO REVERSO -->
+                    <div style="border:1.5px dashed #cbd5e1; border-radius:12px; padding:10px; background:#f8fafc; text-align:center;">
+                        <div style="font-size:11px; font-weight:800; color:#334155; margin-bottom:6px;">Cédula Reverso</div>
+                        <img id="prevCedulaReverso" src="{{ f_reverso }}" onclick="if(this.src && this.src.startsWith('data:image')) verFotoAmpliada(this.src)"
+                             style="width:100%; height:82px; object-fit:cover; border-radius:8px; border:1px solid #cbd5e1; margin-bottom:7px; cursor:pointer; display:{{ 'block' if f_reverso else 'none' }};">
+                        <div id="placeholderCedulaReverso" style="height:82px; display:{{ 'none' if f_reverso else 'flex' }}; flex-direction:column; align-items:center; justify-content:center; color:#94a3b8; margin-bottom:7px;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                            <span style="font-size:10px; font-weight:600; margin-top:3px;">Sin foto</span>
+                        </div>
+                        <label style="display:flex; align-items:center; justify-content:center; gap:5px; width:100%; padding:8px 6px; background:#0f2b5c; color:#ffffff; border-radius:8px; font-size:11.5px; font-weight:800; cursor:pointer; box-sizing:border-box;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                            {{ 'Cambiar' if f_reverso else 'Tomar Foto' }}
+                            <input type="file" accept="image/*" capture="environment" onchange="procesarFotoCedula(this, 'Reverso')" style="display:none;">
+                        </label>
+                    </div>
+                </div>
+                <div style="font-size:10.5px; color:#64748b; margin-top:7px; text-align:center;">Toca sobre la miniatura para ver la cédula en pantalla completa.</div>
+            </div>
+
             <!-- TARJETA 4: GEOLOCALIZACIÓN Y GUARDADO -->
             <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; box-shadow:0 2px 6px rgba(15,23,42,0.03);">
                 <input type="hidden" id="latitud_input" name="latitud">
@@ -1610,6 +1664,30 @@ HTML_TEMPLATE = """
                 <a href="javascript:void(0)" id="btn_mapa" target="_blank" class="btn-accion btn-pagar" style="padding:10px; text-decoration:none;"><i class="fa-solid fa-location-dot"></i> Ver Mapa</a>
             </div>
             <button onclick="cerrarModal('modalInfoCliente')" class="btn-modal-close">Salir de la Información</button>
+        </div>
+    </div>
+
+    <div class="modal" id="modalPerfilOk">
+        <div class="modal-content" style="border-radius:20px; padding:24px 20px; max-width:340px; box-shadow:0 20px 45px rgba(15,23,42,0.35);">
+            <div style="width:56px; height:56px; border-radius:50%; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto; border:2px solid #86efac;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h3 style="color:#0f172a; font-size:18px; font-weight:900; margin:0 0 6px 0;">Datos Actualizados</h3>
+            <p style="margin:0 0 18px 0; font-size:13.5px; color:#475569; font-weight:600; line-height:1.4;">La ficha del titular se ha guardado correctamente en el sistema.</p>
+            <button type="button" onclick="document.getElementById('modalPerfilOk').style.display='none';"
+                    style="width:100%; padding:13px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:11px; font-weight:800; font-size:14px; cursor:pointer;">
+                Aceptar
+            </button>
+        </div>
+    </div>
+
+    <div class="modal" id="modalVisorFoto" onclick="this.style.display='none'">
+        <div class="modal-content" style="border-radius:18px; padding:14px; max-width:92%; background:#0f172a;" onclick="event.stopPropagation()">
+            <img id="imgVisorFotoFull" src="" style="width:100%; max-height:72vh; object-fit:contain; border-radius:10px; display:block;">
+            <button type="button" onclick="document.getElementById('modalVisorFoto').style.display='none'"
+                    style="width:100%; margin-top:10px; padding:11px; background:#ffffff; color:#0f172a; border:none; border-radius:10px; font-weight:800; font-size:13px; cursor:pointer;">
+                Cerrar Vista Previa
+            </button>
         </div>
     </div>
 
@@ -2615,7 +2693,7 @@ function toggleEdicionPerfil(clienteId) {
         .then(res => {
             if (res.status === 'ok') {
                 modoEdicionActivo = false;
-                alert('✅ Datos actualizados correctamente.');
+                document.getElementById('modalPerfilOk').style.display = 'flex';
                 navegarRuta('/menu/cliente/' + clienteId);
             } else {
                 alert('⚠️ Error al guardar: ' + res.message);
@@ -2623,6 +2701,48 @@ function toggleEdicionPerfil(clienteId) {
         });
     }
 }
+
+        function verFotoAmpliada(src) {
+            const img = document.getElementById('imgVisorFotoFull');
+            const modal = document.getElementById('modalVisorFoto');
+            if (img && modal) {
+                img.src = src;
+                modal.style.display = 'flex';
+            }
+        }
+
+        function procesarFotoCedula(input, lado) {
+            if (!input.files || !input.files) return;
+            const file = input.files;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const maxDim = 900;
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+                        else { w = Math.round(w * maxDim / h); h = maxDim; }
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    const base64Comprimida = canvas.toDataURL('image/jpeg', 0.72);
+
+                    const hiddenIn = document.getElementById('inputFotoCedula' + lado);
+                    const prevImg = document.getElementById('prevCedula' + lado);
+                    const phDiv = document.getElementById('placeholderCedula' + lado);
+                    if (hiddenIn) hiddenIn.value = base64Comprimida;
+                    if (prevImg) { prevImg.src = base64Comprimida; prevImg.style.display = 'block'; }
+                    if (phDiv) phDiv.style.display = 'none';
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
 
 // 🛡️ BLINDAJE CRÍTICO DEL DASHBOARD PRINCIPAL: Evita que Jinja2 busque variables de clientes fuera de su sección
 {% if vista == 'perfil_cliente' and cliente %}
@@ -3870,6 +3990,9 @@ def guardar_nuevo_cliente():
     direccion = request.form.get("direccion", "").strip()
     referencia = request.form.get("referencia", "").strip()
     identificacion = request.form.get("identificacion", "").strip()
+    foto_cedula_frente = request.form.get("foto_cedula_frente", "").strip()
+    foto_cedula_reverso = request.form.get("foto_cedula_reverso", "").strip()
+    cliente_id_renovacion = request.form.get("cliente_id", "").strip()
     
     try:
         monto = Decimal(request.form.get("monto", "0"))
@@ -3952,15 +4075,33 @@ def guardar_nuevo_cliente():
                 # Si viene como tupla/lista tradicional
                 max_orden = int(res_orden[0]) if res_orden and res_orden[0] is not None else 0
 
-            # Insertar cabecera con 17 parámetros alineados milimétricamente
-            cursor.execute(
-                """
-                INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, latitud, longitud, estado)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Activo') RETURNING id
-                """,
-                (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud)
-            )
-            res_id = cursor.fetchone()
+            cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS foto_cedula_frente TEXT")
+            cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS foto_cedula_reverso TEXT")
+
+            if cliente_id_renovacion and cliente_id_renovacion.isdigit():
+                cliente_id = int(cliente_id_renovacion)
+                cursor.execute(
+                    """
+                    UPDATE clientes
+                    SET nombre = %s, telefono = %s, direccion = %s, referencia = %s, identificacion = %s,
+                        monto = %s, interes_porcentaje = %s, monto_total = %s, cuotas = %s, frecuencia = %s,
+                        valor_cuota = %s, fecha_inicio = %s, estado = 'Activo',
+                        foto_cedula_frente = CASE WHEN %s <> '' THEN %s ELSE foto_cedula_frente END,
+                        foto_cedula_reverso = CASE WHEN %s <> '' THEN %s ELSE foto_cedula_reverso END
+                    WHERE id = %s
+                    """,
+                    (nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), foto_cedula_frente, foto_cedula_frente, foto_cedula_reverso, foto_cedula_reverso, cliente_id)
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, estado, latitud, longitud, foto_cedula_frente, foto_cedula_reverso)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Activo', %s, %s, %s, %s) RETURNING id
+                    """,
+                    (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), latitud, longitud, foto_cedula_frente, foto_cedula_reverso)
+                )
+                res_id = cursor.fetchone()
+                cliente_id = res_id["id"] if isinstance(res_id, dict) else res_id
         
             # 👤 LÍNEA 2113 COMPLETAMENTE BLINDADA:
             if res_id is None:
