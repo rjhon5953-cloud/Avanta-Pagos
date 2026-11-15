@@ -28,22 +28,24 @@ db_pool = SimpleConnectionPool(
 )
 
 def get_db():
-    """🛡️ FIJADO: Registra, valida y repara la conexión en el contexto 'g' de Flask para erradicar Errores 500"""
+    """🛡️ FIJADO: Registra, limpia transacciones y repara la conexión en 'g'"""
     if 'db_conn' not in g:
         g.db_conn = db_pool.getconn()
-    else:
-        # Probamos si la conexión del pool sigue viva
+    try:
+        g.db_conn.rollback()
+        with g.db_conn.cursor() as cur:
+            cur.execute("SELECT 1")
+    except Exception:
         try:
-            with g.db_conn.cursor() as cur:
-                cur.execute("SELECT 1")
+            db_pool.putconn(g.db_conn, close=True)
         except Exception:
-            # Si Neon cerró el socket por inactividad, la liberamos forzadamente y pedimos otra limpia
-            try:
-                db_pool.putconn(g.db_conn)
-            except Exception:
-                pass
-            g.db_conn = db_pool.getconn()
-            
+            pass
+        g.db_conn = db_pool.getconn()
+        try:
+            g.db_conn.rollback()
+        except Exception:
+            pass
+
     return g.db_conn
 
 def release_db(conn):
@@ -52,16 +54,17 @@ def release_db(conn):
 
 @app.teardown_appcontext
 def shutdown_session(error_context=None):
-    """
-    🛡️ FIJADO AUTOMÁTICO: Saca la conexión de 'g' y la libera de verdad
-    al terminar cada petición HTTP, evitando colgar el inicio de sesión.
-    """
+    """🛡️ FIJADO AUTOMÁTICO: Limpia cualquier transacción pendiente y libera la conexión al pool"""
     conn = g.pop('db_conn', None)
     if conn is not None:
         try:
-            db_pool.putconn(conn)
-        except Exception as e:
-            print(f"Error al liberar conexión en el pool: {e}")
+            conn.rollback()
+            db_pool.putconn(conn, close=bool(error_context))
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 def init_db():
     conn = get_db()
@@ -2213,43 +2216,43 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
     fetch('/api/marcar_pago/' + clienteId + '/' + numCuota + '?monto=' + monto + '&hora_local=' + encodeURIComponent(horaLocalFormateada) + '&zona_usuario=' + encodeURIComponent(zonaUsuario) + '&dias_mora=' + diasMoraGlobalTemporal)
         .then(res => res.json())
         .then(data => {
-            if (data.status === 'ok') {
-                document.getElementById('modalMsg').innerText = 'Recaudo guardado para ' + data.recibo.cliente + '.';
-                document.getElementById('tFecha').innerText = new Date().toLocaleDateString();
-                document.getElementById('tCliente').innerText = data.recibo.cliente;
-                document.getElementById('tCuota').innerText = "Procesada";
-                document.getElementById('tMonto').innerText = data.recibo.monto.toFixed(2);
-                document.getElementById('tSaldo').innerText = data.recibo.saldo.toFixed(2);
+                if (data.status === 'ok') {
+                    const mMsg = document.getElementById('modalMsg');
+                    if (mMsg) {
+                        mMsg.innerHTML = 'Abono de <b style="color:#16a34a;">$' + parseFloat(data.recibo.monto).toFixed(2) + '</b> registrado para <b>' + data.recibo.cliente + '</b>.<br><span style="font-size:12px; color:#64748b;">Saldo restante: $' + parseFloat(data.recibo.saldo).toFixed(2) + '</span>';
+                    }
 
-                const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
-                const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
-                
-                const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
-                const urlWeb = 'https://wa.me' + numPuro + '?text=' + textoMensaje;
-                
-                const btnWs = document.getElementById('modalWsBtn');
-                
-                // FIJADO: Cambiado '#' por javascript:void(0) para matar el parpadeo de pantalla
-                btnWs.href = 'javascript:void(0)';
-                
-                btnWs.onclick = function(e) {
-                    e.preventDefault();
-                    const dropper = document.createElement('a');
-                    dropper.target = '_blank';
-                    dropper.rel = 'noopener noreferrer';
-                    dropper.href = urlCelular;
-                    document.body.appendChild(dropper);
-                    dropper.click();
-                    
-                    setTimeout(function() {
-                        dropper.href = urlWeb;
-                        dropper.click();
-                        document.body.removeChild(dropper);
-                    }, 300);
-                };
-                
-                document.getElementById('modalWs').style.display = 'flex';
-            }
+                    const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
+                    const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
+
+                    const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
+                    const urlWeb = 'https://wa.me' + numPuro + '?text=' + textoMensaje;
+
+                    const btnWs = document.getElementById('modalWsBtn');
+                    if (btnWs) {
+                        btnWs.href = 'javascript:void(0)';
+                        btnWs.onclick = function(e) {
+                            e.preventDefault();
+                            const dropper = document.createElement('a');
+                            dropper.target = '_blank';
+                            dropper.rel = 'noopener noreferrer';
+                            dropper.href = urlCelular;
+                            document.body.appendChild(dropper);
+                            dropper.click();
+
+                            setTimeout(function() {
+                                dropper.href = urlWeb;
+                                dropper.click();
+                                document.body.removeChild(dropper);
+                            }, 300);
+                        };
+                    }
+
+                    const modalWsEl = document.getElementById('modalWs');
+                    if (modalWsEl) modalWsEl.style.display = 'flex';
+                } else {
+                    alert(data.message || 'No se pudo procesar el pago.');
+                }
         });
 }
 
@@ -2925,7 +2928,8 @@ def login_route():
 
             if autorizada == "1":
                 caja_abierta_bool = True
-                fecha_fmt = fecha_jor.replace("-", "/") if fecha_jor else date.today().strftime("%Y/%m/%d")
+                fecha_limpia = fecha_jor.split("_")[0] if fecha_jor else date.today().isoformat()
+                fecha_fmt = fecha_limpia.replace("-", "/")
                 caja_txt = f"ABIERTA: {fecha_fmt}"
                 caja_clase = "caja-abierta"
             else:
@@ -3011,7 +3015,8 @@ def dashboard_principal():
     row_j = cursor_j.fetchone()
     cursor_j.close()
     if row_j and (row_j["valor"] if isinstance(row_j, dict) else row_j[0]):
-        hoy_str = row_j["valor"] if isinstance(row_j, dict) else row_j[0]
+        raw_j = row_j["valor"] if isinstance(row_j, dict) else row_j[0]
+        hoy_str = str(raw_j).split("_")[0]
     else:
         hoy_str = date.today().isoformat()
     
@@ -3902,7 +3907,11 @@ def guardar_nuevo_cliente():
                     raw_val = raw_val.strip() if raw_val else "0"
                     microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
                     
-            # 🛡️ 1. Inserción limpia del microseguro (Fuerza la fecha de HOY real)
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+            row_j_cred = cursor.fetchone()
+            turno_balance_cred = row_j_cred["valor"] if (row_j_cred and row_j_cred["valor"]) else date.today().isoformat()
+
+            # 🛡️ 1. Inserción limpia del microseguro en el turno activo
             if microseguro_valor > 0:
                 concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
                 cursor.execute(
@@ -3910,17 +3919,17 @@ def guardar_nuevo_cliente():
                     INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
                     VALUES ('Entrada', 'Inversión', %s, %s, %s, '')
                     """,
-                    (concepto_seguro, microseguro_valor, date.today().isoformat())
+                    (concepto_seguro, microseguro_valor, turno_balance_cred)
                 )
-            
-            # 💸 2. ÚNICO ASIENTO DE EGRESO DE CAPITAL (Fuerza la fecha de HOY real)
-            concepto_egreso = f"📉 CAPITAL ENTREGADO EN CRÉDITO NUEVO - CLIENTE: {nombre}"
+
+            # 💸 2. ÚNICO ASIENTO DE EGRESO DE CAPITAL en el turno activo
+            concepto_egreso = f"💸 CAPITAL ENTREGADO EN CRÉDITO NUEVO - CLIENTE: {nombre}"
             cursor.execute(
                 """
                 INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
                 VALUES ('Salida', 'Inversión', %s, %s, %s, '')
                 """,
-                (concepto_egreso, monto, date.today().isoformat())
+                (concepto_egreso, monto, turno_balance_cred)
             )
             
             # 📊 3. Calcular posición secuencial de enrutamiento (Blindado contra DictRow)
@@ -4738,7 +4747,7 @@ def api_marcar_pago(cliente_id, num_cuota):
     with conn.cursor() as cur_f:
         cur_f.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
         row_f = cur_f.fetchone()
-        hoy_str = row_f["valor"] if (row_f and row_f["valor"]) else date.today().isoformat()
+        hoy_str = str(row_f["valor"]).split("_") if (row_f and row_f["valor"]) else date.today().isoformat()
         
     hoy_date = date.fromisoformat(hoy_str)
     monto_restante = monto_recaudado
@@ -4803,15 +4812,19 @@ def api_marcar_pago(cliente_id, num_cuota):
             else:
                 cursor.execute("UPDATE clientes SET fecha_gestion = %s, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (hoy_str, cliente_id))
 
-            # 4. Asentar únicamente el dinero neto cobrado hoy en el balance
+            # 4. Asentar únicamente el dinero neto cobrado hoy en el turno activo del balance
             if monto_efectivamente_aplicado > 0:
+                cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+                row_j_pago = cursor.fetchone()
+                turno_balance_pago = row_j_pago["valor"] if (row_j_pago and row_j_pago["valor"]) else hoy_str
+
                 concepto_abono = f"💵 ABONO CUOTA - CLIENTE: {c['nombre']} (ID:{cliente_id})"
                 cursor.execute(
                     """
                     INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
                     VALUES ('Entrada', 'Cobranza', %s, %s, %s, '')
                     """,
-                    (concepto_abono, monto_efectivamente_aplicado, hoy_str)
+                    (concepto_abono, monto_efectivamente_aplicado, turno_balance_pago)
                 )
                 
             conn.commit()
