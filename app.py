@@ -1138,7 +1138,7 @@ CONTENIDO_HTML = """
                 <span style="font-size:13.5px; font-weight:800; color:#0f2b5c;">Registrar Movimiento de Flujo</span>
             </div>
 
-            <form id="formBalance" method="POST" action="/api/balance/guardar_movimiento" onsubmit="procesarEnviarGasto(event)">
+            <form id="formBalance" method="POST" action="/api/balance/guardar_movimiento" onsubmit="return procesarYEnviarGasto(event)">
                 <!-- Inputs reales conectados a tu JS -->
                 <input type="hidden" name="tipo_mov" id="tipo_mov" value="Salida">
                 <input type="hidden" name="categoria_mov" id="categoria_mov" value="Otros">
@@ -2599,8 +2599,7 @@ function toggleEdicionPerfil(clienteId) {
             nombre: document.getElementById('perf_nombre').value,
             telefono: document.getElementById('perf_telefono').value,
             direccion: document.getElementById('perf_direccion').value,
-            referencia: document.getElementById('perf_referencia').value,
-            fiador: document.getElementById('perf_fiador').value
+            referencia: document.getElementById('perf_referencia').value
         };
         fetch('/api/cliente/actualizar/' + clienteId, {
             method: 'POST',
@@ -3868,7 +3867,7 @@ def guardar_nuevo_cliente():
     try:
         monto = Decimal(request.form.get("monto", "0"))
         # 📌 CORREGIDO: Se acopla al 'interes_defecto' del maestro de Neon
-        interes_porcentaje = Decimal(request.form.get("interes_defecto", "20"))
+        interes_porcentaje = Decimal(request.form.get("interes_porcentaje", "20"))
         cuotas = int(request.form.get("cuotas", "1"))
     except Exception:
         return jsonify({"status": "error", "message": "Valores numéricos inválidos"}), 400
@@ -4747,7 +4746,7 @@ def api_marcar_pago(cliente_id, num_cuota):
     with conn.cursor() as cur_f:
         cur_f.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
         row_f = cur_f.fetchone()
-        hoy_str = str(row_f["valor"]).split("_") if (row_f and row_f["valor"]) else date.today().isoformat()
+        hoy_str = str(row_f["valor"]).split("_")[0] if (row_f and row_f["valor"]) else date.today().isoformat()
         
     hoy_date = date.fromisoformat(hoy_str)
     monto_restante = monto_recaudado
@@ -4888,7 +4887,7 @@ def api_marcar_no_pago(cliente_id):
     with conn.cursor() as cur_f:
         cur_f.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
         row_f = cur_f.fetchone()
-        hoy_str = row_f["valor"] if (row_f and row_f["valor"]) else date.today().isoformat()
+        hoy_str = str(row_f["valor"]).split("_")[0] if (row_f and row_f["valor"]) else date.today().isoformat()
     try:
         with conn.cursor() as cursor:
             # 🛡️ FIJADO: Incrementa el contador de saltos del día y bloquea la fuga en el pool de Neon
