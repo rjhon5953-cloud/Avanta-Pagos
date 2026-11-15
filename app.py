@@ -4103,18 +4103,9 @@ def guardar_nuevo_cliente():
                     (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), latitud, longitud, foto_cedula_frente, foto_cedula_reverso)
                 )
                 res_id = cursor.fetchone()
-                cliente_id = res_id["id"] if isinstance(res_id, dict) else res_id
-        
-            # 👤 LÍNEA 2113 COMPLETAMENTE BLINDADA:
-            if res_id is None:
-                cliente_id = None
-            elif isinstance(res_id, dict):
-                cliente_id = res_id.get("id")
-            elif hasattr(res_id, '__getitem__'):
-                cliente_id = res_id[0]
-            else:
-                cliente_id = res_id
-            
+                cliente_id = res_id["id"] if isinstance(res_id, dict) else res_id[0]
+
+            if cliente_id_renovacion and cliente_id_renovacion.isdigit(): cursor.execute("DELETE FROM pagos WHERE cliente_id = %s", (cliente_id,))
             # Tablas de amortización protegidas contra desfases de bucle semanales
             if cliente_id:
                 acumulado = Decimal("0.00")
