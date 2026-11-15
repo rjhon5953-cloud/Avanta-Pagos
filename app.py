@@ -2216,43 +2216,43 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
     fetch('/api/marcar_pago/' + clienteId + '/' + numCuota + '?monto=' + monto + '&hora_local=' + encodeURIComponent(horaLocalFormateada) + '&zona_usuario=' + encodeURIComponent(zonaUsuario) + '&dias_mora=' + diasMoraGlobalTemporal)
         .then(res => res.json())
         .then(data => {
-            if (data.status === 'ok') {
-                document.getElementById('modalMsg').innerText = 'Recaudo guardado para ' + data.recibo.cliente + '.';
-                document.getElementById('tFecha').innerText = new Date().toLocaleDateString();
-                document.getElementById('tCliente').innerText = data.recibo.cliente;
-                document.getElementById('tCuota').innerText = "Procesada";
-                document.getElementById('tMonto').innerText = data.recibo.monto.toFixed(2);
-                document.getElementById('tSaldo').innerText = data.recibo.saldo.toFixed(2);
+                if (data.status === 'ok') {
+                    const mMsg = document.getElementById('modalMsg');
+                    if (mMsg) {
+                        mMsg.innerHTML = 'Abono de <b style="color:#16a34a;">$' + parseFloat(data.recibo.monto).toFixed(2) + '</b> registrado para <b>' + data.recibo.cliente + '</b>.<br><span style="font-size:12px; color:#64748b;">Saldo restante: $' + parseFloat(data.recibo.saldo).toFixed(2) + '</span>';
+                    }
 
-                const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
-                const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
-                
-                const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
-                const urlWeb = 'https://wa.me' + numPuro + '?text=' + textoMensaje;
-                
-                const btnWs = document.getElementById('modalWsBtn');
-                
-                // FIJADO: Cambiado '#' por javascript:void(0) para matar el parpadeo de pantalla
-                btnWs.href = 'javascript:void(0)';
-                
-                btnWs.onclick = function(e) {
-                    e.preventDefault();
-                    const dropper = document.createElement('a');
-                    dropper.target = '_blank';
-                    dropper.rel = 'noopener noreferrer';
-                    dropper.href = urlCelular;
-                    document.body.appendChild(dropper);
-                    dropper.click();
-                    
-                    setTimeout(function() {
-                        dropper.href = urlWeb;
-                        dropper.click();
-                        document.body.removeChild(dropper);
-                    }, 300);
-                };
-                
-                document.getElementById('modalWs').style.display = 'flex';
-            }
+                    const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
+                    const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
+
+                    const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
+                    const urlWeb = 'https://wa.me' + numPuro + '?text=' + textoMensaje;
+
+                    const btnWs = document.getElementById('modalWsBtn');
+                    if (btnWs) {
+                        btnWs.href = 'javascript:void(0)';
+                        btnWs.onclick = function(e) {
+                            e.preventDefault();
+                            const dropper = document.createElement('a');
+                            dropper.target = '_blank';
+                            dropper.rel = 'noopener noreferrer';
+                            dropper.href = urlCelular;
+                            document.body.appendChild(dropper);
+                            dropper.click();
+
+                            setTimeout(function() {
+                                dropper.href = urlWeb;
+                                dropper.click();
+                                document.body.removeChild(dropper);
+                            }, 300);
+                        };
+                    }
+
+                    const modalWsEl = document.getElementById('modalWs');
+                    if (modalWsEl) modalWsEl.style.display = 'flex';
+                } else {
+                    alert(data.message || 'No se pudo procesar el pago.');
+                }
         });
 }
 
