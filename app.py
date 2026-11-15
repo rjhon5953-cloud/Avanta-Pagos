@@ -3904,7 +3904,11 @@ def guardar_nuevo_cliente():
                     raw_val = raw_val.strip() if raw_val else "0"
                     microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
                     
-            # 🛡️ 1. Inserción limpia del microseguro (Fuerza la fecha de HOY real)
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+            row_j_cred = cursor.fetchone()
+            turno_balance_cred = row_j_cred["valor"] if (row_j_cred and row_j_cred["valor"]) else date.today().isoformat()
+
+            # 🛡️ 1. Inserción limpia del microseguro en el turno activo
             if microseguro_valor > 0:
                 concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
                 cursor.execute(
@@ -3912,17 +3916,17 @@ def guardar_nuevo_cliente():
                     INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
                     VALUES ('Entrada', 'Inversión', %s, %s, %s, '')
                     """,
-                    (concepto_seguro, microseguro_valor, date.today().isoformat())
+                    (concepto_seguro, microseguro_valor, turno_balance_cred)
                 )
-            
-            # 💸 2. ÚNICO ASIENTO DE EGRESO DE CAPITAL (Fuerza la fecha de HOY real)
-            concepto_egreso = f"📉 CAPITAL ENTREGADO EN CRÉDITO NUEVO - CLIENTE: {nombre}"
+
+            # 💸 2. ÚNICO ASIENTO DE EGRESO DE CAPITAL en el turno activo
+            concepto_egreso = f"💸 CAPITAL ENTREGADO EN CRÉDITO NUEVO - CLIENTE: {nombre}"
             cursor.execute(
                 """
                 INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
                 VALUES ('Salida', 'Inversión', %s, %s, %s, '')
                 """,
-                (concepto_egreso, monto, date.today().isoformat())
+                (concepto_egreso, monto, turno_balance_cred)
             )
             
             # 📊 3. Calcular posición secuencial de enrutamiento (Blindado contra DictRow)
@@ -4805,15 +4809,19 @@ def api_marcar_pago(cliente_id, num_cuota):
             else:
                 cursor.execute("UPDATE clientes SET fecha_gestion = %s, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (hoy_str, cliente_id))
 
-            # 4. Asentar únicamente el dinero neto cobrado hoy en el balance
+            # 4. Asentar únicamente el dinero neto cobrado hoy en el turno activo del balance
             if monto_efectivamente_aplicado > 0:
+                cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+                row_j_pago = cursor.fetchone()
+                turno_balance_pago = row_j_pago["valor"] if (row_j_pago and row_j_pago["valor"]) else hoy_str
+
                 concepto_abono = f"💵 ABONO CUOTA - CLIENTE: {c['nombre']} (ID:{cliente_id})"
                 cursor.execute(
                     """
                     INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
                     VALUES ('Entrada', 'Cobranza', %s, %s, %s, '')
                     """,
-                    (concepto_abono, monto_efectivamente_aplicado, hoy_str)
+                    (concepto_abono, monto_efectivamente_aplicado, turno_balance_pago)
                 )
                 
             conn.commit()
