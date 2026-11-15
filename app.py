@@ -832,7 +832,6 @@ CONTENIDO_HTML = """
 
 {% elif vista == 'nuevo' or vista == 'renovar' %}
     <div style="padding:0 4px 28px 4px;">
-        <!-- Cabecera Corporativa -->
         <div style="display:flex; align-items:center; gap:10px; padding:4px 0 12px 0;">
             <div style="width:36px; height:36px; border-radius:10px; background:#0f2b5c; color:#ffffff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
@@ -850,7 +849,6 @@ CONTENIDO_HTML = """
         <form id="formNuevoCredito" action="/api/clientes/guardar" method="POST" onsubmit="enviarCreditoAsincrono(event)" style="display:flex; flex-direction:column; gap:12px;">
             {% if vista == 'renovar' %}<input type="hidden" name="cliente_id" value="{{ cliente.id }}">{% endif %}
 
-            <!-- TARJETA 1: DATOS DEL TITULAR -->
             <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -883,7 +881,6 @@ CONTENIDO_HTML = """
                        style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13.5px; font-weight:500; color:#0f172a; box-sizing:border-box;">
             </div>
 
-            <!-- TARJETA 2: CONDICIONES FINANCIERAS -->
             <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -907,29 +904,48 @@ CONTENIDO_HTML = """
                     </div>
                 </div>
 
-                <!-- Frecuencia Táctil -->
                 <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Frecuencia de Cobro</label>
                 <input type="hidden" name="frecuencia" id="inputFreqCredito" value="Diaria">
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
-                    <button type="button" id="btnFreqDiaria" onclick="document.getElementById('inputFreqCredito').value='Diaria'; this.style.borderColor='#0f2b5c'; this.style.background='#eff6ff'; this.style.color='#0f2b5c'; document.getElementById('btnFreqSemanal').style.borderColor='#cbd5e1'; document.getElementById('btnFreqSemanal').style.background='#ffffff'; document.getElementById('btnFreqSemanal').style.color='#475569';"
-                            style="padding:10px; border-radius:10px; border:1.5px solid #0f2b5c; background:#eff6ff; color:#0f2b5c; font-size:13px; font-weight:800; cursor:pointer;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:13px;">
+                    <div id="btnFreqDiaria" onclick="seleccionarFreqCredito('Diaria')"
+                         style="padding:11px; border-radius:10px; border:2px solid #0f2b5c; background:#0f2b5c; color:#ffffff; font-size:13px; font-weight:800; text-align:center; cursor:pointer; user-select:none;">
                         Diaria
-                    </button>
-                    <button type="button" id="btnFreqSemanal" onclick="document.getElementById('inputFreqCredito').value='Semanal'; this.style.borderColor='#cbd5e1'; this.style.background='#ffffff'; this.style.color='#475569'; document.getElementById('btnFreqDiaria').style.borderColor='#cbd5e1'; document.getElementById('btnFreqDiaria').style.background='#ffffff'; document.getElementById('btnFreqDiaria').style.color='#475569';"
-                            style="padding:10px; border-radius:10px; border:1.5px solid #cbd5e1; background:#ffffff; color:#475569; font-size:13px; font-weight:700; cursor:pointer;">
+                    </div>
+                    <div id="btnFreqSemanal" onclick="seleccionarFreqCredito('Semanal')"
+                         style="padding:11px; border-radius:10px; border:1.5px solid #cbd5e1; background:#f8fafc; color:#475569; font-size:13px; font-weight:700; text-align:center; cursor:pointer; user-select:none;">
                         Semanal
-                    </button>
+                    </div>
                 </div>
 
-                <!-- Microseguro Limpio sin Emojis -->
                 <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Cobertura de Microseguro</label>
-                <select name="aplicar_seguro" id="calcSeguroAccion" onchange="manejarTipoSeguro()"
-                        style="width:100%; padding:11px 12px; border-radius:10px; border:1.5px solid #cbd5e1; font-size:13px; font-weight:700; color:#0f172a; background:#f8fafc; margin-bottom:10px; box-sizing:border-box;">
-                    <option value="NO">Sin Seguro (Entrega 100%)</option>
-                    <option value="2">Seguro Básico (2%)</option>
-                    <option value="4" selected>Seguro Premium (4%)</option>
-                    <option value="MANUAL">Monto de Seguro Manual ($)</option>
+                <select name="aplicar_seguro" id="calcSeguroAccion" style="display:none;">
+                    <option value="NO">NO</option>
+                    <option value="2">2</option>
+                    <option value="4" selected>4</option>
+                    <option value="MANUAL">MANUAL</option>
                 </select>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-bottom:11px;">
+                    <div class="card-seg-opt" id="optSeg_NO" onclick="seleccionarSegCredito('NO')"
+                         style="padding:9px 10px; border-radius:10px; border:1.5px solid #cbd5e1; background:#f8fafc; color:#475569; cursor:pointer; user-select:none;">
+                        <div style="font-size:12px; font-weight:800;">Sin Seguro</div>
+                        <div style="font-size:10.5px; opacity:0.85;">Entrega 100%</div>
+                    </div>
+                    <div class="card-seg-opt" id="optSeg_2" onclick="seleccionarSegCredito('2')"
+                         style="padding:9px 10px; border-radius:10px; border:1.5px solid #cbd5e1; background:#f8fafc; color:#475569; cursor:pointer; user-select:none;">
+                        <div style="font-size:12px; font-weight:800;">Básico (2%)</div>
+                        <div style="font-size:10.5px; opacity:0.85;">Cobertura base</div>
+                    </div>
+                    <div class="card-seg-opt" id="optSeg_4" onclick="seleccionarSegCredito('4')"
+                        style="padding:9px 10px; border-radius:10px; border:2px solid #0f2b5c; background:#eff6ff; color:#0f2b5c; cursor:pointer; user-select:none;">
+                        <div style="font-size:12px; font-weight:800;">Premium (4%)</div>
+                        <div style="font-size:10.5px; opacity:0.85;">Recomendado</div>
+                    </div>
+                    <div class="card-seg-opt" id="optSeg_MANUAL" onclick="seleccionarSegCredito('MANUAL')"
+                         style="padding:9px 10px; border-radius:10px; border:1.5px solid #cbd5e1; background:#f8fafc; color:#475569; cursor:pointer; user-select:none;">
+                        <div style="font-size:12px; font-weight:800;">Monto Manual</div>
+                        <div style="font-size:10.5px; opacity:0.85;">Valor fijo ($)</div>
+                    </div>
+                </div>
 
                 <div id="contenedorSeguroManual" style="display: none; margin-bottom: 11px;">
                     <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:4px;">Monto Manual del Seguro ($)</label>
@@ -968,6 +984,7 @@ CONTENIDO_HTML = """
             </div>
         </form>
     </div>
+
 
 {% elif vista == 'balance' or vista == 'gastos' %}
     <div style="padding:0 4px 28px 4px;">
@@ -1518,6 +1535,20 @@ HTML_TEMPLATE = """
                 <a href="javascript:void(0)" id="btn_mapa" target="_blank" class="btn-accion btn-pagar" style="padding:10px; text-decoration:none;"><i class="fa-solid fa-location-dot"></i> Ver Mapa</a>
             </div>
             <button onclick="cerrarModal('modalInfoCliente')" class="btn-modal-close">Salir de la Información</button>
+        </div>
+    </div>
+
+    <div class="modal" id="modalCreditoOk">
+        <div class="modal-content" style="border-radius:20px; padding:24px 20px; max-width:350px; box-shadow:0 20px 45px rgba(15,23,42,0.35);">
+            <div style="width:56px; height:56px; border-radius:50%; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto; border:2px solid #86efac;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h3 style="color:#0f172a; font-size:18px; font-weight:900; margin:0 0 6px 0;">Crédito Registrado</h3>
+            <p id="modalCreditoOkMsg" style="margin:0 0 18px 0; font-size:13.5px; color:#475569; font-weight:600; line-height:1.4;">El titular y su tabla de amortización han sido creados con éxito.</p>
+            <button type="button" onclick="window.location.href='/';"
+                    style="width:100%; padding:13px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:11px; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 4px 12px rgba(15,43,92,0.25);">
+                Ir al Tablero de Ruta
+            </button>
         </div>
     </div>
 
@@ -2391,37 +2422,75 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 });
 
-function enviarCreditoAsincrono(e) {
-    e.preventDefault();
-    const form = document.getElementById('formNuevoCredito');
-    const formData = new FormData(form);
-    
-    // Deshabilitamos el botón para el control visual de carga
-    const btn = document.getElementById('btnGuardarCredito');
-    if(btn) { btn.disabled = true; btn.innerText = '⌛ Guardando...'; }
-
-    fetch(form.action, {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.status === 'ok') {
-            alert('🎉 ¡Crédito e inicialización de tablas creados con éxito!');
-            // Te regresa automáticamente al Dashboard principal de cobros
-            window.location.href = '/';
-        } else {
-            alert('⚠️ Error: ' + (data.message || 'No se pudo procesar.'));
-            if(btn) { btn.disabled = false; btn.innerText = 'Guardar e Inicializar Tablas'; }
+        function seleccionarFreqCredito(tipo) {
+            document.getElementById('inputFreqCredito').value = tipo;
+            const bDia = document.getElementById('btnFreqDiaria');
+            const bSem = document.getElementById('btnFreqSemanal');
+            if (tipo === 'Diaria') {
+                bDia.style.border = '2px solid #0f2b5c'; bDia.style.background = '#0f2b5c'; bDia.style.color = '#ffffff'; bDia.style.fontWeight = '800';
+                bSem.style.border = '1.5px solid #cbd5e1'; bSem.style.background = '#f8fafc'; bSem.style.color = '#475569'; bSem.style.fontWeight = '700';
+            } else {
+                bSem.style.border = '2px solid #0f2b5c'; bSem.style.background = '#0f2b5c'; bSem.style.color = '#ffffff'; bSem.style.fontWeight = '800';
+                bDia.style.border = '1.5px solid #cbd5e1'; bDia.style.background = '#f8fafc'; bDia.style.color = '#475569'; bDia.style.fontWeight = '700';
+            }
         }
-    })
-    .catch(err => {
-        console.error('Error:', err);
-        alert('❌ Falla de comunicación con Neon Cloud.');
-        if(btn) { btn.disabled = false; btn.innerText = 'Guardar e Inicializar Tablas'; }
-    });
-}
+
+        function seleccionarSegCredito(val) {
+            const sel = document.getElementById('calcSeguroAccion');
+            if (sel) sel.value = val;
+            document.querySelectorAll('.card-seg-opt').forEach(el => {
+                el.style.border = '1.5px solid #cbd5e1';
+                el.style.background = '#f8fafc';
+                el.style.color = '#475569';
+            });
+            const activo = document.getElementById('optSeg_' + val);
+            if (activo) {
+                activo.style.border = '2px solid #0f2b5c';
+                activo.style.background = '#eff6ff';
+                activo.style.color = '#0f2b5c';
+            }
+            if (typeof manejarTipoSeguro === 'function') manejarTipoSeguro();
+        }
+
+        async function enviarCreditoAsincrono(event) {
+            event.preventDefault();
+            const form = document.getElementById('formNuevoCredito');
+            const btn = document.getElementById('btnGuardarCredito');
+            const txtOriginal = btn ? btn.innerText : 'Guardar y Crear Crédito';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = 'Guardando crédito...';
+            }
+
+            try {
+                const resp = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const res = await resp.json();
+                if (resp.ok && (res.status === 'ok' || res.success)) {
+                    const modalOk = document.getElementById('modalCreditoOk');
+                    if (modalOk) {
+                        modalOk.style.display = 'flex';
+                    } else {
+                        window.location.href = '/';
+                    }
+                } else {
+                    alert(res.mensaje || res.message || 'No se pudo registrar el crédito.');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerText = txtOriginal;
+                    }
+                }
+            } catch (e) {
+                alert('Error de conexión al guardar el crédito.');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = txtOriginal;
+                }
+            }
+        }
 
 function filtrarDirectorioClientes() {
     const inp = document.getElementById('buscadorClientesDir');
