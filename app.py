@@ -3012,7 +3012,8 @@ def dashboard_principal():
     row_j = cursor_j.fetchone()
     cursor_j.close()
     if row_j and (row_j["valor"] if isinstance(row_j, dict) else row_j[0]):
-        hoy_str = row_j["valor"] if isinstance(row_j, dict) else row_j[0]
+        raw_j = row_j["valor"] if isinstance(row_j, dict) else row_j[0]
+        hoy_str = str(raw_j).split("_")[0]
     else:
         hoy_str = date.today().isoformat()
     
