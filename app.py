@@ -3775,6 +3775,20 @@ def dashboard_principal():
         </div>
     </div>
 
+        <!-- BARRA EJECUTIVA DE AVANCE DE RUTA -->
+    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:13px; padding:11px 13px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:7px;">
+            <span style="font-size:11px; font-weight:800; color:#0f2b5c; text-transform:uppercase; letter-spacing:0.4px;">Avance de Ruta Hoy</span>
+            <span style="font-size:11px; font-weight:800; color:#475569;">
+                <span style="color:#16a34a;">{cnt_pagos} Pagos</span> • <span style="color:#dc2626;">{cnt_no_pagos} No pagos</span> • <span style="color:#0284c7;">{cnt_pendientes} Pend.</span>
+            </span>
+        </div>
+        <div style="width:100%; height:7px; background:#e2e8f0; border-radius:99px; overflow:hidden; display:flex;">
+            <div style="width:{(cnt_pagos * 100 / (cnt_pagos + cnt_no_pagos + cnt_pendientes)) if (cnt_pagos + cnt_no_pagos + cnt_pendientes) > 0 else 0:.1f}%; background:#16a34a; height:100%;"></div>
+            <div style="width:{(cnt_no_pagos * 100 / (cnt_pagos + cnt_no_pagos + cnt_pendientes)) if (cnt_pagos + cnt_no_pagos + cnt_pendientes) > 0 else 0:.1f}%; background:#ef4444; height:100%;"></div>
+        </div>
+    </div>
+
     <div id="clientesContainer" style="display:flex; flex-direction:column; gap:10px; width:100%; box-sizing:border-box;">
     """
     
@@ -3945,28 +3959,47 @@ def dashboard_principal():
 
         # Inyección limpia en las tarjetas premium
         contexto_dash += f"""
-        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-cedula="{c.get('identificacion') or 'N/A'}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}" style="{borde_izq_card} {display_card}">
-            
-            <div class="card-izquierda">
-                {html_indicador_mora}
-                <div class="info-bloque-texto" style="width:100%;">
-                    <div class="id-alias">{c_id} {c_referencia}</div>
-                    <div class="nombre-real">{c_nombre}</div>
-                    
-                    <div class="grid-metricas-premium">
-                        <div class="metric-col"><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${c_valor_cuota}</span></div>
-                        <div class="metric-col"><span class="metric-lbl">Pendiente</span><span class="metric-val">{cuotas_pendientes_float:.1f} / {cuotas_totales_float:.1f}</span></div>
-                        <div class="metric-col"><span class="metric-lbl">Pago</span>{html_col_pago}</div>
+        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-cedula="{c.get('identificacion') or 'N/A'}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}"
+             style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:13px 12px; box-shadow:0 3px 10px rgba(15,23,42,0.04); display:flex; align-items:center; justify-content:space-between; gap:8px; {borde_izq_card} {display_card}">
+            <div class="card-izquierda" style="flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px;">
+                <div style="padding-top:2px; flex-shrink:0;">
+                    {html_indicador_mora}
+                </div>
+                <div class="info-bloque-texto" style="width:100%; min-width:0; text-align:left;">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+                        <span style="font-size:10.5px; font-weight:800; color:#0f2b5c; background:#eff6ff; border:1px solid #dbeafe; padding:1px 6px; border-radius:6px; flex-shrink:0;">#{c_id}</span>
+                        <span style="font-size:11px; font-weight:700; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c_referencia}</span>
                     </div>
-                    
-                    <div class="fila-utilidades-premium">
-                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados}); activarCamaraModal();">📸</button>
-                        <div class="circulo-check-cuota" style="{estilo_cuadro_dias}">{texto_cuadro_dias}</div>
-                        <div class="badge-saldo-premium">Saldo <b>${c_saldo_restante}</b></div>
+                    <div style="font-size:14.5px; font-weight:900; color:#0f172a; letter-spacing:-0.2px; margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c_nombre}</div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1.15fr 0.85fr; gap:4px; background:#f8fafc; border:1px solid #f1f5f9; border-radius:10px; padding:6px 8px; margin-bottom:8px;">
+                        <div>
+                            <div style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Vr. Cuota</div>
+                            <div style="font-size:12.5px; font-weight:900; color:#0f172a;">${c_valor_cuota}</div>
+                        </div>
+                        <div>
+                            <div style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Pendiente</div>
+                            <div style="font-size:12.5px; font-weight:800; color:#334155;">{cuotas_pendientes_float:.1f} <span style="color:#94a3b8; font-weight:600;">/ {cuotas_totales_float:.1f}</span></div>
+                        </div>
+                        <div>
+                            <div style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Pago</div>
+                            <div style="font-size:12.5px; font-weight:900;">{html_col_pago}</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados}); event.stopPropagation();"
+                                style="width:26px; height:26px; border-radius:8px; background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        </button>
+                        <div style="min-width:26px; height:26px; padding:0 7px; border-radius:8px; font-size:11.5px; display:flex; align-items:center; justify-content:center; {estilo_cuadro_dias}">{texto_cuadro_dias}</div>
+                        <div style="background:#f1f5f9; border:1px solid #e2e8f0; border-radius:8px; padding:4px 9px; font-size:11.5px; font-weight:700; color:#475569;">
+                            Saldo <b style="color:#0f172a; font-weight:900;">${c_saldo_restante}</b>
+                        </div>
                     </div>
                 </div>
-            </div>    
-            <div class="card-derecha-acciones" id="acciones-{c_id}">
+            </div>
+            <div class="card-derecha-acciones" id="acciones-{c_id}" style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
                 {html_botones_derechos}
             </div>
         </div>
