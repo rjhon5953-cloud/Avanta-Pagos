@@ -6154,10 +6154,10 @@ def api_editar_credito_hoy():
                 f_venc = fecha_ini_dt + timedelta(days=n * salto_dias)
                 cursor.execute(
                     """
-                    INSERT INTO pagos (cliente_id, cuota, fecha, valor_cuota, pagado, valor_pagado)
-                    VALUES (%s, %s, %s, %s, 0, 0.00)
+                    INSERT INTO pagos (cliente_id, fecha, valor_cuota, pagado, valor_pagado)
+                    VALUES (%s, %s, %s, 0, 0.00)
                     """,
-                    (cli_id, n, f_venc.isoformat(), valor_cuota)
+                    (cli_id, f_venc.isoformat(), valor_cuota)
                 )
 
             nombre_final = nombre if nombre else nombre_anterior
