@@ -4092,7 +4092,7 @@ def guardar_nuevo_cliente():
                     UPDATE clientes
                     SET nombre = %s, telefono = %s, direccion = %s, referencia = %s, identificacion = %s,
                         monto = %s, interes_porcentaje = %s, monto_total = %s, cuotas = %s, frecuencia = %s,
-                        valor_cuota = %s, fecha_inicio = %s, estado = 'Activo',
+                        valor_cuota = %s, fecha_inicio = %s, estado = 'Activo', fecha_gestion = NULL,
                         foto_cedula_frente = CASE WHEN %s <> '' THEN %s ELSE foto_cedula_frente END,
                         foto_cedula_reverso = CASE WHEN %s <> '' THEN %s ELSE foto_cedula_reverso END
                     WHERE id = %s
