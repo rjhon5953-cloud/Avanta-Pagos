@@ -2124,11 +2124,17 @@ function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 
     document.getElementById('abonoNumCuota').value = numCuota;
 
     const card = document.getElementById('cliente-card-' + clienteId);
-    const nombre = card ? (card.querySelector('.nombre-real')?.innerText || 'Cliente') : 'Cliente #' + clienteId;
-    const alias = card ? (card.querySelector('.id-alias')?.innerText || '-') : '-';
+    const nombre = card ? (card.getAttribute('data-nombre') || 'Cliente').toUpperCase() : 'Cliente #' + clienteId;
+    const alias = card ? (card.querySelector('span')?.innerText || '-') : '-';
     const cedula = card ? (card.getAttribute('data-cedula') || 'N/A') : 'N/A';
-    const saldoTxt = card ? (card.querySelector('.badge-saldo-premium b')?.innerText || ('$' + pendiente.toFixed(2))) : ('$' + pendiente.toFixed(2));
-    const saldoNum = parseFloat(saldoTxt.replace(/[^0-9.]/g, '')) || parseFloat(pendiente) || 0;
+    let saldoNum = parseFloat(pendiente) || 0;
+    if (card) {
+        const bTags = card.querySelectorAll('b');
+        const lastB = bTags.length > 0 ? bTags[bTags.length - 1] : null;
+        if (lastB && lastB.innerText.includes('$')) {
+            saldoNum = parseFloat(lastB.innerText.replace(/[^0-9.]/g, '')) || saldoNum;
+        }
+    }
     const vCuota = parseFloat(valorCuota) || parseFloat(pendiente) || 0;
     const maxCuotas = vCuota > 0 ? Math.max(1, Math.ceil(saldoNum / vCuota)) : 1;
 
@@ -3979,7 +3985,7 @@ def dashboard_principal():
                         </div>
                         <div>
                             <div style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Pendiente</div>
-                            <div style="font-size:12.5px; font-weight:800; color:#334155;">{cuotas_pendientes_float:.1f} <span style="color:#94a3b8; font-weight:600;">/ {cuotas_totales_float:.1f}</span></div>
+                            <div style="font-size:12.5px; font-weight:900; color:#0f172a;">{cuotas_pendientes_float:.1f} <span style="color:#334155; font-weight:800;">/ {cuotas_totales_float:.1f}</span></div>
                         </div>
                         <div>
                             <div style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Pago</div>
@@ -5382,9 +5388,9 @@ def api_marcar_pago(cliente_id, num_cuota):
             saldo_restante = max(Decimal("0.00"), Decimal(str(c["monto_total"])) - total_pagado)
             
             if saldo_restante <= 0:
-                cursor.execute("UPDATE clientes SET estado = 'Inactivo', fecha_gestion = %s, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (hoy_str, cliente_id))
+                cursor.execute("UPDATE clientes SET estado = 'Inactivo', fecha_gestion = NULL, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
             else:
-                cursor.execute("UPDATE clientes SET fecha_gestion = %s, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (hoy_str, cliente_id))
+                cursor.execute("UPDATE clientes SET fecha_gestion = NULL, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
 
             # 4. Asentar únicamente el dinero neto cobrado hoy en el turno activo del balance
             if monto_efectivamente_aplicado > 0:
