@@ -3199,21 +3199,25 @@ def dashboard_principal():
             """, (hoy_str, hoy_str, hoy_str))
             clientes_crudos = cursor.fetchall()
 
-            # Consultamos todos los pagos y abonos parciales realizados hoy por cliente (valor_pagado > 0)
-            cursor.execute("""
-                SELECT id, cliente_id, valor_pagado 
-                FROM pagos 
-                WHERE fecha_pago_real = %s AND valor_pagado > 0
-            """, (hoy_str,))
-            pagos_hoy_rows = cursor.fetchall()
-            
+            # Consultamos los abonos asentados EXCLUSIVAMENTE en el turno activo actual (turno_id)
+            cursor.execute(
+                """
+                SELECT concepto, monto
+                FROM balance_movimientos
+                WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s
+                """, (turno_id,)
+            )
+            abonos_turno_rows = cursor.fetchall()
+
             mapa_pagos_hoy = defaultdict(lambda: {"monto": Decimal("0.00"), "ids": []})
-            for ph in pagos_hoy_rows:
-                cid_h = ph["cliente_id"] if isinstance(ph, dict) else ph[1]
-                pid_h = ph["id"] if isinstance(ph, dict) else ph[0]
-                val_h = Decimal(str(ph["valor_pagado"] if isinstance(ph, dict) else ph[2]))
-                mapa_pagos_hoy[cid_h]["monto"] += val_h
-                mapa_pagos_hoy[cid_h]["ids"].append(str(pid_h))
+            import re
+            for ab in abonos_turno_rows:
+                conc_ab = ab["concepto"] if isinstance(ab, dict) else ab[0]
+                m_ab = Decimal(str(ab["monto"] if isinstance(ab, dict) else ab[1]))
+                match_id = re.search(r"\(ID:(\d+)\)", str(conc_ab))
+                if match_id:
+                    cid_h = int(match_id.group(1))
+                    mapa_pagos_hoy[cid_h]["monto"] += m_ab
 
             # Reconstruimos la estructura exacta dentro del mismo bloque del cursor
             clientes_ruta = []
@@ -3553,6 +3557,7 @@ def dashboard_principal():
         # Inyección limpia en las tarjetas premium
         contexto_dash += f"""
         <div class="cliente-card-premium" id="cliente-card-{c_id}" data-cedula="{c.get('identificacion') or 'N/A'}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}" style="{borde_izq_card} {display_card}">
+            
             <div class="card-izquierda">
                 {html_indicador_mora}
                 <div class="info-bloque-texto" style="width:100%;">
