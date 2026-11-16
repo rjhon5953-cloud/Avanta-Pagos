@@ -6177,7 +6177,7 @@ def api_editar_credito_hoy():
                     (monto, f"CRÉDITO NUEVO - CLIENTE: {nombre_final}", mov_id)
                 )
 
-            cursor.execute("SELECT valor FROM configuracion WHERE clave = 'fecha_jornada_activa'")
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
             row_t = cursor.fetchone()
             turno_act = str(row_t["valor"] if isinstance(row_t, dict) else row_t[0]) if row_t else date.today().isoformat()
 
