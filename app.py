@@ -4510,8 +4510,9 @@ def guardar_nuevo_cliente():
             try:
                 fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frequency=frecuencia)
             except Exception:
+                from datetime import timedelta as _td
                 salto_v = 7 if frecuencia == "Semanal" else 1
-                fecha_vencimiento_dt = fecha_inicio_dt + timedelta(days=(cuotas - 1) * salto_v)
+                fecha_vencimiento_dt = fecha_inicio_dt + _td(days=(cuotas - 1) * salto_v)
 
             if cliente_id_renovacion and cliente_id_renovacion.isdigit():
                 cliente_id = int(cliente_id_renovacion)
