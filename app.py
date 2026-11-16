@@ -4507,6 +4507,12 @@ def guardar_nuevo_cliente():
             cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS foto_cedula_frente TEXT")
             cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS foto_cedula_reverso TEXT")
 
+            try:
+                fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frequency=frecuencia)
+            except Exception:
+                salto_v = 7 if frecuencia == "Semanal" else 1
+                fecha_vencimiento_dt = fecha_inicio_dt + timedelta(days=(cuotas - 1) * salto_v)
+
             if cliente_id_renovacion and cliente_id_renovacion.isdigit():
                 cliente_id = int(cliente_id_renovacion)
                 cursor.execute(
@@ -4514,20 +4520,20 @@ def guardar_nuevo_cliente():
                     UPDATE clientes
                     SET nombre = %s, telefono = %s, direccion = %s, referencia = %s, identificacion = %s,
                         monto = %s, interes_porcentaje = %s, monto_total = %s, cuotas = %s, frecuencia = %s,
-                        valor_cuota = %s, fecha_inicio = %s, estado = 'Activo', fecha_gestion = NULL,
+                        valor_cuota = %s, fecha_inicio = %s, fecha_vencimiento = %s, estado = 'Activo', fecha_gestion = NULL,
                         foto_cedula_frente = CASE WHEN %s <> '' THEN %s ELSE foto_cedula_frente END,
                         foto_cedula_reverso = CASE WHEN %s <> '' THEN %s ELSE foto_cedula_reverso END
                     WHERE id = %s
                     """,
-                    (nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), foto_cedula_frente, foto_cedula_frente, foto_cedula_reverso, foto_cedula_reverso, cliente_id)
+                    (nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), foto_cedula_frente, foto_cedula_frente, foto_cedula_reverso, foto_cedula_reverso, cliente_id)
                 )
             else:
                 cursor.execute(
                     """
-                    INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, estado, latitud, longitud, foto_cedula_frente, foto_cedula_reverso)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Activo', %s, %s, %s, %s) RETURNING id
+                    INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, estado, latitud, longitud, foto_cedula_frente, foto_cedula_reverso)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Activo', %s, %s, %s, %s) RETURNING id
                     """,
-                    (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), latitud, longitud, foto_cedula_frente, foto_cedula_reverso)
+                    (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud, foto_cedula_frente, foto_cedula_reverso)
                 )
                 res_id = cursor.fetchone()
                 cliente_id = res_id["id"] if isinstance(res_id, dict) else res_id[0]
