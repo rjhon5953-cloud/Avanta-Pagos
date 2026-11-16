@@ -3326,9 +3326,18 @@ def dashboard_principal():
                     c_dict = dict(cli_row) if isinstance(cli_row, dict) else {}
                     cli_id_c = int(c_dict.get("id") or (cli_row[0] if not c_dict else 0))
                     interes_c = float(c_dict.get("interes_porcentaje") or c_dict.get("interes") or 20)
-                    cuotas_c = int(c_dict.get("cuotas") or 20)
                     freq_c = str(c_dict.get("frecuencia") or "Diaria")
-                    v_cuota_c = float(c_dict.get("valor_cuota") or v_cuota_c)
+
+                    cursor.execute("SELECT COUNT(*) AS total_c, COALESCE(MAX(valor), 0) AS val_c FROM pagos WHERE cliente_id = %s", (cli_id_c,))
+                    row_p_info = cursor.fetchone()
+                    if row_p_info:
+                        cnt_p = row_p_info["total_c"] if isinstance(row_p_info, dict) else row_p_info[0]
+                        val_p = row_p_info["val_c"] if isinstance(row_p_info, dict) else row_p_info[1]
+                        cuotas_c = int(cnt_p) if int(cnt_p) > 0 else int(c_dict.get("cuotas") or c_dict.get("plazo") or 20)
+                        v_cuota_c = float(val_p) if float(val_p) > 0 else float(c_dict.get("valor_cuota") or v_cuota_c)
+                    else:
+                        cuotas_c = int(c_dict.get("cuotas") or c_dict.get("plazo") or 20)
+                        v_cuota_c = float(c_dict.get("valor_cuota") or v_cuota_c)
 
                 nombre_safe = nombre_cli_c.replace("'", "\\'")
                 lista_creditos_html += f"""
