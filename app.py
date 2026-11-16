@@ -3308,31 +3308,78 @@ def dashboard_principal():
             capital_en_calle += pendiente
 
     contexto_dash = f"""
-    <div class="date-badge"><i class="fa-solid fa-calendar-day"></i> {fecha_legible}</div>
-    <div class="grid-kpis">
-        <div class="kpi-card">
-            <div class="kpi-title">Recaudo Hoy / Créditos Hoy</div>
-            <div class="kpi-val">${recaudo_hoy:.2f} / {creditos_hoy} Créd.</div>
+    <!-- FECHA EJECUTIVA -->
+    <div style="display:flex; align-items:center; justify-content:center; gap:7px; background:#ffffff; border:1px solid #e2e8f0; border-radius:20px; padding:7px 14px; margin:0 auto 12px auto; width:fit-content; box-shadow:0 2px 6px rgba(15,23,42,0.03);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span style="font-size:12px; font-weight:800; color:#1e293b; letter-spacing:0.2px;">{fecha_legible}</span>
+    </div>
+
+    <!-- PANEL KPI 2x2 EJECUTIVO (SIN CAPITAL EN CALLE) -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:12px; text-align:left;">
+        <!-- 1. RECAUDO HOY -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:3.5px solid #16a34a; border-radius:13px; padding:11px 12px; box-shadow:0 2px 8px rgba(15,23,42,0.04);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.4px;">Recaudo Hoy</span>
+                <span style="width:22px; height:22px; border-radius:7px; background:#dcfce7; color:#16a34a; display:flex; align-items:center; justify-content:center;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </span>
+            </div>
+            <div style="font-size:18px; font-weight:900; color:#0f172a; letter-spacing:-0.3px;">${recaudo_hoy:.2f}</div>
         </div>
-        <div class="kpi-card">
-            <div class="kpi-title">Capital Total en Calle</div>
-            <div class="kpi-val" style="color:#0f2b5c;">${capital_en_calle:.2f}</div>
+
+        <!-- 2. CRÉDITOS HOY -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:3.5px solid #0f2b5c; border-radius:13px; padding:11px 12px; box-shadow:0 2px 8px rgba(15,23,42,0.04);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.4px;">Créditos Hoy</span>
+                <span style="width:22px; height:22px; border-radius:7px; background:#e0e7ff; color:#0f2b5c; display:flex; align-items:center; justify-content:center;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                </span>
+            </div>
+            <div style="font-size:18px; font-weight:900; color:#0f2b5c; letter-spacing:-0.3px;">{creditos_hoy} <span style="font-size:12px; font-weight:700; color:#64748b;">Créd.</span></div>
+        </div>
+
+        <!-- 3. MÍNIMO DE RUTA (RECAUDO ESPERADO) -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:3.5px solid #0284c7; border-radius:13px; padding:11px 12px; box-shadow:0 2px 8px rgba(15,23,42,0.04);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.4px;">Mínimo Ruta</span>
+                <span style="width:22px; height:22px; border-radius:7px; background:#e0f2fe; color:#0284c7; display:flex; align-items:center; justify-content:center;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </span>
+            </div>
+            <div style="font-size:17px; font-weight:900; color:#0369a1; letter-spacing:-0.3px;">${debido_minimo_dia:.2f}</div>
+        </div>
+
+        <!-- 4. ACUMULADO MORA -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:3.5px solid #d97706; border-radius:13px; padding:11px 12px; box-shadow:0 2px 8px rgba(15,23,42,0.04);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                <span style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.4px;">Acumulado Mora</span>
+                <span style="width:22px; height:22px; border-radius:7px; background:#fef3c7; color:#d97706; display:flex; align-items:center; justify-content:center;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </span>
+            </div>
+            <div style="font-size:17px; font-weight:900; color:#b45309; letter-spacing:-0.3px;">${debido_total_acumulado:.2f}</div>
         </div>
     </div>
-    <div class="expected-card">
-        <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
-        <div class="kpi-val" style="color:#0369a1; font-size:13px;">🌊 Mínimo de Ruta: <b>${debido_minimo_dia:.2f}</b> | Acumulado Mora: <b>${debido_total_acumulado:.2f}</b></div>
-    </div>
-    
-    <!-- Barra de Búsqueda + Botón de Filtros -->
-    <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
-        <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar por nombre de cliente..." onkeyup="aplicarFiltrosDashboard()" style="margin-bottom:0; flex:1;">
-        <button type="button" onclick="document.getElementById('modalFiltrosRuta').style.display='flex'" 
-                style="width:44px; height:44px; border-radius:12px; background:#ffffff; border:1.5px solid #cbd5e1; color:#0f2b5c; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; box-shadow:0 2px 5px rgba(0,0,0,0.04); -webkit-tap-highlight-color:transparent;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="#ffffff"/>
-                <line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2" fill="#ffffff"/>
-                <line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="#ffffff"/>
+
+    <!-- BARRA DE BÚSQUEDA CON BOTÓN LIMPIAR (X) + BOTÓN DE FILTROS EJECUTIVO -->
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:13px;">
+        <div style="position:relative; flex:1;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:13px; top:50%; transform:translateY(-50%); pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" class="search-box" placeholder="Buscar cliente o cédula..."
+                   oninput="document.getElementById('btnClearSearch').style.display = this.value.length > 0 ? 'flex' : 'none'; aplicarFiltrosDashboard();"
+                   style="width:100%; margin-bottom:0; padding:11px 36px 11px 38px; border-radius:12px; border:1.5px solid #e2e8f0; background:#ffffff; font-size:13.5px; font-weight:600; color:#0f172a; box-shadow:0 2px 6px rgba(15,23,42,0.03); box-sizing:border-box;">
+            <button type="button" id="btnClearSearch" title="Limpiar búsqueda"
+                    onclick="const inp=document.getElementById('searchInput'); inp.value=''; this.style.display='none'; aplicarFiltrosDashboard(); inp.focus();"
+                    style="display:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); width:22px; height:22px; border-radius:50%; background:#e2e8f0; color:#475569; border:none; align-items:center; justify-content:center; cursor:pointer; padding:0;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <button type="button" onclick="document.getElementById('modalFiltrosRuta').style.display='flex'"
+                style="width:44px; height:44px; border-radius:12px; background:#0f2b5c; color:#ffffff; border:none; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; box-shadow:0 3px 8px rgba(15,43,92,0.22);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="#0f2b5c"/>
+                <line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2" fill="#0f2b5c"/>
+                <line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="#0f2b5c"/>
             </svg>
         </button>
     </div>
