@@ -3160,20 +3160,40 @@ def dashboard_principal():
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (turno_id,))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
             
-            # 📌 2. Conteo absoluto de todos los créditos entregados hoy
+                        # 📌 2. Conteo y detalle de créditos entregados en el turno activo
             cursor.execute(
                 """
-                SELECT COUNT(*) AS total_creditos 
+                SELECT concepto, monto
                 FROM balance_movimientos 
                 WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s
+                ORDER BY id DESC
                 """, (turno_id,)
             )
-            res_creditos = cursor.fetchone()
-            creditos_hoy = res_creditos["total_creditos"] if isinstance(res_creditos, dict) else res_creditos[0]
+            rows_creditos_turno = cursor.fetchall()
+            creditos_hoy = len(rows_creditos_turno)
+
+            lista_creditos_html = ""
+            total_colocado_turno = Decimal("0.00")
+            for rc in rows_creditos_turno:
+                conc_c = str(rc["concepto"] if isinstance(rc, dict) else rc[0])
+                monto_c = Decimal(str(rc["monto"] if isinstance(rc, dict) else rc[1]))
+                total_colocado_turno += monto_c
+                nombre_cli_c = conc_c.split("CLIENTE:")[-1].strip() if "CLIENTE:" in conc_c else conc_c
+                lista_creditos_html += f"""
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:11px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:11px; margin-bottom:8px;">
+                    <div style="text-align:left;">
+                        <div style="font-size:13.5px; font-weight:800; color:#0f172a;">{nombre_cli_c}</div>
+                        <div style="font-size:11px; color:#64748b; font-weight:600;">Crédito entregado hoy</div>
+                    </div>
+                    <div style="font-size:14.5px; font-weight:900; color:#0f2b5c;">${monto_c:.2f}</div>
+                </div>
+                """
+
+            if not lista_creditos_html:
+                lista_creditos_html = '<div style="padding:20px 10px; text-align:center; color:#64748b; font-size:13px; font-weight:600;">Aún no se han entregado créditos en este turno.</div>'
 
             # 3. Suma real del dinero prestado leyendo el flujo inmutable de Neon
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s", (turno_id,))
-            capital_prestado_hoy = Decimal(str(cursor.fetchone()["total"]))
+            capital_prestado_hoy = total_colocado_turno
 
             # 🎯 FIJADO DIRECTO CON TUS COLUMNAS REALES
             # Diarios: salen todos los días.
@@ -3327,15 +3347,19 @@ def dashboard_principal():
             <div style="font-size:18px; font-weight:900; color:#0f172a; letter-spacing:-0.3px;">${recaudo_hoy:.2f}</div>
         </div>
 
-        <!-- 2. CRÉDITOS HOY -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:3.5px solid #0f2b5c; border-radius:13px; padding:11px 12px; box-shadow:0 2px 8px rgba(15,23,42,0.04);">
+        <!-- 2. CRÉDITOS HOY (CLICABLE PARA VER DETALLE) -->
+        <div onclick="document.getElementById('modalCreditosHoy').style.display='flex'"
+             style="background:#ffffff; border:1px solid #e2e8f0; border-left:3.5px solid #0f2b5c; border-radius:13px; padding:11px 12px; box-shadow:0 2px 8px rgba(15,23,42,0.04); cursor:pointer;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
                 <span style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.4px;">Créditos Hoy</span>
                 <span style="width:22px; height:22px; border-radius:7px; background:#e0e7ff; color:#0f2b5c; display:flex; align-items:center; justify-content:center;">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                 </span>
             </div>
-            <div style="font-size:18px; font-weight:900; color:#0f2b5c; letter-spacing:-0.3px;">{creditos_hoy} <span style="font-size:12px; font-weight:700; color:#64748b;">Créd.</span></div>
+            <div style="display:flex; align-items:baseline; justify-content:space-between;">
+                <div style="font-size:18px; font-weight:900; color:#0f2b5c; letter-spacing:-0.3px;">{creditos_hoy} <span style="font-size:12px; font-weight:700; color:#64748b;">Créd.</span></div>
+                <span style="font-size:10.5px; font-weight:800; color:#1d4ed8;">Ver ›</span>
+            </div>
         </div>
 
         <!-- 3. MÍNIMO DE RUTA (RECAUDO ESPERADO) -->
@@ -3382,6 +3406,31 @@ def dashboard_principal():
                 <line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="#0f2b5c"/>
             </svg>
         </button>
+    </div>
+
+    <!-- Modal Ejecutivo de Créditos Realizados Hoy -->
+    <div id="modalCreditosHoy" onclick="this.style.display='none'"
+         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;">
+        <div onclick="event.stopPropagation()"
+             style="background:#ffffff; width:100%; max-width:360px; border-radius:18px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.28);">
+            <div style="background:#0f2b5c; color:#ffffff; padding:15px 18px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="text-align:left;">
+                    <div style="font-size:15.5px; font-weight:900;">Créditos Realizados Hoy</div>
+                    <div style="font-size:11px; color:#cbd5e1; font-weight:600;">Total colocado: ${total_colocado_turno:.2f}</div>
+                </div>
+                <button type="button" onclick="document.getElementById('modalCreditosHoy').style.display='none'"
+                        style="background:rgba(255,255,255,0.15); border:none; color:#ffffff; width:28px; height:28px; border-radius:8px; font-size:16px; font-weight:800; cursor:pointer;">✕</button>
+            </div>
+            <div style="padding:15px; max-height:60vh; overflow-y:auto;">
+                {lista_creditos_html}
+            </div>
+            <div style="padding:0 15px 15px 15px;">
+                <button type="button" onclick="document.getElementById('modalCreditosHoy').style.display='none'"
+                        style="width:100%; padding:12px; background:#0f2b5c; color:#ffffff; border:none; border-radius:11px; font-weight:800; font-size:13.5px; cursor:pointer;">
+                    Cerrar
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal Profesional de Filtros -->
