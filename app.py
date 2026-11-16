@@ -3224,12 +3224,10 @@ def dashboard_principal():
             # 📌 2. Conteo y detalle completo de créditos entregados en el turno activo
             cursor.execute(
                 """
-                SELECT bm.id AS mov_id, bm.concepto, bm.monto,
-                       c.id AS cli_id, c.nombre, c.interes_porcentaje, c.cuotas, c.frecuencia, c.valor_cuota, c.monto_total
-                FROM balance_movimientos bm
-                LEFT JOIN clientes c ON TRIM(SPLIT_PART(bm.concepto, 'CLIENTE:', 2)) = TRIM(c.nombre)
-                WHERE bm.tipo = 'Salida' AND bm.concepto LIKE '%%CRÉDITO NUEVO%%' AND bm.fecha = %s
-                ORDER BY bm.id DESC
+                SELECT id, concepto, monto
+                FROM balance_movimientos
+                WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s
+                ORDER BY id DESC
                 """, (turno_id,)
             )
             rows_creditos_turno = cursor.fetchall()
@@ -3239,21 +3237,33 @@ def dashboard_principal():
             total_colocado_turno = Decimal("0.00")
             for rc in rows_creditos_turno:
                 is_d = isinstance(rc, dict)
-                conc_c = str(rc["concepto"] if is_d else rc)
-                monto_c = Decimal(str(rc["monto"] if is_d else rc))
-                cli_id_c = (rc["cli_id"] if is_d else rc) or 0
-                nombre_cli_c = (rc["nombre"] if is_d else rc) or (conc_c.split("CLIENTE:")[-1].strip() if "CLIENTE:" in conc_c else conc_c)
-                interes_c = float((rc["interes_porcentaje"] if is_d else rc) or 20)
-                cuotas_c = int((rc["cuotas"] if is_d else rc) or 20)
-                freq_c = str((rc["frecuencia"] if is_d else rc) or "Diaria")
-                v_cuota_c = float((rc["valor_cuota"] if is_d else rc) or 0)
-                mov_id_c = int((rc["mov_id"] if is_d else rc) or 0)
+                mov_id_c = int((rc["id"] if is_d else rc[0]) or 0)
+                conc_c = str(rc["concepto"] if is_d else rc[1])
+                monto_c = Decimal(str(rc["monto"] if is_d else rc[2]))
                 total_colocado_turno += monto_c
+
+                nombre_cli_c = conc_c.split("CLIENTE:")[-1].strip() if "CLIENTE:" in conc_c else conc_c
+                cursor.execute("SELECT * FROM clientes WHERE LOWER(TRIM(nombre)) = LOWER(%s) ORDER BY id DESC LIMIT 1", (nombre_cli_c,))
+                cli_row = cursor.fetchone()
+
+                cli_id_c = 0
+                interes_c = 20.0
+                cuotas_c = 20
+                freq_c = "Diaria"
+                v_cuota_c = float(monto_c) * 1.20 / 20.0
+
+                if cli_row:
+                    c_dict = dict(cli_row) if isinstance(cli_row, dict) else {}
+                    cli_id_c = int(c_dict.get("id") or (cli_row[0] if not c_dict else 0))
+                    interes_c = float(c_dict.get("interes_porcentaje") or c_dict.get("interes") or 20)
+                    cuotas_c = int(c_dict.get("cuotas") or 20)
+                    freq_c = str(c_dict.get("frecuencia") or "Diaria")
+                    v_cuota_c = float(c_dict.get("valor_cuota") or v_cuota_c)
 
                 nombre_safe = nombre_cli_c.replace("'", "\\'")
                 lista_creditos_html += f"""
                 <div onclick="abrirEditorCreditoHoy({cli_id_c}, {mov_id_c}, '{nombre_safe}', {float(monto_c):.2f}, {interes_c}, {cuotas_c}, '{freq_c}')"
-                     style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px; margin-bottom:8px; cursor:pointer; transition:all 0.15s;">
+                     style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px; margin-bottom:8px; cursor:pointer;">
                     <div style="text-align:left;">
                         <div style="font-size:13.5px; font-weight:800; color:#0f172a;">{nombre_cli_c}</div>
                         <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">{cuotas_c} cuotas ({freq_c}) • Cuota: ${v_cuota_c:.2f}</div>
@@ -5914,7 +5924,7 @@ def api_procesar_cierre_caja():
 
 @app.route("/api/editar_credito_hoy", methods=["POST"])
 def api_editar_credito_hoy():
-    if "usuario" not in session:
+    if not session.get("autenticado"):
         return jsonify({"status": "error", "message": "Sesión expirada"}), 401
     try:
         data = request.get_json()
@@ -5954,7 +5964,7 @@ def api_editar_credito_hoy():
                 f_venc = fecha_ini_dt + timedelta(days=n * salto_dias)
                 cursor.execute(
                     """
-                    INSERT INTO pagos (cliente_id, numero_cuota, fecha_vencimiento, valor_cuota, pagado, valor_pagado)
+                    INSERT INTO pagos (cliente_id, numero_cuota, fecha, valor_cuota, pagado, valor_pagado)
                     VALUES (%s, %s, %s, %s, 0, 0.00)
                     """,
                     (cli_id, n, f_venc.isoformat(), valor_cuota)
