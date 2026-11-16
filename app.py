@@ -3037,6 +3037,34 @@ function aplicarFiltrosDashboard() {
             document.getElementById('editCredPreview').innerText = '$' + cuota.toFixed(2) + ' / $' + total.toFixed(2);
         }
 
+        function procesarFotoEditCred(input, lado) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const maxDim = 900;
+                    let w = img.width, h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+                        else { w = Math.round(w * maxDim / h); h = maxDim; }
+                    }
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    const b64 = canvas.toDataURL('image/jpeg', 0.72);
+                    document.getElementById('editCredFoto' + lado).value = b64;
+                    const prev = document.getElementById('prevEditCed' + lado);
+                    const ph = document.getElementById('phEditCed' + lado);
+                    prev.src = b64; prev.style.display = 'block';
+                    ph.style.display = 'none';
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
         function abrirEditorCreditoHoy(cliId, movId, nombre, monto, interes, cuotas, freq) {
             if (!cliId) {
                 alert('No se encontró la ficha activa de este cliente.');
@@ -3045,12 +3073,47 @@ function aplicarFiltrosDashboard() {
             document.getElementById('editCredCliId').value = cliId;
             document.getElementById('editCredMovId').value = movId;
             document.getElementById('editCredNombre').innerText = nombre;
+            document.getElementById('editCredNombreInput').value = nombre;
+            document.getElementById('editCredCedula').value = '';
+            document.getElementById('editCredTelefono').value = '';
+            document.getElementById('editCredDireccion').value = '';
             document.getElementById('editCredMonto').value = monto.toFixed(2);
             document.getElementById('editCredInteres').value = interes;
             document.getElementById('editCredCuotas').value = cuotas;
             document.getElementById('editCredFrecuencia').value = freq;
+            document.getElementById('editCredMicroseguro').value = '0.00';
+            document.getElementById('editCredFotoFrente').value = '';
+            document.getElementById('editCredFotoReverso').value = '';
+            document.getElementById('prevEditCedFrente').style.display = 'none';
+            document.getElementById('phEditCedFrente').style.display = 'inline';
+            document.getElementById('prevEditCedReverso').style.display = 'none';
+            document.getElementById('phEditCedReverso').style.display = 'inline';
             recalcularPreviewEditCred();
             document.getElementById('modalEditarCreditoHoy').style.display = 'flex';
+
+            fetch('/api/datos_credito_hoy/' + cliId)
+                .then(r => r.json())
+                .then(d => {
+                    if (d.status === 'ok') {
+                        document.getElementById('editCredNombreInput').value = d.nombre || nombre;
+                        document.getElementById('editCredCedula').value = d.identificacion || '';
+                        document.getElementById('editCredTelefono').value = d.telefono || '';
+                        document.getElementById('editCredDireccion').value = d.direccion || '';
+                        document.getElementById('editCredMicroseguro').value = parseFloat(d.microseguro || 0).toFixed(2);
+                        if (d.foto_frente) {
+                            document.getElementById('editCredFotoFrente').value = d.foto_frente;
+                            document.getElementById('prevEditCedFrente').src = d.foto_frente;
+                            document.getElementById('prevEditCedFrente').style.display = 'block';
+                            document.getElementById('phEditCedFrente').style.display = 'none';
+                        }
+                        if (d.foto_reverso) {
+                            document.getElementById('editCredFotoReverso').value = d.foto_reverso;
+                            document.getElementById('prevEditCedReverso').src = d.foto_reverso;
+                            document.getElementById('prevEditCedReverso').style.display = 'block';
+                            document.getElementById('phEditCedReverso').style.display = 'none';
+                        }
+                    }
+                });
         }
 
         function guardarEdicionCreditoHoy() {
@@ -3061,10 +3124,17 @@ function aplicarFiltrosDashboard() {
             const payload = {
                 cliente_id: document.getElementById('editCredCliId').value,
                 mov_id: document.getElementById('editCredMovId').value,
+                nombre: document.getElementById('editCredNombreInput').value,
+                identificacion: document.getElementById('editCredCedula').value,
+                telefono: document.getElementById('editCredTelefono').value,
+                direccion: document.getElementById('editCredDireccion').value,
                 monto: document.getElementById('editCredMonto').value,
                 interes: document.getElementById('editCredInteres').value,
                 cuotas: document.getElementById('editCredCuotas').value,
-                frecuencia: document.getElementById('editCredFrecuencia').value
+                frecuencia: document.getElementById('editCredFrecuencia').value,
+                microseguro: document.getElementById('editCredMicroseguro').value,
+                foto_frente: document.getElementById('editCredFotoFrente').value,
+                foto_reverso: document.getElementById('editCredFotoReverso').value
             };
 
             fetch('/api/editar_credito_hoy', {
@@ -3531,40 +3601,104 @@ def dashboard_principal():
                 <button type="button" onclick="document.getElementById('modalEditarCreditoHoy').style.display='none'"
                         style="background:rgba(255,255,255,0.15); border:none; color:#ffffff; width:28px; height:28px; border-radius:8px; font-size:15px; font-weight:800; cursor:pointer;">✕</button>
             </div>
-            <div style="padding:16px;">
+            <div style="padding:16px; max-height:78vh; overflow-y:auto;">
                 <input type="hidden" id="editCredCliId">
                 <input type="hidden" id="editCredMovId">
+                <input type="hidden" id="editCredFotoFrente">
+                <input type="hidden" id="editCredFotoReverso">
 
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:11px;">
+                <div style="margin-bottom:9px;">
+                    <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:3px;">Nombre Completo</label>
+                    <input type="text" id="editCredNombreInput"
+                           style="width:100%; padding:9px 10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13.5px; font-weight:800; color:#0f172a; box-sizing:border-box;">
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:9px;">
                     <div>
-                        <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:4px;">Monto Prestado ($)</label>
-                        <input type="number" step="0.01" id="editCredMonto" oninput="recalcularPreviewEditCred()"
-                               style="width:100%; padding:10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:800; color:#0f172a; box-sizing:border-box;">
+                        <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:3px;">Cédula / ID</label>
+                        <input type="text" id="editCredCedula"
+                               style="width:100%; padding:9px 10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13.5px; font-weight:700; color:#0f172a; box-sizing:border-box;">
                     </div>
                     <div>
-                        <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:4px;">Interés (%)</label>
-                        <input type="number" step="1" id="editCredInteres" oninput="recalcularPreviewEditCred()"
-                               style="width:100%; padding:10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:800; color:#0f172a; box-sizing:border-box;">
+                        <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:3px;">Teléfono</label>
+                        <input type="text" id="editCredTelefono"
+                               style="width:100%; padding:9px 10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13.5px; font-weight:700; color:#0f172a; box-sizing:border-box;">
                     </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+                <div style="margin-bottom:10px;">
+                    <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:3px;">Dirección</label>
+                    <input type="text" id="editCredDireccion"
+                           style="width:100%; padding:9px 10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13.5px; font-weight:700; color:#0f172a; box-sizing:border-box;">
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
                     <div>
-                        <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:4px;">N° Cuotas</label>
-                        <input type="number" id="editCredCuotas" oninput="recalcularPreviewEditCred()"
-                               style="width:100%; padding:10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:800; color:#0f172a; box-sizing:border-box;">
+                        <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:3px;">Monto Prestado ($)</label>
+                        <input type="number" step="0.01" id="editCredMonto" oninput="recalcularPreviewEditCred()"
+                               style="width:100%; padding:9px 10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:800; color:#0f172a; box-sizing:border-box;">
                     </div>
                     <div>
-                        <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:4px;">Frecuencia</label>
+                        <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:3px;">Interés (%)</label>
+                        <input type="number" step="1" id="editCredInteres" oninput="recalcularPreviewEditCred()"
+                               style="width:100%; padding:9px 10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:800; color:#0f172a; box-sizing:border-box;">
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:11px;">
+                    <div>
+                        <label style="display:block; font-size:10.5px; font-weight:800; color:#475569; margin-bottom:3px;">N° Cuotas</label>
+                        <input type="number" id="editCredCuotas" oninput="recalcularPreviewEditCred()"
+                               style="width:100%; padding:9px 8px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13.5px; font-weight:800; color:#0f172a; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:10.5px; font-weight:800; color:#475569; margin-bottom:3px;">Frecuencia</label>
                         <select id="editCredFrecuencia"
-                                style="width:100%; padding:10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13.5px; font-weight:800; color:#0f172a; background:#ffffff; box-sizing:border-box;">
+                                style="width:100%; padding:9px 6px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:12.5px; font-weight:800; color:#0f172a; background:#ffffff; box-sizing:border-box;">
                             <option value="Diaria">Diaria</option>
                             <option value="Semanal">Semanal</option>
                         </select>
                     </div>
+                    <div>
+                        <label style="display:block; font-size:10.5px; font-weight:800; color:#475569; margin-bottom:3px;">Microseguro ($)</label>
+                        <input type="number" step="0.01" id="editCredMicroseguro" value="0.00"
+                               style="width:100%; padding:9px 8px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13.5px; font-weight:800; color:#0f172a; box-sizing:border-box;">
+                    </div>
                 </div>
 
-                <div style="background:#f1f5f9; border-radius:10px; padding:10px 12px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+                <!-- FOTOS DE CÉDULA EN EL EDITOR -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px; margin-bottom:11px;">
+                    <div style="font-size:11px; font-weight:800; color:#0f2b5c; margin-bottom:8px;">Fotos de Cédula (Toca para ver o cambiar)</div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="width:48px; height:48px; border-radius:10px; background:#e2e8f0; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0;">
+                                <img id="prevEditCedFrente" src="" style="width:100%; height:100%; object-fit:cover; display:none;">
+                                <span id="phEditCedFrente" style="color:#475569; font-size:18px;">📷</span>
+                                <input type="file" accept="image/*" capture="environment" onchange="procesarFotoEditCred(this, 'Frente')" style="display:none;">
+                            </label>
+                            <div>
+                                <div style="font-size:11.5px; font-weight:800; color:#0f172a;">Frontal</div>
+                                <div onclick="const s=document.getElementById('prevEditCedFrente').src; if(s && s.startsWith('data:image')) verFotoAmpliada(s);"
+                                     style="font-size:10.5px; font-weight:700; color:#1d4ed8; cursor:pointer;">Ampliar</div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="width:48px; height:48px; border-radius:10px; background:#e2e8f0; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0;">
+                                <img id="prevEditCedReverso" src="" style="width:100%; height:100%; object-fit:cover; display:none;">
+                                <span id="phEditCedReverso" style="color:#475569; font-size:18px;">📷</span>
+                                <input type="file" accept="image/*" capture="environment" onchange="procesarFotoEditCred(this, 'Reverso')" style="display:none;">
+                            </label>
+                            <div>
+                                <div style="font-size:11.5px; font-weight:800; color:#0f172a;">Reverso</div>
+                                <div onclick="const s=document.getElementById('prevEditCedReverso').src; if(s && s.startsWith('data:image')) verFotoAmpliada(s);"
+                                     style="font-size:10.5px; font-weight:700; color:#1d4ed8; cursor:pointer;">Ampliar</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background:#f1f5f9; border-radius:10px; padding:9px 12px; margin-bottom:13px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="font-size:11.5px; font-weight:700; color:#475569;">Nueva Cuota / Total:</span>
                     <span id="editCredPreview" style="font-size:13px; font-weight:900; color:#0f2b5c;">$0.00 / $0.00</span>
                 </div>
@@ -5922,6 +6056,44 @@ def api_procesar_cierre_caja():
     
     return redirect("/login")
 
+@app.route("/api/datos_credito_hoy/<int:cli_id>", methods=["GET"])
+def api_datos_credito_hoy(cli_id):
+    if not session.get("autenticado"):
+        return jsonify({"status": "error"}), 401
+    try:
+        conn = get_db()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM clientes WHERE id = %s", (cli_id,))
+            row = cursor.fetchone()
+            if not row:
+                return jsonify({"status": "error", "message": "Cliente no encontrado"}), 404
+            c = dict(row)
+            nombre = str(c.get("nombre") or "").strip()
+
+            cursor.execute(
+                """
+                SELECT monto FROM balance_movimientos
+                WHERE tipo = 'Entrada' AND concepto ILIKE %s
+                ORDER BY id DESC LIMIT 1
+                """, (f"%MICROSEGURO%{nombre}%",)
+            )
+            row_ms = cursor.fetchone()
+            microseguro = float((row_ms["monto"] if isinstance(row_ms, dict) else row_ms[0])) if row_ms else 0.0
+
+        return jsonify({
+            "status": "ok",
+            "nombre": nombre,
+            "identificacion": str(c.get("identificacion") or ""),
+            "telefono": str(c.get("telefono") or ""),
+            "direccion": str(c.get("direccion") or ""),
+            "microseguro": microseguro,
+            "foto_frente": str(c.get("foto_cedula_frente") or ""),
+            "foto_reverso": str(c.get("foto_cedula_reverso") or "")
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/api/editar_credito_hoy", methods=["POST"])
 def api_editar_credito_hoy():
     if not session.get("autenticado"):
@@ -5930,10 +6102,17 @@ def api_editar_credito_hoy():
         data = request.get_json()
         cli_id = int(data.get("cliente_id", 0))
         mov_id = int(data.get("mov_id", 0))
+        nombre = str(data.get("nombre", "")).strip()
+        identificacion = str(data.get("identificacion", "")).strip()
+        telefono = str(data.get("telefono", "")).strip()
+        direccion = str(data.get("direccion", "")).strip()
         monto = Decimal(str(data.get("monto", "0")))
         interes = Decimal(str(data.get("interes", "20")))
         cuotas = int(data.get("cuotas", 20))
         frecuencia = str(data.get("frecuencia", "Diaria")).strip()
+        microseguro = Decimal(str(data.get("microseguro", "0") or "0"))
+        foto_frente = str(data.get("foto_frente", "")).strip()
+        foto_reverso = str(data.get("foto_reverso", "")).strip()
 
         if cli_id <= 0 or monto <= 0 or cuotas <= 0:
             return jsonify({"status": "error", "message": "Valores inválidos."}), 400
@@ -5943,19 +6122,30 @@ def api_editar_credito_hoy():
 
         conn = get_db()
         with conn.cursor() as cursor:
-            cursor.execute("SELECT fecha_inicio FROM clientes WHERE id = %s", (cli_id,))
+            cursor.execute("SELECT nombre, fecha_inicio FROM clientes WHERE id = %s", (cli_id,))
             row_c = cursor.fetchone()
-            f_ini_raw = (row_c["fecha_inicio"] if isinstance(row_c, dict) else row_c) if row_c else date.today().isoformat()
-            fecha_ini_dt = date.fromisoformat(str(f_ini_raw))
+            if row_c:
+                nombre_anterior = str(row_c["nombre"] if isinstance(row_c, dict) else row_c[0]).strip()
+                val_ini = row_c["fecha_inicio"] if isinstance(row_c, dict) else row_c[1]
+                fecha_ini_dt = val_ini if isinstance(val_ini, date) else date.fromisoformat(str(val_ini)[:10])
+            else:
+                nombre_anterior = nombre
+                fecha_ini_dt = date.today()
 
             cursor.execute(
                 """
                 UPDATE clientes
-                SET monto = %s, interes_porcentaje = %s, monto_total = %s,
-                    cuotas = %s, frecuencia = %s, valor_cuota = %s
+                SET nombre = COALESCE(NULLIF(%s, ''), nombre),
+                    identificacion = %s,
+                    telefono = %s,
+                    direccion = %s,
+                    monto = %s, interes_porcentaje = %s, monto_total = %s,
+                    cuotas = %s, frecuencia = %s, valor_cuota = %s,
+                    foto_cedula_frente = CASE WHEN %s <> '' THEN %s ELSE foto_cedula_frente END,
+                    foto_cedula_reverso = CASE WHEN %s <> '' THEN %s ELSE foto_cedula_reverso END
                 WHERE id = %s
                 """,
-                (monto, interes, monto_total, cuotas, frecuencia, valor_cuota, cli_id)
+                (nombre, identificacion, telefono, direccion, monto, interes, monto_total, cuotas, frecuencia, valor_cuota, foto_frente, foto_frente, foto_reverso, foto_reverso, cli_id)
             )
 
             cursor.execute("DELETE FROM pagos WHERE cliente_id = %s", (cli_id,))
@@ -5970,8 +6160,41 @@ def api_editar_credito_hoy():
                     (cli_id, n, f_venc.isoformat(), valor_cuota)
                 )
 
+            nombre_final = nombre if nombre else nombre_anterior
             if mov_id > 0:
-                cursor.execute("UPDATE balance_movimientos SET monto = %s WHERE id = %s", (monto, mov_id))
+                cursor.execute(
+                    "UPDATE balance_movimientos SET monto = %s, concepto = %s WHERE id = %s",
+                    (monto, f"CRÉDITO NUEVO - CLIENTE: {nombre_final}", mov_id)
+                )
+
+            cursor.execute("SELECT valor FROM configuracion WHERE clave = 'fecha_jornada_activa'")
+            row_t = cursor.fetchone()
+            turno_act = str(row_t["valor"] if isinstance(row_t, dict) else row_t[0]) if row_t else date.today().isoformat()
+
+            cursor.execute(
+                """
+                SELECT id FROM balance_movimientos
+                WHERE tipo = 'Entrada' AND concepto ILIKE %s AND fecha = %s
+                ORDER BY id DESC LIMIT 1
+                """, (f"%MICROSEGURO%{nombre_anterior}%", turno_act)
+            )
+            row_ms = cursor.fetchone()
+            if row_ms:
+                ms_id = row_ms["id"] if isinstance(row_ms, dict) else row_ms[0]
+                if microseguro > 0:
+                    cursor.execute(
+                        "UPDATE balance_movimientos SET monto = %s, concepto = %s WHERE id = %s",
+                        (microseguro, f"MICROSEGURO - CLIENTE: {nombre_final}", ms_id)
+                    )
+                else:
+                    cursor.execute("DELETE FROM balance_movimientos WHERE id = %s", (ms_id,))
+            elif microseguro > 0:
+                cursor.execute(
+                    """
+                    INSERT INTO balance_movimientos (fecha, tipo, categoria, concepto, monto)
+                    VALUES (%s, 'Entrada', 'Microseguro', %s, %s)
+                    """, (turno_act, f"MICROSEGURO - CLIENTE: {nombre_final}", microseguro)
+                )
 
             conn.commit()
         return jsonify({"status": "ok"})
