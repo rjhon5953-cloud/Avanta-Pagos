@@ -3027,6 +3027,67 @@ function aplicarFiltrosDashboard() {
                 alert("Error al imprimir ticket: " + error.message);
             }
         }
+
+        function recalcularPreviewEditCred() {
+            const m = parseFloat(document.getElementById('editCredMonto').value) || 0;
+            const i = parseFloat(document.getElementById('editCredInteres').value) || 0;
+            const c = parseInt(document.getElementById('editCredCuotas').value) || 1;
+            const total = m + (m * (i / 100));
+            const cuota = total / c;
+            document.getElementById('editCredPreview').innerText = '$' + cuota.toFixed(2) + ' / $' + total.toFixed(2);
+        }
+
+        function abrirEditorCreditoHoy(cliId, movId, nombre, monto, interes, cuotas, freq) {
+            if (!cliId) {
+                alert('No se encontró la ficha activa de este cliente.');
+                return;
+            }
+            document.getElementById('editCredCliId').value = cliId;
+            document.getElementById('editCredMovId').value = movId;
+            document.getElementById('editCredNombre').innerText = nombre;
+            document.getElementById('editCredMonto').value = monto.toFixed(2);
+            document.getElementById('editCredInteres').value = interes;
+            document.getElementById('editCredCuotas').value = cuotas;
+            document.getElementById('editCredFrecuencia').value = freq;
+            recalcularPreviewEditCred();
+            document.getElementById('modalEditarCreditoHoy').style.display = 'flex';
+        }
+
+        function guardarEdicionCreditoHoy() {
+            const btn = document.getElementById('btnGuardarEditCred');
+            btn.disabled = true;
+            btn.innerText = 'Guardando...';
+
+            const payload = {
+                cliente_id: document.getElementById('editCredCliId').value,
+                mov_id: document.getElementById('editCredMovId').value,
+                monto: document.getElementById('editCredMonto').value,
+                interes: document.getElementById('editCredInteres').value,
+                cuotas: document.getElementById('editCredCuotas').value,
+                frecuencia: document.getElementById('editCredFrecuencia').value
+            };
+
+            fetch('/api/editar_credito_hoy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.status === 'ok') {
+                    window.location.reload();
+                } else {
+                    alert(res.message || 'Error al actualizar el crédito.');
+                    btn.disabled = false;
+                    btn.innerText = 'Guardar Cambios';
+                }
+            })
+            .catch(() => {
+                alert('Error de conexión al guardar.');
+                btn.disabled = false;
+                btn.innerText = 'Guardar Cambios';
+            });
+        }
 </script>
 </body>
 </html>
@@ -3160,13 +3221,15 @@ def dashboard_principal():
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (turno_id,))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
             
-                        # 📌 2. Conteo y detalle de créditos entregados en el turno activo
+            # 📌 2. Conteo y detalle completo de créditos entregados en el turno activo
             cursor.execute(
                 """
-                SELECT concepto, monto
-                FROM balance_movimientos 
-                WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s
-                ORDER BY id DESC
+                SELECT bm.id AS mov_id, bm.concepto, bm.monto,
+                       c.id AS cli_id, c.nombre, c.interes_porcentaje, c.cuotas, c.frecuencia, c.valor_cuota, c.monto_total
+                FROM balance_movimientos bm
+                LEFT JOIN clientes c ON TRIM(SPLIT_PART(bm.concepto, 'CLIENTE:', 2)) = TRIM(c.nombre)
+                WHERE bm.tipo = 'Salida' AND bm.concepto LIKE '%%CRÉDITO NUEVO%%' AND bm.fecha = %s
+                ORDER BY bm.id DESC
                 """, (turno_id,)
             )
             rows_creditos_turno = cursor.fetchall()
@@ -3175,24 +3238,36 @@ def dashboard_principal():
             lista_creditos_html = ""
             total_colocado_turno = Decimal("0.00")
             for rc in rows_creditos_turno:
-                conc_c = str(rc["concepto"] if isinstance(rc, dict) else rc[0])
-                monto_c = Decimal(str(rc["monto"] if isinstance(rc, dict) else rc[1]))
+                is_d = isinstance(rc, dict)
+                conc_c = str(rc["concepto"] if is_d else rc)
+                monto_c = Decimal(str(rc["monto"] if is_d else rc))
+                cli_id_c = (rc["cli_id"] if is_d else rc) or 0
+                nombre_cli_c = (rc["nombre"] if is_d else rc) or (conc_c.split("CLIENTE:")[-1].strip() if "CLIENTE:" in conc_c else conc_c)
+                interes_c = float((rc["interes_porcentaje"] if is_d else rc) or 20)
+                cuotas_c = int((rc["cuotas"] if is_d else rc) or 20)
+                freq_c = str((rc["frecuencia"] if is_d else rc) or "Diaria")
+                v_cuota_c = float((rc["valor_cuota"] if is_d else rc) or 0)
+                mov_id_c = int((rc["mov_id"] if is_d else rc) or 0)
                 total_colocado_turno += monto_c
-                nombre_cli_c = conc_c.split("CLIENTE:")[-1].strip() if "CLIENTE:" in conc_c else conc_c
+
+                nombre_safe = nombre_cli_c.replace("'", "\\'")
                 lista_creditos_html += f"""
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:11px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:11px; margin-bottom:8px;">
+                <div onclick="abrirEditorCreditoHoy({cli_id_c}, {mov_id_c}, '{nombre_safe}', {float(monto_c):.2f}, {interes_c}, {cuotas_c}, '{freq_c}')"
+                     style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px; margin-bottom:8px; cursor:pointer; transition:all 0.15s;">
                     <div style="text-align:left;">
                         <div style="font-size:13.5px; font-weight:800; color:#0f172a;">{nombre_cli_c}</div>
-                        <div style="font-size:11px; color:#64748b; font-weight:600;">Crédito entregado hoy</div>
+                        <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">{cuotas_c} cuotas ({freq_c}) • Cuota: ${v_cuota_c:.2f}</div>
                     </div>
-                    <div style="font-size:14.5px; font-weight:900; color:#0f2b5c;">${monto_c:.2f}</div>
+                    <div style="text-align:right;">
+                        <div style="font-size:14.5px; font-weight:900; color:#0f2b5c;">${monto_c:.2f}</div>
+                        <span style="display:inline-block; margin-top:3px; font-size:10px; font-weight:800; color:#1d4ed8; background:#dbeafe; padding:2px 7px; border-radius:6px;">Editar ✎</span>
+                    </div>
                 </div>
                 """
 
             if not lista_creditos_html:
                 lista_creditos_html = '<div style="padding:20px 10px; text-align:center; color:#64748b; font-size:13px; font-weight:600;">Aún no se han entregado créditos en este turno.</div>'
 
-            # 3. Suma real del dinero prestado leyendo el flujo inmutable de Neon
             capital_prestado_hoy = total_colocado_turno
 
             # 🎯 FIJADO DIRECTO CON TUS COLUMNAS REALES
@@ -3429,6 +3504,71 @@ def dashboard_principal():
                         style="width:100%; padding:12px; background:#0f2b5c; color:#ffffff; border:none; border-radius:11px; font-weight:800; font-size:13.5px; cursor:pointer;">
                     Cerrar
                 </button>
+            </div>
+        </div>
+    </div>
+
+        <!-- Modal Editor de Crédito Realizado Hoy -->
+    <div id="modalEditarCreditoHoy" onclick="this.style.display='none'"
+         style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.72); z-index:10000; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;">
+        <div onclick="event.stopPropagation()"
+             style="background:#ffffff; width:100%; max-width:360px; border-radius:18px; overflow:hidden; box-shadow:0 24px 48px rgba(0,0,0,0.35); text-align:left;">
+            <div style="background:#0f2b5c; color:#ffffff; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-size:15px; font-weight:900;">Corregir Crédito Entregado</div>
+                    <div id="editCredNombre" style="font-size:11.5px; color:#93c5fd; font-weight:700;">Cliente</div>
+                </div>
+                <button type="button" onclick="document.getElementById('modalEditarCreditoHoy').style.display='none'"
+                        style="background:rgba(255,255,255,0.15); border:none; color:#ffffff; width:28px; height:28px; border-radius:8px; font-size:15px; font-weight:800; cursor:pointer;">✕</button>
+            </div>
+            <div style="padding:16px;">
+                <input type="hidden" id="editCredCliId">
+                <input type="hidden" id="editCredMovId">
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:11px;">
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:4px;">Monto Prestado ($)</label>
+                        <input type="number" step="0.01" id="editCredMonto" oninput="recalcularPreviewEditCred()"
+                               style="width:100%; padding:10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:800; color:#0f172a; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:4px;">Interés (%)</label>
+                        <input type="number" step="1" id="editCredInteres" oninput="recalcularPreviewEditCred()"
+                               style="width:100%; padding:10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:800; color:#0f172a; box-sizing:border-box;">
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:4px;">N° Cuotas</label>
+                        <input type="number" id="editCredCuotas" oninput="recalcularPreviewEditCred()"
+                               style="width:100%; padding:10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:800; color:#0f172a; box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:4px;">Frecuencia</label>
+                        <select id="editCredFrecuencia"
+                                style="width:100%; padding:10px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:13.5px; font-weight:800; color:#0f172a; background:#ffffff; box-sizing:border-box;">
+                            <option value="Diaria">Diaria</option>
+                            <option value="Semanal">Semanal</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="background:#f1f5f9; border-radius:10px; padding:10px 12px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:11.5px; font-weight:700; color:#475569;">Nueva Cuota / Total:</span>
+                    <span id="editCredPreview" style="font-size:13px; font-weight:900; color:#0f2b5c;">$0.00 / $0.00</span>
+                </div>
+
+                <div style="display:flex; gap:8px;">
+                    <button type="button" onclick="document.getElementById('modalEditarCreditoHoy').style.display='none'"
+                            style="flex:1; padding:12px; background:#e2e8f0; color:#334155; border:none; border-radius:11px; font-weight:800; font-size:13px; cursor:pointer;">
+                        Cancelar
+                    </button>
+                    <button type="button" id="btnGuardarEditCred" onclick="guardarEdicionCreditoHoy()"
+                            style="flex:2; padding:12px; background:#16a34a; color:#ffffff; border:none; border-radius:11px; font-weight:800; font-size:13.5px; cursor:pointer;">
+                        Guardar Cambios
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -5771,6 +5911,62 @@ def api_procesar_cierre_caja():
     session.clear()
     
     return redirect("/login")
+
+@app.route("/api/editar_credito_hoy", methods=["POST"])
+def api_editar_credito_hoy():
+    if "usuario" not in session:
+        return jsonify({"status": "error", "message": "Sesión expirada"}), 401
+    try:
+        data = request.get_json()
+        cli_id = int(data.get("cliente_id", 0))
+        mov_id = int(data.get("mov_id", 0))
+        monto = Decimal(str(data.get("monto", "0")))
+        interes = Decimal(str(data.get("interes", "20")))
+        cuotas = int(data.get("cuotas", 20))
+        frecuencia = str(data.get("frecuencia", "Diaria")).strip()
+
+        if cli_id <= 0 or monto <= 0 or cuotas <= 0:
+            return jsonify({"status": "error", "message": "Valores inválidos."}), 400
+
+        monto_total = (monto + (monto * (interes / Decimal("100")))).quantize(Decimal("0.01"))
+        valor_cuota = (monto_total / Decimal(str(cuotas))).quantize(Decimal("0.01"))
+
+        conn = get_db()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT fecha_inicio FROM clientes WHERE id = %s", (cli_id,))
+            row_c = cursor.fetchone()
+            f_ini_raw = (row_c["fecha_inicio"] if isinstance(row_c, dict) else row_c) if row_c else date.today().isoformat()
+            fecha_ini_dt = date.fromisoformat(str(f_ini_raw))
+
+            cursor.execute(
+                """
+                UPDATE clientes
+                SET monto = %s, interes_porcentaje = %s, monto_total = %s,
+                    cuotas = %s, frecuencia = %s, valor_cuota = %s
+                WHERE id = %s
+                """,
+                (monto, interes, monto_total, cuotas, frecuencia, valor_cuota, cli_id)
+            )
+
+            cursor.execute("DELETE FROM pagos WHERE cliente_id = %s", (cli_id,))
+            salto_dias = 7 if frecuencia == "Semanal" else 1
+            for n in range(1, cuotas + 1):
+                f_venc = fecha_ini_dt + timedelta(days=n * salto_dias)
+                cursor.execute(
+                    """
+                    INSERT INTO pagos (cliente_id, numero_cuota, fecha_vencimiento, valor_cuota, pagado, valor_pagado)
+                    VALUES (%s, %s, %s, %s, 0, 0.00)
+                    """,
+                    (cli_id, n, f_venc.isoformat(), valor_cuota)
+                )
+
+            if mov_id > 0:
+                cursor.execute("UPDATE balance_movimientos SET monto = %s WHERE id = %s", (monto, mov_id))
+
+            conn.commit()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
