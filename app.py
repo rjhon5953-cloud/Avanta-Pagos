@@ -6149,15 +6149,25 @@ def api_editar_credito_hoy():
             )
 
             cursor.execute("DELETE FROM pagos WHERE cliente_id = %s", (cli_id,))
-            salto_dias = 7 if frecuencia == "Semanal" else 1
-            for n in range(1, cuotas + 1):
-                f_venc = fecha_ini_dt + timedelta(days=n * salto_dias)
+            acumulado = Decimal("0.00")
+            for num in range(1, cuotas + 1):
+                if num == cuotas:
+                    valor_cuota_real = monto_total - acumulado
+                else:
+                    valor_cuota_real = valor_cuota
+                acumulado += valor_cuota_real
+
+                try:
+                    f_cuota = calcular_fecha(fecha_ini_dt, num - 1, frequency=frecuencia)
+                except Exception:
+                    f_cuota = fecha_ini_dt + timedelta(days=(num - 1) * 7 if frecuencia == "Semanal" else (num - 1))
+
                 cursor.execute(
                     """
-                    INSERT INTO pagos (cliente_id, fecha, valor_cuota, pagado, valor_pagado)
-                    VALUES (%s, %s, %s, 0, 0.00)
+                    INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real)
+                    VALUES (%s, %s, %s, %s, 0, 0, '')
                     """,
-                    (cli_id, f_venc.isoformat(), valor_cuota)
+                    (cli_id, num, f_cuota.isoformat(), valor_cuota_real)
                 )
 
             nombre_final = nombre if nombre else nombre_anterior
