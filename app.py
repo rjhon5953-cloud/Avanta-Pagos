@@ -4097,8 +4097,8 @@ def dashboard_principal():
 
         # Inyección limpia en las tarjetas premium
         contexto_dash += f"""
-        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-cedula="{c.get('identificacion') or 'N/A'}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}" data-ultpago="{ult_pago_str}" data-dias="{texto_cuadro_dias}" data-es-adelanto="{1 if ('16a34a' in estilo_cuadro_dias or 'dcfce7' in estilo_cuadro_dias or '2563eb' in estilo_cuadro_dias) else 0}"
-             style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:13px 12px; box-shadow:0 3px 10px rgba(15,23,42,0.04); display:flex; align-items:center; justify-content:space-between; gap:8px; {borde_izq_card} {display_card}">
+        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-cedula="{c.get('identificacion') or 'N/A'}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}" data-ultpago="{ult_pago_str}" data-dias="{texto_cuadro_dias}" data-es-adelanto="{1 if ('2563eb' in estilo_cuadro_dias or 'dbeafe' in estilo_cuadro_dias or '1d4ed8' in estilo_cuadro_dias or '0284c7' in estilo_cuadro_dias or 'eff6ff' in estilo_cuadro_dias) else 0}"
+            style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:13px 12px; box-shadow:0 3px 10px rgba(15,23,42,0.04); display:flex; align-items:center; justify-content:space-between; gap:8px; {borde_izq_card} {display_card}">
                 <div class="card-izquierda" onclick="navegarRuta('/menu/cliente/{c_id}')" style="flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
                 <div style="padding-top:2px; flex-shrink:0;">
                     {html_indicador_mora}
