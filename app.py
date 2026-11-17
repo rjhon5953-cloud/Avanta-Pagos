@@ -785,7 +785,7 @@ CONTENIDO_HTML = """
             </div>
         </div>
     </div>
-
+{% endif %}
 
 {% elif vista == 'embed_creditos_maestros' or vista == 'creditos_maestros' %}
     <div class="section-header-title"><i class="fa-solid fa-hand-holding-dollar"></i> CONTROL MAESTRO DE GESTIÓN</div>
