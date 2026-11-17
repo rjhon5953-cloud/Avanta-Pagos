@@ -3821,7 +3821,12 @@ def dashboard_principal():
                 total_colocado_turno += monto_c
 
                 nombre_cli_c = conc_c.split("CLIENTE:")[-1].strip() if "CLIENTE:" in conc_c else conc_c
-                cursor.execute("SELECT * FROM clientes WHERE LOWER(TRIM(nombre)) = LOWER(%s) ORDER BY id DESC LIMIT 1", (nombre_cli_c,))
+                cursor.execute("""
+                    SELECT id, COALESCE(interes_porcentaje, 20) AS interes, COALESCE(frecuencia, 'Diaria') AS frecuencia, COALESCE(cuotas, 20) AS cuotas, COALESCE(valor_cuota, 0) AS valor_cuota
+                    FROM clientes
+                    WHERE LOWER(TRIM(nombre)) = LOWER(%s)
+                    ORDER BY id DESC LIMIT 1
+                """, (nombre_cli_c,))
                 cli_row = cursor.fetchone()
 
                 cli_id_c = 0
@@ -3831,10 +3836,18 @@ def dashboard_principal():
                 v_cuota_c = float(monto_c) * 1.20 / 20.0
 
                 if cli_row:
-                    c_dict = dict(cli_row) if isinstance(cli_row, dict) else {}
-                    cli_id_c = int(c_dict.get("id") or (cli_row[0] if not c_dict else 0))
-                    interes_c = float(c_dict.get("interes_porcentaje") or c_dict.get("interes") or 20)
-                    freq_c = str(c_dict.get("frecuencia") or "Diaria")
+                    if isinstance(cli_row, dict):
+                        cli_id_c = int(cli_row.get("id") or 0)
+                        interes_c = float(cli_row.get("interes") or 20)
+                        freq_c = str(cli_row.get("frecuencia") or "Diaria")
+                        cuotas_c = int(cli_row.get("cuotas") or 20)
+                        v_cuota_c = float(cli_row.get("valor_cuota") or v_cuota_c)
+                    else:
+                        cli_id_c = int(cli_row[0] or 0)
+                        interes_c = float(cli_row[1] or 20)
+                        freq_c = str(cli_row[2] or "Diaria")
+                        cuotas_c = int(cli_row[3] or 20)
+                        v_cuota_c = float(cli_row[4] or v_cuota_c)
 
                     cursor.execute("SELECT COUNT(*) AS total_c, COALESCE(MAX(valor), 0) AS val_c FROM pagos WHERE cliente_id = %s", (cli_id_c,))
                     row_p_info = cursor.fetchone()
