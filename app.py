@@ -629,92 +629,134 @@ CONTENIDO_HTML = """
         </div>
         {% endif %}
 
+        <!-- Botón Único: HISTORIAL DE CRÉDITOS (Abre ventana emergente con Prestado, Abonado y Préstamos) -->
         {% if resumen %}
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px; text-align:center;">
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:9px 6px;">
-                <div style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase;">Créditos</div>
-                <div style="font-size:15px; font-weight:900; color:#0f2b5c; margin-top:2px;">{{ resumen.total_creditos }} <span style="font-size:10.5px; color:#16a34a;">({{ resumen.liquidados }} liq.)</span></div>
+        <div onclick="document.getElementById('modalHistorialCreditosCliente').style.display='flex'"
+             style="background:#ffffff; border:1.5px solid #cbd5e1; border-left:4px solid #0f2b5c; border-radius:13px; padding:12px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 2px 6px rgba(15,23,42,0.03);">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="width:32px; height:32px; border-radius:9px; background:#e0e7ff; color:#0f2b5c; display:flex; align-items:center; justify-content:center;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                </span>
+                <div style="text-align:left;">
+                    <div style="font-size:12.5px; font-weight:900; color:#0f2b5c; letter-spacing:0.3px;">HISTORIAL DE CRÉDITOS</div>
+                    <div style="font-size:11px; font-weight:700; color:#64748b;">{{ resumen.total_creditos }} crédito(s) registrado(s) • {{ resumen.liquidados }} liquidado(s)</div>
+                </div>
             </div>
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:9px 6px;">
-                <div style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase;">Prestado</div>
-                <div style="font-size:15px; font-weight:900; color:#0f172a; margin-top:2px;">${{ resumen.total_prestado }}</div>
-            </div>
-            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:9px 6px;">
-                <div style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase;">Abonado</div>
-                <div style="font-size:15px; font-weight:900; color:#16a34a; margin-top:2px;">${{ resumen.total_abonado }}</div>
+            <span style="font-size:11.5px; font-weight:800; color:#1d4ed8; background:#eff6ff; padding:4px 9px; border-radius:8px;">Ver ›</span>
+        </div>
+
+        <!-- Modal Emergente con Resumen (Prestado / Abonado) e Historial de Todos los Créditos -->
+        <div id="modalHistorialCreditosCliente" onclick="this.style.display='none'"
+             style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.68); z-index:10000; align-items:center; justify-content:center; padding:16px; box-sizing:border-box;">
+            <div onclick="event.stopPropagation()"
+                 style="background:#ffffff; width:100%; max-width:370px; border-radius:18px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.3); text-align:left;">
+                <div style="background:#0f2b5c; color:#ffffff; padding:14px 16px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-size:15px; font-weight:900;">Historial de Créditos</div>
+                        <div style="font-size:11px; color:#cbd5e1; font-weight:600;">{{ cliente.nombre }}</div>
+                    </div>
+                    <button type="button" onclick="document.getElementById('modalHistorialCreditosCliente').style.display='none'"
+                            style="background:rgba(255,255,255,0.15); border:none; color:#ffffff; width:28px; height:28px; border-radius:8px; font-size:15px; font-weight:800; cursor:pointer;">✕</button>
+                </div>
+                <div style="padding:14px; max-height:68vh; overflow-y:auto;">
+                    <!-- Totales Históricos (Prestado y Abonado) -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:11px; padding:10px; text-align:center;">
+                            <div style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase;">Total Prestado</div>
+                            <div style="font-size:15.5px; font-weight:900; color:#0f172a; margin-top:2px;">${{ resumen.total_prestado }}</div>
+                        </div>
+                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:11px; padding:10px; text-align:center;">
+                            <div style="font-size:10px; font-weight:800; color:#15803d; text-transform:uppercase;">Total Abonado</div>
+                            <div style="font-size:15.5px; font-weight:900; color:#16a34a; margin-top:2px;">${{ resumen.total_abonado }}</div>
+                        </div>
+                    </div>
+
+                    {% for cr in creditos %}
+                    {% set esta_liq = (cr.saldo <= 0.01) %}
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:11px 12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-size:12.5px; font-weight:800; color:#0f172a;">Inicio: {{ cr.fecha_inicio }}</div>
+                            <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">{{ cr.cuotas_pagadas }}/{{ cr.total_cuotas_real }} cuotas ({{ cr.frecuencia or 'Diaria' }})</div>
+                            <span style="display:inline-block; margin-top:4px; font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:6px; background:{{ '#dcfce7' if esta_liq else '#dbeafe' }}; color:{{ '#166534' if esta_liq else '#1e40af' }};">
+                                {{ 'LIQUIDADO' if esta_liq else 'ACTIVO' }}
+                            </span>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:11px; color:#64748b; font-weight:600;">Prestado: ${{ "%.2f"|format(cr.monto|float) }}</div>
+                            <div style="font-size:11px; color:#64748b; font-weight:600;">Total: ${{ "%.2f"|format(cr.monto_total|float) }}</div>
+                            <div style="font-size:13px; font-weight:900; color:{{ '#16a34a' if esta_liq else '#0f2b5c' }}; margin-top:2px;">Saldo: ${{ "%.2f"|format(cr.saldo|float) }}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div style="text-align:center; color:#64748b; font-size:12px; padding:14px;">Sin créditos históricos registrados.</div>
+                    {% endfor %}
+                </div>
+                <div style="padding:0 14px 14px 14px;">
+                    <button type="button" onclick="document.getElementById('modalHistorialCreditosCliente').style.display='none'"
+                            style="width:100%; padding:11px; background:#0f2b5c; color:#ffffff; border:none; border-radius:10px; font-weight:800; font-size:13px; cursor:pointer;">
+                        Cerrar
+                    </button>
+                </div>
             </div>
         </div>
         {% endif %}
 
-        <!-- Historial de Créditos y Pagos -->
+        <!-- HISTORIAL DE PAGOS (EXCLUSIVO DEL CRÉDITO ACTIVO ACTUAL) -->
+        {% set cred_activo = creditos[0] if creditos else None %}
         <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
-            <div style="display:flex; align-items:center; justify-content:space-between; padding-bottom:8px; margin-bottom:6px; border-bottom:1.5px solid #f1f5f9;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding-bottom:8px; margin-bottom:8px; border-bottom:1.5px solid #f1f5f9;">
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-                    <span style="font-size:12.5px; font-weight:800; color:#0f2b5c; text-transform:uppercase; letter-spacing:0.3px;">Historial de Créditos y Pagos</span>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    <span style="font-size:12.5px; font-weight:800; color:#0f2b5c; text-transform:uppercase; letter-spacing:0.3px;">Historial de Pagos (Activo)</span>
                 </div>
-                <span style="font-size:10.5px; font-weight:700; color:#64748b;">Toca para ver cuotas</span>
+                {% if cred_activo %}
+                <span style="font-size:11px; font-weight:800; color:#0f2b5c; background:#eff6ff; padding:2px 8px; border-radius:6px;">Cuota: ${{ "%.2f"|format(cred_activo.valor_cuota|float) }}</span>
+                {% endif %}
             </div>
 
-            {% for cr in creditos %}
-            {% set esta_liq = (cr.saldo <= 0.01) %}
-            <div style="padding:10px 0; border-bottom:1px solid #f1f5f9;">
-                <div onclick="const el=document.getElementById('pagos-cred-{{ cr.id }}'); el.style.display = el.style.display === 'none' ? 'block' : 'none';"
-                     style="display:flex; justify-content:space-between; align-items:center; gap:8px; cursor:pointer;">
-                    <div>
-                        <div style="font-size:12.5px; font-weight:800; color:#0f172a;">Inicio: {{ cr.fecha_inicio }} <span style="font-size:11px; font-weight:600; color:#64748b;">({{ cr.frecuencia or 'Diaria' }})</span></div>
-                        <div style="display:flex; align-items:center; gap:6px; margin-top:4px; flex-wrap:wrap;">
-                            <span style="font-size:10px; font-weight:800; padding:2px 8px; border-radius:6px; background:{{ '#dcfce7' if esta_liq else '#dbeafe' }}; color:{{ '#166534' if esta_liq else '#1e40af' }};">
-                                {{ 'LIQUIDADO' if esta_liq else 'ACTIVO' }}
-                            </span>
-                            <span style="font-size:10.5px; font-weight:700; color:#475569;">
-                                {{ cr.cuotas_pagadas }}/{{ cr.total_cuotas_real }} cuotas • <b style="color:#1d4ed8;">Ver pagos ▾</b>
-                            </span>
-                        </div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:11px; color:#64748b; font-weight:600;">Prestado: ${{ "%.2f"|format(cr.monto|float) }}</div>
-                        <div style="font-size:11px; color:#64748b; font-weight:600;">Total: ${{ "%.2f"|format(cr.monto_total|float) }}</div>
-                        <div style="font-size:13.5px; font-weight:900; color:{{ '#16a34a' if esta_liq else '#0f2b5c' }}; margin-top:1px;">Saldo: ${{ "%.2f"|format(cr.saldo|float) }}</div>
-                    </div>
-                </div>
-
-                <!-- Tabla Desplegable de Pagos de este Crédito -->
-                <div id="pagos-cred-{{ cr.id }}" style="display:none; margin-top:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px; max-height:220px; overflow-y:auto;">
-                    {% if cr.detalle_pagos %}
-                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
-                        <thead>
-                            <tr style="border-bottom:1px solid #cbd5e1; color:#475569; text-align:left;">
-                                <th style="padding:4px;">#</th>
-                                <th style="padding:4px;">Vence</th>
-                                <th style="padding:4px;">Pagó</th>
-                                <th style="padding:4px; text-align:right;">Abono</th>
-                                <th style="padding:4px; text-align:right;">Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for p in cr.detalle_pagos %}
-                            {% set vencida = (p.pagado == 0 and p.fecha < hoy_str) %}
-                            <tr style="border-bottom:1px solid #e2e8f0;">
-                                <td style="padding:5px 4px; font-weight:800; color:#0f172a;">{{ p.numero }}</td>
-                                <td style="padding:5px 4px; color:#475569;">{{ p.fecha }}</td>
-                                <td style="padding:5px 4px; color:#334155; font-weight:600;">{{ p.fecha_pago_real if p.fecha_pago_real else '-' }}</td>
-                                <td style="padding:5px 4px; text-align:right; font-weight:800; color:#0f172a;">${{ "%.2f"|format((p.valor_pagado if p.pagado == 1 else p.valor)|float) }}</td>
-                                <td style="padding:5px 4px; text-align:right; font-weight:800; color:{{ '#16a34a' if p.pagado == 1 else ('#dc2626' if vencida else '#64748b') }};">
-                                    {{ 'Pagada' if p.pagado == 1 else ('Vencida' if vencida else 'Pend.') }}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    {% else %}
-                    <div style="text-align:center; color:#64748b; font-size:11px; padding:8px;">Sin cuotas registradas en este crédito.</div>
-                    {% endif %}
-                </div>
+            {% if cred_activo and cred_activo.detalle_pagos %}
+            <div style="max-height:260px; overflow-y:auto; border:1px solid #f1f5f9; border-radius:10px;">
+                <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                    <thead style="position:sticky; top:0; background:#f8fafc; z-index:1;">
+                        <tr style="border-bottom:1px solid #cbd5e1; color:#475569; text-align:left;">
+                            <th style="padding:6px 5px;">#</th>
+                            <th style="padding:6px 5px;">Fecha</th>
+                            <th style="padding:6px 5px;">Pagó el</th>
+                            <th style="padding:6px 5px; text-align:right;">Abono / Cuota</th>
+                            <th style="padding:6px 5px; text-align:right;">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in cred_activo.detalle_pagos %}
+                        {% set v_cuota = p.valor|float %}
+                        {% set v_pagado = p.valor_pagado|float %}
+                        {% set es_completa = (p.pagado == 1 or v_pagado >= (v_cuota - 0.01)) %}
+                        {% set es_incompleta = (not es_completa and v_pagado > 0) %}
+                        {% set es_vencida = (not es_completa and not es_incompleta and p.fecha < hoy_str) %}
+                        <tr style="border-bottom:1px solid #f1f5f9; background:{{ '#f0fdf4' if es_completa else ('#fffbeb' if es_incompleta else ('#fef2f2' if es_vencida else '#ffffff')) }};">
+                            <td style="padding:6px 5px; font-weight:800; color:#0f172a;">{{ p.numero }}</td>
+                            <td style="padding:6px 5px; color:#475569;">{{ p.fecha }}</td>
+                            <td style="padding:6px 5px; color:#334155; font-weight:600;">{{ p.fecha_pago_real if p.fecha_pago_real else '-' }}</td>
+                            <td style="padding:6px 5px; text-align:right; font-weight:800; color:#0f172a;">
+                                {% if es_completa %}
+                                    ${{ "%.2f"|format(v_pagado if v_pagado > 0 else v_cuota) }}
+                                {% elif es_incompleta %}
+                                    <span style="color:#d97706;">${{ "%.2f"|format(v_pagado) }}</span> <span style="color:#64748b; font-weight:600;">/ ${{ "%.2f"|format(v_cuota) }}</span>
+                                {% else %}
+                                    <span style="color:#64748b; font-weight:600;">$0.00 / ${{ "%.2f"|format(v_cuota) }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding:6px 5px; text-align:right; font-weight:900; color:{{ '#16a34a' if es_completa else ('#d97706' if es_incompleta else ('#dc2626' if es_vencida else '#64748b')) }};">
+                                {{ 'Completa' if es_completa else ('Incompleta' if es_incompleta else ('Vencida' if es_vencida else 'Pendiente')) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
             {% else %}
-            <div style="text-align:center; font-size:12px; color:#94a3b8; padding:14px 6px; font-weight:600;">Sin créditos registrados aún.</div>
-            {% endfor %}
+            <div style="text-align:center; font-size:12px; color:#94a3b8; padding:14px 6px; font-weight:600;">Este cliente no tiene un crédito activo con cuotas pendientes.</div>
+            {% endif %}
         </div>
 
         <!-- Geolocalización del Cliente -->
