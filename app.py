@@ -1178,14 +1178,15 @@ CONTENIDO_HTML = """
                 <input type="hidden" name="foto_cedula_frente" id="inputFotoCedulaFrente" value="{{ f_frente }}">
                 <input type="hidden" name="foto_cedula_reverso" id="inputFotoCedulaReverso" value="{{ f_reverso }}">
 
-                <div style="display:flex; align-items:center; gap:18px;">
-                    <!-- CUADRO COMPACTO: CÉDULA FRONTAL -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <!-- CUADRO COMPACTO: CÉDULA FRONTAL -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:9px;">
                     <div style="display:flex; align-items:center; gap:9px;">
-                        <label style="width:54px; height:54px; border-radius:12px; background:#e2e8f0; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; position:relative; flex-shrink:0;">
+                        <label style="width:52px; height:52px; border-radius:10px; background:#e2e8f0; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:center; overflow:hidden; cursor:pointer; flex-shrink:0;">
                             <img id="prevCedulaFrente" src="{{ f_frente }}"
                                  style="width:100%; height:100%; object-fit:cover; display:{{ 'block' if f_frente else 'none' }};">
                             <div id="placeholderCedulaFrente" style="display:{{ 'none' if f_frente else 'flex' }}; align-items:center; justify-content:center; color:#475569;">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                             </div>
                             <input type="file" accept="image/*" capture="environment" onchange="procesarFotoCedula(this, 'Frente')" style="display:none;">
                         </label>
@@ -1197,14 +1198,26 @@ CONTENIDO_HTML = """
                             </div>
                         </div>
                     </div>
+                    <div style="display:flex; gap:5px; margin-top:8px;">
+                        <label style="flex:1; padding:5px 4px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:7px; font-size:10.5px; font-weight:800; text-align:center; cursor:pointer;">
+                            Cámara
+                            <input type="file" accept="image/*" capture="environment" onchange="procesarFotoCedula(this, 'Frente')" style="display:none;">
+                        </label>
+                        <label style="flex:1; padding:5px 4px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:7px; font-size:10.5px; font-weight:800; text-align:center; cursor:pointer;">
+                            Galería
+                            <input type="file" accept="image/*" onchange="procesarFotoCedula(this, 'Frente')" style="display:none;">
+                        </label>
+                    </div>
+                </div>
 
-                    <!-- CUADRO COMPACTO: CÉDULA REVERSO -->
+                <!-- CUADRO COMPACTO: CÉDULA REVERSO -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:9px;">
                     <div style="display:flex; align-items:center; gap:9px;">
-                        <label style="width:54px; height:54px; border-radius:12px; background:#e2e8f0; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; position:relative; flex-shrink:0;">
+                        <label style="width:52px; height:52px; border-radius:10px; background:#e2e8f0; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:center; overflow:hidden; cursor:pointer; flex-shrink:0;">
                             <img id="prevCedulaReverso" src="{{ f_reverso }}"
                                  style="width:100%; height:100%; object-fit:cover; display:{{ 'block' if f_reverso else 'none' }};">
                             <div id="placeholderCedulaReverso" style="display:{{ 'none' if f_reverso else 'flex' }}; align-items:center; justify-content:center; color:#475569;">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                             </div>
                             <input type="file" accept="image/*" capture="environment" onchange="procesarFotoCedula(this, 'Reverso')" style="display:none;">
                         </label>
@@ -1216,7 +1229,18 @@ CONTENIDO_HTML = """
                             </div>
                         </div>
                     </div>
+                    <div style="display:flex; gap:5px; margin-top:8px;">
+                        <label style="flex:1; padding:5px 4px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:7px; font-size:10.5px; font-weight:800; text-align:center; cursor:pointer;">
+                            Cámara
+                            <input type="file" accept="image/*" capture="environment" onchange="procesarFotoCedula(this, 'Reverso')" style="display:none;">
+                        </label>
+                        <label style="flex:1; padding:5px 4px; background:#ffffff; color:#334155; border:1px solid #cbd5e1; border-radius:7px; font-size:10.5px; font-weight:800; text-align:center; cursor:pointer;">
+                            Galería
+                            <input type="file" accept="image/*" onchange="procesarFotoCedula(this, 'Reverso')" style="display:none;">
+                        </label>
+                    </div>
                 </div>
+            </div>
             </div>
 
             <!-- TARJETA 4: GEOLOCALIZACIÓN Y GUARDADO -->
