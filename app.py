@@ -2905,19 +2905,25 @@ function mostrarTicketAvanta(tk) {
     const bloqueSaldo = document.getElementById('tkSaldo').parentElement.parentElement;
 
     if (esPago) {
+        const rowRef = document.getElementById('tkRowRef');
+        if (rowRef) rowRef.style.display = 'none';
+        document.getElementById('tkCedula').parentElement.style.display = 'none';
+        document.getElementById('tkDireccion').parentElement.style.display = 'none';
+        document.getElementById('tkTelefono').parentElement.innerHTML = '<b>WhatsApp:</b> <span>' + (tk.telefono || 'N/A') + '</span>';
+
         bloqueCond.innerHTML = `
-            <div><b>Cód. Operación:</b> <span>${tk.codigo || '000000'}</span></div>
-            <div><b>Modalidad:</b> <span>${tk.frecuencia || 'Diaria'}</span></div>
-            <div><b>Fecha y Hora Pago:</b> <span>${tk.fecha_pago || '-'}</span></div>
-            <div><b>Cuota Procesada:</b> #<span>${tk.cuota_procesada || '1'}</span></div>
+            <div><b>Fecha de Pago:</b> <span>${tk.fecha_pago || '-'}</span></div>
             <div style="font-size:15px; color:#16a34a; margin-top:4px;"><b>Monto Cobrado: $${tk.monto_cobrado || '0.00'}</b></div>
+            <div><b>Cuota Procesada:</b> #<span>${tk.cuota_procesada || '1'}</span></div>
+            <div style="font-size:16px; color:#0f172a; margin-top:3px;"><b>Saldo Restante: $${tk.saldo_restante || '0.00'}</b></div>
         `;
-        const esLiq = parseFloat(tk.saldo_restante || '0') <= 0;
-        const colorEstado = esLiq ? '#16a34a' : ((tk.estado_dias || '').includes('mora') ? '#dc2626' : '#0284c7');
+
+        const colorAlerta = tk.tipo_alerta === 'mora' ? '#dc2626' : (tk.tipo_alerta === 'adelanto' ? '#0284c7' : '#16a34a');
         bloqueSaldo.innerHTML = `
-            <div style="font-size:19px; font-weight:900; color:#0f172a;">Saldo restante: $<span id="tkSaldo">${tk.saldo_restante || '0.00'}</span></div>
-            <div style="font-size:12.5px; font-weight:800; color:${colorEstado}; margin-top:3px;">Estado: ${tk.estado_dias || 'Al día'}</div>
+            <div style="font-size:13.5px; font-weight:900; color:${colorAlerta}; line-height:1.35;">${tk.titulo_estado || '¡Gracias por su puntualidad y pago!'}</div>
+            <div style="font-size:11.5px; font-weight:700; color:#475569; margin-top:4px; line-height:1.35;">${tk.subtitulo_estado || ''}</div>
         `;
+        document.getElementById('tkFechaEmision').innerText = tk.pie_sistema || 'Sistema de Gestión de Cobros Avanta';
     } else {
         const unidadPlazo = (tk.frecuencia === 'Semanal') ? 'Semanas' : 'Días';
         bloqueCond.innerHTML = `
@@ -2993,50 +2999,78 @@ async function compartirTicketAvanta() {
     ctx.textAlign = 'center';
     ctx.fillStyle = '#1e293b';
     let y = 190;
-    const filasCliente = [
-        'Cliente: ' + (tk.cliente || '-'),
-        'Cédula: ' + (tk.identificacion || 'N/A'),
-        'Tel: ' + (tk.telefono || 'N/A'),
-        'Dir: ' + (tk.direccion || 'N/A')
-    ];
-    if (tk.referencia) filasCliente.push('Local/Ref: ' + tk.referencia);
-
-    filasCliente.forEach(txt => {
-        ctx.font = txt.startsWith('Cliente:') ? 'bold 23px sans-serif' : '21px sans-serif';
-        ctx.fillText(txt, canvas.width / 2, y);
-        y += 34;
-    });
-
-    drawLine(y + 6);
-    y += 46;
 
     if (esPago) {
-        const filasPago = [
-            'Cód. Operación: ' + (tk.codigo || '000000'),
-            'Modalidad: ' + (tk.frecuencia || 'Diaria'),
-            'Fecha de Pago: ' + (tk.fecha_pago || '-'),
-            'Cuota Procesada: #' + (tk.cuota_procesada || '1'),
-            'Monto Cobrado: $' + (tk.monto_cobrado || '0.00')
-        ];
-        filasPago.forEach(txt => {
-            const esMonto = txt.startsWith('Monto Cobrado');
-            ctx.fillStyle = esMonto ? '#16a34a' : '#1e293b';
-            ctx.font = esMonto ? 'bold 26px sans-serif' : '21px sans-serif';
-            ctx.fillText(txt, canvas.width / 2, y);
+        ctx.font = 'bold 24px sans-serif';
+        ctx.fillText('Cliente: ' + (tk.cliente || '-'), canvas.width / 2, y);
+        y += 36;
+        ctx.font = '21px sans-serif';
+        ctx.fillText('WhatsApp: ' + (tk.telefono || 'N/A'), canvas.width / 2, y);
+        y += 36;
+        ctx.fillText('Fecha de Pago: ' + (tk.fecha_pago || '-'), canvas.width / 2, y);
+        y += 22;
+
+        drawLine(y);
+        y += 46;
+
+        ctx.fillStyle = '#16a34a';
+        ctx.font = 'bold 27px sans-serif';
+        ctx.fillText('Monto Cobrado: $' + (tk.monto_cobrado || '0.00'), canvas.width / 2, y);
+        y += 38;
+        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 22px sans-serif';
+        ctx.fillText('Cuota Procesada: #' + (tk.cuota_procesada || '1'), canvas.width / 2, y);
+        y += 40;
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 26px sans-serif';
+        ctx.fillText('Saldo Restante: $' + (tk.saldo_restante || '0.00'), canvas.width / 2, y);
+        y += 24;
+
+        drawLine(y);
+        y += 46;
+
+        ctx.fillStyle = tk.tipo_alerta === 'mora' ? '#dc2626' : (tk.tipo_alerta === 'adelanto' ? '#0284c7' : '#16a34a');
+        ctx.font = 'bold 22px sans-serif';
+        ctx.fillText(tk.titulo_estado || '¡Gracias por su puntualidad y pago!', canvas.width / 2, y);
+        y += 34;
+
+        const subTxt = tk.subtitulo_estado || '';
+        ctx.fillStyle = '#334155';
+        ctx.font = '18px sans-serif';
+        if (subTxt.length > 44) {
+            const corte = subTxt.lastIndexOf(' ', 44);
+            ctx.fillText(subTxt.slice(0, corte), canvas.width / 2, y);
+            y += 26;
+            ctx.fillText(subTxt.slice(corte + 1), canvas.width / 2, y);
             y += 38;
+        } else if (subTxt) {
+            ctx.fillText(subTxt, canvas.width / 2, y);
+            y += 38;
+        }
+
+        drawLine(y - 12);
+        y += 28;
+        ctx.fillStyle = '#475569';
+        ctx.font = 'italic 19px sans-serif';
+        ctx.fillText(tk.pie_sistema || 'Sistema de Gestión de Cobros Avanta', canvas.width / 2, y);
+    } else {
+        const filasCliente = [
+            'Cliente: ' + (tk.cliente || '-'),
+            'Cédula: ' + (tk.identificacion || 'N/A'),
+            'Tel: ' + (tk.telefono || 'N/A'),
+            'Dir: ' + (tk.direccion || 'N/A')
+        ];
+        if (tk.referencia) filasCliente.push('Local/Ref: ' + tk.referencia);
+
+        filasCliente.forEach(txt => {
+            ctx.font = txt.startsWith('Cliente:') ? 'bold 23px sans-serif' : '21px sans-serif';
+            ctx.fillText(txt, canvas.width / 2, y);
+            y += 34;
         });
 
-        drawLine(y + 4);
-        y += 50;
-        ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold 32px sans-serif';
-        ctx.fillText('Saldo restante: $' + (tk.saldo_restante || '0.00'), canvas.width / 2, y);
-        y += 36;
-        ctx.fillStyle = '#0f2b5c';
-        ctx.font = 'bold 21px sans-serif';
-        ctx.fillText('Estado: ' + (tk.estado_dias || 'Al día'), canvas.width / 2, y);
-        y += 45;
-    } else {
+        drawLine(y + 6);
+        y += 46;
+
         const filasCred = [
             'Cód. Crédito: ' + (tk.codigo || '000000'),
             'Modalidad: ' + (tk.frecuencia || 'Diaria'),
@@ -3065,32 +3099,48 @@ async function compartirTicketAvanta() {
         ctx.fillStyle = '#16a34a';
         ctx.fillText('Estado: Al día', canvas.width / 2, y);
         y += 45;
-    }
 
-    ctx.fillStyle = '#475569';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText('** Gracias por preferirnos **', canvas.width / 2, y);
+        ctx.fillStyle = '#475569';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.fillText('** Gracias por preferirnos **', canvas.width / 2, y);
+    }
 
     const textoResumen = tk.mensaje_ws || (`*AVANTA PAGOS - ${tk.tipo_operacion}*\nCliente: ${tk.cliente}`);
 
-    canvas.toBlob(async (blob) => {
+        canvas.toBlob(async (blob) => {
         const nombreArchivo = esPago ? `Recibo_Pago_${tk.codigo}.png` : `Comprobante_Avanta_${tk.codigo}.png`;
         const file = new File([blob], nombreArchivo, { type: 'image/png' });
+
+        // Copiar el número del cliente al portapapeles para pegarlo rápido en WhatsApp
+        const telLimpio = (tk.telefono || '').replace(/[^0-9]/g, '');
+        if (telLimpio.length >= 9 && navigator.clipboard) {
+            try {
+                await navigator.clipboard.writeText(telLimpio);
+            } catch (e) {}
+        }
+
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
                 await navigator.share({
                     files: [file],
-                    title: 'Comprobante AVANTA PAGOS',
-                    text: textoResumen
+                    title: 'Comprobante AVANTA PAGOS'
                 });
                 return;
             } catch (err) {}
         }
-        const telLimpio = (tk.telefono || '').replace(/[^0-9]/g, '');
-        const urlWa = telLimpio.length >= 9
-            ? `https://wa.me{telLimpio.startsWith('593') ? telLimpio : '593' + telLimpio.replace(/^0/, '')}?text=${encodeURIComponent(textoResumen)}`
-            : `https://wa.me{encodeURIComponent(textoResumen)}`;
-        window.open(urlWa, '_blank');
+
+        // Respaldo si el navegador no soporta compartir archivos: descargar imagen y abrir chat del cliente
+        const urlDescarga = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = urlDescarga;
+        a.download = nombreArchivo;
+        a.click();
+        URL.revokeObjectURL(urlDescarga);
+
+        if (telLimpio.length >= 9) {
+            const numWa = telLimpio.startsWith('593') ? telLimpio : '593' + telLimpio.replace(/^0/, '');
+            window.open(`https://wa.me{numWa}`, '_blank');
+        }
     }, 'image/png');
 }
 
@@ -6047,13 +6097,22 @@ def api_marcar_pago(cliente_id, num_cuota):
         
     mensaje_ws += "_Sistema de Gestión de Cobros Avanta_"
     
-    estado_ticket_pago = "Al día"
+    titulo_estado_tk = "¡Gracias por su puntualidad y pago!"
+    subtitulo_estado_tk = "Manteniendo su cuenta al día."
+    tipo_alerta_tk = "ok"
+
     if saldo_restante <= 0:
-        estado_ticket_pago = "CRÉDITO LIQUIDADO 100%"
+        titulo_estado_tk = "¡FELICIDADES! CRÉDITO LIQUIDADO AL 100%"
+        subtitulo_estado_tk = "Su préstamo ha sido cancelado en su totalidad."
+        tipo_alerta_tk = "liquidado"
     elif tiene_mora and dias_mora_real > 0:
-        estado_ticket_pago = f"En mora ({dias_mora_real} días)"
+        titulo_estado_tk = f"Días de Atraso: {dias_mora_real} días en mora"
+        subtitulo_estado_tk = "Le solicitamos ponerse al día para evitar recargos o suspensión de su cupo."
+        tipo_alerta_tk = "mora"
     elif dias_adelanto_real > 0:
-        estado_ticket_pago = f"Adelantado ({dias_adelanto_real} días)"
+        titulo_estado_tk = f"Días Adelantados: {dias_adelanto_real} días a favor"
+        subtitulo_estado_tk = "¡Excelente historial! Siga manteniendo su cuenta al día."
+        tipo_alerta_tk = "adelanto"
 
     recibo = {
         "cliente": c["nombre"],
@@ -6066,18 +6125,17 @@ def api_marcar_pago(cliente_id, num_cuota):
     ticket_pago = {
         "tipo": "pago",
         "codigo": f"{int(cliente_id):06d}",
-        "tipo_operacion": "COMPROBANTE OFICIAL DE PAGO",
+        "tipo_operacion": "Comprobante Oficial de Pago",
         "cliente": c["nombre"],
-        "identificacion": c.get("identificacion") or "N/A",
         "telefono": c.get("telefono") or "N/A",
-        "direccion": c.get("direccion") or "N/A",
-        "referencia": c.get("referencia") or "",
-        "frecuencia": c.get("frecuencia") or "Diaria",
         "fecha_pago": hora_local_cliente,
         "monto_cobrado": f"{float(monto_efectivamente_aplicado):.2f}",
         "cuota_procesada": str(num_cuota),
         "saldo_restante": f"{float(saldo_restante):.2f}",
-        "estado_dias": estado_ticket_pago,
+        "titulo_estado": titulo_estado_tk,
+        "subtitulo_estado": subtitulo_estado_tk,
+        "tipo_alerta": tipo_alerta_tk,
+        "pie_sistema": "Sistema de Gestión de Cobros Avanta",
         "mensaje_ws": mensaje_ws
     }
     return jsonify({"status": "ok", "recibo": recibo, "ticket_pago": ticket_pago})
