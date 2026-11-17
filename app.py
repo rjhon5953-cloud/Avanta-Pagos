@@ -2087,6 +2087,95 @@ HTML_TEMPLATE = """
         ==============================
     </div>
 
+<!-- MODAL TICKET DIGITAL DE CRÉDITO / RENOVACIÓN (AVANTA PAGOS) -->
+<div id="modalTicketAvanta" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#e2e8f0; z-index:10005; flex-direction:column; overflow-y:auto;">
+    <!-- Barra Superior -->
+    <div style="background:#ffffff; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #cbd5e1; position:sticky; top:0; z-index:2;">
+        <button type="button" onclick="cerrarTicketAvantaYVolver()"
+                style="background:#dc2626; color:#ffffff; border:none; border-radius:9px; padding:8px 14px; font-size:13px; font-weight:800; display:flex; align-items:center; gap:5px; cursor:pointer;">
+            ✕ Salir
+        </button>
+        <div style="font-size:15px; font-weight:900; color:#0f172a;" id="tkBarraTitulo">Comprobante de Crédito</div>
+        <div style="width:62px;"></div>
+    </div>
+
+    <!-- Contenedor del Ticket con Borde Dentado -->
+    <div style="padding:18px 16px 32px 16px; display:flex; flex-direction:column; align-items:center;">
+        <div id="ticketPapelAvanta" style="width:100%; max-width:340px; background:#f8fafc; box-shadow:0 12px 28px rgba(15,23,42,0.16); position:relative; font-family:'Courier New', Courier, monospace, sans-serif; color:#0f172a;">
+            <!-- Borde Dentado Superior -->
+            <div style="height:10px; width:100%; background:linear-gradient(135deg, #e2e8f0 50%, transparent 50%) 0 0 / 14px 10px repeat-x, linear-gradient(225deg, #e2e8f0 50%, transparent 50%) 0 0 / 14px 10px repeat-x;"></div>
+
+            <div style="padding:16px 18px 14px 18px; text-align:center;">
+                <!-- Encabezado con Isotipo A + Flecha Cruzada -->
+                <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:4px;">
+                    <div style="width:36px; height:36px; border-radius:9px; background:#0f2b5c; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                        <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+                            <path d="M16 4L6 27H11.5L13.5 22H18.5L20.5 27H26L16 4ZM14.8 18L16 14.5L17.2 18H14.8Z" fill="#ffffff"/>
+                            <path d="M5 19L26 9M26 9H19M26 9V16" stroke="#38bdf8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div style="text-align:left;">
+                        <div style="font-size:19px; font-weight:900; color:#0f2b5c; letter-spacing:0.5px; font-family:sans-serif; line-height:1.1;">AVANTA PAGOS</div>
+                        <div id="tkTipoOperacion" style="font-size:11px; font-weight:800; color:#475569; font-family:sans-serif; letter-spacing:0.4px;">COMPROBANTE DE CRÉDITO</div>
+                    </div>
+                </div>
+
+                <div style="border-top:2px solid #1e293b; border-bottom:1px solid #cbd5e1; height:3px; margin:12px 0;"></div>
+
+                <!-- Datos del Cliente -->
+                <div style="font-size:13px; line-height:1.55; font-family:sans-serif; color:#1e293b;">
+                    <div><b>Cliente:</b> <span id="tkCliente">-</span></div>
+                    <div><b>Cédula:</b> <span id="tkCedula">-</span></div>
+                    <div><b>Tel:</b> <span id="tkTelefono">-</span></div>
+                    <div><b>Dir:</b> <span id="tkDireccion">-</span></div>
+                    <div id="tkRowRef" style="color:#0f2b5c; font-weight:700;"></div>
+                </div>
+
+                <div style="border-top:2px solid #1e293b; border-bottom:1px solid #cbd5e1; height:3px; margin:12px 0;"></div>
+
+                <!-- Condiciones del Crédito -->
+                <div style="font-size:13px; line-height:1.6; font-family:sans-serif; color:#1e293b;">
+                    <div><b>Cód. Crédito:</b> <span id="tkCodigo">000000</span></div>
+                    <div><b>Modalidad:</b> <span id="tkFrecuencia">Diaria</span></div>
+                    <div><b>Fecha entrega:</b> <span id="tkFechaInicio">-</span></div>
+                    <div><b>Capital entregado:</b> $<span id="tkCapital">0.00</span></div>
+                    <div><b>Total a pagar:</b> $<span id="tkTotal">0.00</span></div>
+                    <div><b>Valor cuota:</b> $<span id="tkCuota">0.00</span></div>
+                    <div><b>Plazo:</b> <span id="tkPlazo">-</span></div>
+                </div>
+
+                <div style="border-top:2px solid #1e293b; border-bottom:1px solid #cbd5e1; height:3px; margin:12px 0;"></div>
+
+                <!-- Saldo Actual y Vencimiento -->
+                <div style="font-family:sans-serif;">
+                    <div style="font-size:19px; font-weight:900; color:#0f172a;">Saldo actual: $<span id="tkSaldo">0.00</span></div>
+                    <div style="font-size:12.5px; font-weight:700; color:#334155; margin-top:3px;">Vence: <span id="tkVence">-</span></div>
+                    <div style="font-size:12px; font-weight:800; color:#16a34a; margin-top:2px;">Estado: Al día</div>
+                </div>
+
+                <div style="border-top:1px dashed #94a3b8; margin:12px 0 8px 0;"></div>
+
+                <div style="font-size:12px; font-weight:800; color:#334155; font-family:sans-serif;">** Gracias por preferirnos **</div>
+                <div style="font-size:11px; color:#64748b; font-family:sans-serif; margin-top:2px;" id="tkFechaEmision">Emitido hoy</div>
+            </div>
+
+            <!-- Borde Dentado Inferior -->
+            <div style="height:10px; width:100%; background:linear-gradient(45deg, #e2e8f0 50%, transparent 50%) 0 0 / 14px 10px repeat-x, linear-gradient(315deg, #e2e8f0 50%, transparent 50%) 0 0 / 14px 10px repeat-x;"></div>
+        </div>
+
+        <div style="font-size:11px; font-weight:700; color:#94a3b8; margin-top:8px;">Comprobante Digital • AVANTA PAGOS</div>
+
+        <!-- Botón Compartir Ticket como Imagen o WhatsApp -->
+        <div style="width:100%; max-width:340px; margin-top:14px; display:flex; gap:10px;">
+            <button type="button" onclick="compartirTicketAvanta()"
+                    style="flex:1; padding:13px 16px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:11px; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; box-shadow:0 4px 12px rgba(15,43,92,0.25);">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                Compartir Ticket
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 function toggleDrawer() {
     document.getElementById('drawer').classList.toggle('active');
@@ -2456,44 +2545,16 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
     // ⚡ FIJADO: Ahora sí le pasamos de forma real la variable 'diasMoraGlobalTemporal' a la ruta de Python
     fetch('/api/marcar_pago/' + clienteId + '/' + numCuota + '?monto=' + monto + '&hora_local=' + encodeURIComponent(horaLocalFormateada) + '&zona_usuario=' + encodeURIComponent(zonaUsuario) + '&dias_mora=' + diasMoraGlobalTemporal)
         .then(res => res.json())
-        .then(data => {
-                if (data.status === 'ok') {
-                    const mMsg = document.getElementById('modalMsg');
-                    if (mMsg) {
-                        mMsg.innerHTML = 'Abono de <b style="color:#16a34a;">$' + parseFloat(data.recibo.monto).toFixed(2) + '</b> registrado para <b>' + data.recibo.cliente + '</b>.<br><span style="font-size:12px; color:#64748b;">Saldo restante: $' + parseFloat(data.recibo.saldo).toFixed(2) + '</span>';
-                    }
-
-                    const numPuro = data.recibo.telefono.toString().replace(/[^0-9]/g, '').trim();
-                    const textoMensaje = encodeURIComponent(data.recibo.mensaje_ws);
-
-                    const urlCelular = 'whatsapp://send?phone=' + numPuro + '&text=' + textoMensaje;
-                    const urlWeb = 'https://wa.me' + numPuro + '?text=' + textoMensaje;
-
-                    const btnWs = document.getElementById('modalWsBtn');
-                    if (btnWs) {
-                        btnWs.href = 'javascript:void(0)';
-                        btnWs.onclick = function(e) {
-                            e.preventDefault();
-                            const dropper = document.createElement('a');
-                            dropper.target = '_blank';
-                            dropper.rel = 'noopener noreferrer';
-                            dropper.href = urlCelular;
-                            document.body.appendChild(dropper);
-                            dropper.click();
-
-                            setTimeout(function() {
-                                dropper.href = urlWeb;
-                                dropper.click();
-                                document.body.removeChild(dropper);
-                            }, 300);
-                        };
-                    }
-
-                    const modalWsEl = document.getElementById('modalWs');
-                    if (modalWsEl) modalWsEl.style.display = 'flex';
+                .then(data => {
+            if (data.status === 'ok') {
+                if (data.ticket_pago && typeof mostrarTicketAvanta === 'function') {
+                    mostrarTicketAvanta(data.ticket_pago);
                 } else {
-                    alert(data.message || 'No se pudo procesar el pago.');
+                    window.location.href = '/';
                 }
+            } else {
+                alert(data.message || 'No se pudo procesar el pago.');
+            }
         });
 }
 
@@ -2784,28 +2845,254 @@ document.addEventListener("DOMContentLoaded", function() {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
                 const res = await resp.json();
-                if (resp.ok && (res.status === 'ok' || res.success)) {
-                    const modalOk = document.getElementById('modalCreditoOk');
-                    if (modalOk) {
-                        modalOk.style.display = 'flex';
-                    } else {
-                        window.location.href = '/';
-                    }
+        if (resp.ok && (res.status === 'ok' || res.success)) {
+            if (res.ticket && typeof mostrarTicketAvanta === 'function') {
+                mostrarTicketAvanta(res.ticket);
+            } else {
+                const modalOk = document.getElementById('modalCreditoOk');
+                if (modalOk) {
+                    modalOk.style.display = 'flex';
                 } else {
-                    alert(res.mensaje || res.message || 'No se pudo registrar el crédito.');
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.innerText = txtOriginal;
-                    }
-                }
-            } catch (e) {
-                alert('Error de conexión al guardar el crédito.');
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerText = txtOriginal;
+                    window.location.href = '/';
                 }
             }
+        } else {
+            alert(res.mensaje || res.message || 'No se pudo registrar el crédito.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = txtOriginal;
+            }
         }
+    } catch (e) {
+        alert('Error de conexión al guardar el crédito.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = txtOriginal;
+        }
+    }
+}
+
+let ultimoTicketAvantaData = null;
+
+function mostrarTicketAvanta(tk) {
+    ultimoTicketAvantaData = tk;
+    const modal = document.getElementById('modalTicketAvanta');
+    if (!modal) {
+        window.location.href = '/';
+        return;
+    }
+    const esPago = (tk.tipo === 'pago');
+    const esRenov = (tk.tipo_operacion || '').includes('RENOVACIÓN');
+
+    document.getElementById('tkBarraTitulo').innerText = esPago
+        ? 'Comprobante de Pago'
+        : (esRenov ? 'Comprobante de Renovación' : 'Comprobante de Crédito');
+    document.getElementById('tkTipoOperacion').innerText = tk.tipo_operacion || (esPago ? 'COMPROBANTE OFICIAL DE PAGO' : 'COMPROBANTE DE CRÉDITO');
+    document.getElementById('tkCliente').innerText = tk.cliente || '-';
+    document.getElementById('tkCedula').innerText = tk.identificacion || 'N/A';
+    document.getElementById('tkTelefono').innerText = tk.telefono || 'N/A';
+    document.getElementById('tkDireccion').innerText = tk.direccion || 'N/A';
+
+    const rowRef = document.getElementById('tkRowRef');
+    if (tk.referencia && tk.referencia.trim() !== '') {
+        rowRef.innerText = 'Ref/Local: ' + tk.referencia.trim();
+        rowRef.style.display = 'block';
+    } else {
+        rowRef.style.display = 'none';
+    }
+
+    const bloqueCond = document.getElementById('tkCodigo').parentElement.parentElement;
+    const bloqueSaldo = document.getElementById('tkSaldo').parentElement.parentElement;
+
+    if (esPago) {
+        bloqueCond.innerHTML = `
+            <div><b>Cód. Operación:</b> <span>${tk.codigo || '000000'}</span></div>
+            <div><b>Modalidad:</b> <span>${tk.frecuencia || 'Diaria'}</span></div>
+            <div><b>Fecha y Hora Pago:</b> <span>${tk.fecha_pago || '-'}</span></div>
+            <div><b>Cuota Procesada:</b> #<span>${tk.cuota_procesada || '1'}</span></div>
+            <div style="font-size:15px; color:#16a34a; margin-top:4px;"><b>Monto Cobrado: $${tk.monto_cobrado || '0.00'}</b></div>
+        `;
+        const esLiq = parseFloat(tk.saldo_restante || '0') <= 0;
+        const colorEstado = esLiq ? '#16a34a' : ((tk.estado_dias || '').includes('mora') ? '#dc2626' : '#0284c7');
+        bloqueSaldo.innerHTML = `
+            <div style="font-size:19px; font-weight:900; color:#0f172a;">Saldo restante: $<span id="tkSaldo">${tk.saldo_restante || '0.00'}</span></div>
+            <div style="font-size:12.5px; font-weight:800; color:${colorEstado}; margin-top:3px;">Estado: ${tk.estado_dias || 'Al día'}</div>
+        `;
+    } else {
+        const unidadPlazo = (tk.frecuencia === 'Semanal') ? 'Semanas' : 'Días';
+        bloqueCond.innerHTML = `
+            <div><b>Cód. Crédito:</b> <span id="tkCodigo">${tk.codigo || '000000'}</span></div>
+            <div><b>Modalidad:</b> <span id="tkFrecuencia">${tk.frecuencia || 'Diaria'}</span></div>
+            <div><b>Fecha entrega:</b> <span id="tkFechaInicio">${tk.fecha_inicio || '-'}</span></div>
+            <div><b>Capital entregado:</b> $<span id="tkCapital">${tk.monto_capital || '0.00'}</span></div>
+            <div><b>Total a pagar:</b> $<span id="tkTotal">${tk.monto_total || '0.00'}</span></div>
+            <div><b>Valor cuota:</b> $<span id="tkCuota">${tk.valor_cuota || '0.00'}</span></div>
+            <div><b>Plazo:</b> <span id="tkPlazo">${(tk.cuotas || 0) + ' ' + unidadPlazo}</span></div>
+        `;
+        bloqueSaldo.innerHTML = `
+            <div style="font-size:19px; font-weight:900; color:#0f172a;">Saldo actual: $<span id="tkSaldo">${tk.monto_total || '0.00'}</span></div>
+            <div style="font-size:12.5px; font-weight:700; color:#334155; margin-top:3px;">Vence: <span id="tkVence">${tk.fecha_vencimiento || '-'}</span></div>
+            <div style="font-size:12px; font-weight:800; color:#16a34a; margin-top:2px;">Estado: Al día</div>
+        `;
+    }
+
+    const ahora = new Date();
+    document.getElementById('tkFechaEmision').innerText = 'Emitido: ' + ahora.toLocaleDateString('es-EC') + ' ' + ahora.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
+    modal.style.display = 'flex';
+}
+
+function cerrarTicketAvantaYVolver() {
+    const modal = document.getElementById('modalTicketAvanta');
+    if (modal) modal.style.display = 'none';
+    window.location.href = '/';
+}
+
+async function compartirTicketAvanta() {
+    if (!ultimoTicketAvantaData) return;
+    const tk = ultimoTicketAvantaData;
+    const esPago = (tk.tipo === 'pago');
+    const unidadPlazo = (tk.frecuencia === 'Semanal') ? 'Semanas' : 'Días';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = esPago ? (tk.referencia ? 840 : 800) : (tk.referencia ? 920 : 880);
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(30, 30, canvas.width - 60, canvas.height - 60);
+
+    ctx.fillStyle = '#e2e8f0';
+    for (let x = 30; x < canvas.width - 30; x += 20) {
+        ctx.beginPath(); ctx.moveTo(x, 30); ctx.lineTo(x + 10, 44); ctx.lineTo(x + 20, 30); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x, canvas.height - 30); ctx.lineTo(x + 10, canvas.height - 44); ctx.lineTo(x + 20, canvas.height - 30); ctx.fill();
+    }
+
+    ctx.fillStyle = '#0f2b5c';
+    ctx.beginPath(); ctx.roundRect(145, 65, 58, 58, 12); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 34px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('A', 174, 106);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#0f2b5c';
+    ctx.font = 'bold 32px sans-serif';
+    ctx.fillText('AVANTA PAGOS', 218, 96);
+    ctx.fillStyle = '#475569';
+    ctx.font = 'bold 17px sans-serif';
+    ctx.fillText(tk.tipo_operacion || (esPago ? 'COMPROBANTE OFICIAL DE PAGO' : 'COMPROBANTE DE CRÉDITO'), 218, 120);
+
+    const drawLine = (y) => {
+        ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(65, y); ctx.lineTo(canvas.width - 65, y); ctx.stroke();
+    };
+
+    drawLine(148);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#1e293b';
+    let y = 190;
+    const filasCliente = [
+        'Cliente: ' + (tk.cliente || '-'),
+        'Cédula: ' + (tk.identificacion || 'N/A'),
+        'Tel: ' + (tk.telefono || 'N/A'),
+        'Dir: ' + (tk.direccion || 'N/A')
+    ];
+    if (tk.referencia) filasCliente.push('Local/Ref: ' + tk.referencia);
+
+    filasCliente.forEach(txt => {
+        ctx.font = txt.startsWith('Cliente:') ? 'bold 23px sans-serif' : '21px sans-serif';
+        ctx.fillText(txt, canvas.width / 2, y);
+        y += 34;
+    });
+
+    drawLine(y + 6);
+    y += 46;
+
+    if (esPago) {
+        const filasPago = [
+            'Cód. Operación: ' + (tk.codigo || '000000'),
+            'Modalidad: ' + (tk.frecuencia || 'Diaria'),
+            'Fecha de Pago: ' + (tk.fecha_pago || '-'),
+            'Cuota Procesada: #' + (tk.cuota_procesada || '1'),
+            'Monto Cobrado: $' + (tk.monto_cobrado || '0.00')
+        ];
+        filasPago.forEach(txt => {
+            const esMonto = txt.startsWith('Monto Cobrado');
+            ctx.fillStyle = esMonto ? '#16a34a' : '#1e293b';
+            ctx.font = esMonto ? 'bold 26px sans-serif' : '21px sans-serif';
+            ctx.fillText(txt, canvas.width / 2, y);
+            y += 38;
+        });
+
+        drawLine(y + 4);
+        y += 50;
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 32px sans-serif';
+        ctx.fillText('Saldo restante: $' + (tk.saldo_restante || '0.00'), canvas.width / 2, y);
+        y += 36;
+        ctx.fillStyle = '#0f2b5c';
+        ctx.font = 'bold 21px sans-serif';
+        ctx.fillText('Estado: ' + (tk.estado_dias || 'Al día'), canvas.width / 2, y);
+        y += 45;
+    } else {
+        const filasCred = [
+            'Cód. Crédito: ' + (tk.codigo || '000000'),
+            'Modalidad: ' + (tk.frecuencia || 'Diaria'),
+            'Fecha entrega: ' + (tk.fecha_inicio || '-'),
+            'Capital entregado: $' + (tk.monto_capital || '0.00'),
+            'Total a pagar: $' + (tk.monto_total || '0.00'),
+            'Valor cuota: $' + (tk.valor_cuota || '0.00'),
+            'Plazo: ' + (tk.cuotas || 0) + ' ' + unidadPlazo
+        ];
+        filasCred.forEach(txt => {
+            ctx.font = txt.startsWith('Total') || txt.startsWith('Valor') ? 'bold 22px sans-serif' : '21px sans-serif';
+            ctx.fillText(txt, canvas.width / 2, y);
+            y += 35;
+        });
+
+        drawLine(y + 6);
+        y += 52;
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 32px sans-serif';
+        ctx.fillText('Saldo actual: $' + (tk.monto_total || '0.00'), canvas.width / 2, y);
+        y += 36;
+        ctx.fillStyle = '#334155';
+        ctx.font = 'bold 21px sans-serif';
+        ctx.fillText('Vence: ' + (tk.fecha_vencimiento || '-'), canvas.width / 2, y);
+        y += 32;
+        ctx.fillStyle = '#16a34a';
+        ctx.fillText('Estado: Al día', canvas.width / 2, y);
+        y += 45;
+    }
+
+    ctx.fillStyle = '#475569';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText('** Gracias por preferirnos **', canvas.width / 2, y);
+
+    const textoResumen = tk.mensaje_ws || (`*AVANTA PAGOS - ${tk.tipo_operacion}*\nCliente: ${tk.cliente}`);
+
+    canvas.toBlob(async (blob) => {
+        const nombreArchivo = esPago ? `Recibo_Pago_${tk.codigo}.png` : `Comprobante_Avanta_${tk.codigo}.png`;
+        const file = new File([blob], nombreArchivo, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    files: [file],
+                    title: 'Comprobante AVANTA PAGOS',
+                    text: textoResumen
+                });
+                return;
+            } catch (err) {}
+        }
+        const telLimpio = (tk.telefono || '').replace(/[^0-9]/g, '');
+        const urlWa = telLimpio.length >= 9
+            ? `https://wa.me{telLimpio.startsWith('593') ? telLimpio : '593' + telLimpio.replace(/^0/, '')}?text=${encodeURIComponent(textoResumen)}`
+            : `https://wa.me{encodeURIComponent(textoResumen)}`;
+        window.open(urlWa, '_blank');
+    }, 'image/png');
+}
 
 function filtrarDirectorioClientes() {
     const inp = document.getElementById('buscadorClientesDir');
@@ -4864,7 +5151,26 @@ def guardar_nuevo_cliente():
                     )
                     
         conn.commit()
-        return jsonify({"status": "ok", "message": "Crédito guardado exitosamente"})
+        return jsonify({
+            "status": "ok",
+            "message": "Crédito guardado exitosamente",
+            "ticket": {
+                "codigo": f"{int(cliente_id):06d}",
+                "tipo_operacion": "COMPROBANTE DE RENOVACIÓN" if (cliente_id_renovacion and cliente_id_renovacion.isdigit()) else "COMPROBANTE DE CRÉDITO",
+                "cliente": nombre,
+                "telefono": telefono or "N/A",
+                "identificacion": identificacion or "N/A",
+                "direccion": direccion or "N/A",
+                "referencia": referencia or "",
+                "frecuencia": frecuencia,
+                "fecha_inicio": fecha_inicio_dt.isoformat(),
+                "fecha_vencimiento": fecha_vencimiento_dt.isoformat(),
+                "monto_capital": f"{float(monto):.2f}",
+                "monto_total": f"{float(monto_total):.2f}",
+                "valor_cuota": f"{float(valor_cuota):.2f}",
+                "cuotas": int(cuotas)
+            }
+        })
     except Exception as e:
         print(f"Error crítico en el asiento del crédito: {e}")
         conn.rollback()
@@ -5741,6 +6047,14 @@ def api_marcar_pago(cliente_id, num_cuota):
         
     mensaje_ws += "_Sistema de Gestión de Cobros Avanta_"
     
+    estado_ticket_pago = "Al día"
+    if saldo_restante <= 0:
+        estado_ticket_pago = "CRÉDITO LIQUIDADO 100%"
+    elif tiene_mora and dias_mora_real > 0:
+        estado_ticket_pago = f"En mora ({dias_mora_real} días)"
+    elif dias_adelanto_real > 0:
+        estado_ticket_pago = f"Adelantado ({dias_adelanto_real} días)"
+
     recibo = {
         "cliente": c["nombre"],
         "telefono": c["telefono"] or "",
@@ -5749,7 +6063,24 @@ def api_marcar_pago(cliente_id, num_cuota):
         "saldo": float(saldo_restante),
         "mensaje_ws": mensaje_ws
     }
-    return jsonify({"status": "ok", "recibo": recibo})
+    ticket_pago = {
+        "tipo": "pago",
+        "codigo": f"{int(cliente_id):06d}",
+        "tipo_operacion": "COMPROBANTE OFICIAL DE PAGO",
+        "cliente": c["nombre"],
+        "identificacion": c.get("identificacion") or "N/A",
+        "telefono": c.get("telefono") or "N/A",
+        "direccion": c.get("direccion") or "N/A",
+        "referencia": c.get("referencia") or "",
+        "frecuencia": c.get("frecuencia") or "Diaria",
+        "fecha_pago": hora_local_cliente,
+        "monto_cobrado": f"{float(monto_efectivamente_aplicado):.2f}",
+        "cuota_procesada": str(num_cuota),
+        "saldo_restante": f"{float(saldo_restante):.2f}",
+        "estado_dias": estado_ticket_pago,
+        "mensaje_ws": mensaje_ws
+    }
+    return jsonify({"status": "ok", "recibo": recibo, "ticket_pago": ticket_pago})
 
 
 @app.route("/api/marcar_no_pago/<int:cliente_id>")
