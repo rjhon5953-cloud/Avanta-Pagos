@@ -4039,7 +4039,7 @@ def dashboard_principal():
         contexto_dash += f"""
         <div class="cliente-card-premium" id="cliente-card-{c_id}" data-cedula="{c.get('identificacion') or 'N/A'}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}"
              style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:13px 12px; box-shadow:0 3px 10px rgba(15,23,42,0.04); display:flex; align-items:center; justify-content:space-between; gap:8px; {borde_izq_card} {display_card}">
-            <div class="card-izquierda" style="flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px;">
+                <div class="card-izquierda" onclick="navegarRuta('/menu/cliente/{c_id}')" style="flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
                 <div style="padding-top:2px; flex-shrink:0;">
                     {html_indicador_mora}
                 </div>
