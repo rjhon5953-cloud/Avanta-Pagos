@@ -618,32 +618,104 @@ CONTENIDO_HTML = """
             {% endif %}
         </div>
 
-        <!-- Historial de Créditos -->
+                <!-- Calificación Crediticia y Resumen Histórico -->
+        {% if calificacion %}
+        <div style="background:{{ calificacion.bg }}; border:1.5px solid {{ calificacion.borde }}; border-radius:14px; padding:13px 14px; margin-bottom:12px; text-align:left;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:12px; font-weight:900; color:{{ calificacion.color }}; letter-spacing:0.3px;">● {{ calificacion.titulo }}</span>
+                <span style="background:#ffffff; color:{{ calificacion.color }}; border:1px solid {{ calificacion.borde }}; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:900;">Puntualidad: {{ calificacion.puntualidad }}%</span>
+            </div>
+            <div style="font-size:11.5px; font-weight:700; color:#334155;">{{ calificacion.detalle }}</div>
+        </div>
+        {% endif %}
+
+        {% if resumen %}
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px; text-align:center;">
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:9px 6px;">
+                <div style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase;">Créditos</div>
+                <div style="font-size:15px; font-weight:900; color:#0f2b5c; margin-top:2px;">{{ resumen.total_creditos }} <span style="font-size:10.5px; color:#16a34a;">({{ resumen.liquidados }} liq.)</span></div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:9px 6px;">
+                <div style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase;">Prestado</div>
+                <div style="font-size:15px; font-weight:900; color:#0f172a; margin-top:2px;">${{ resumen.total_prestado }}</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:9px 6px;">
+                <div style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase;">Abonado</div>
+                <div style="font-size:15px; font-weight:900; color:#16a34a; margin-top:2px;">${{ resumen.total_abonado }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Historial de Créditos y Pagos -->
         <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
-            <div style="display:flex; align-items:center; gap:8px; padding-bottom:8px; margin-bottom:4px; border-bottom:1.5px solid #f1f5f9;">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-                <span style="font-size:12.5px; font-weight:800; color:#0f2b5c; text-transform:uppercase; letter-spacing:0.3px;">Historial de Créditos</span>
+            <div style="display:flex; align-items:center; justify-content:space-between; padding-bottom:8px; margin-bottom:6px; border-bottom:1.5px solid #f1f5f9;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                    <span style="font-size:12.5px; font-weight:800; color:#0f2b5c; text-transform:uppercase; letter-spacing:0.3px;">Historial de Créditos y Pagos</span>
+                </div>
+                <span style="font-size:10.5px; font-weight:700; color:#64748b;">Toca para ver cuotas</span>
             </div>
 
             {% for cr in creditos %}
-            {% set esta_liq = (cr.saldo <= 0) %}
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f1f5f9; gap:8px;">
-                <div>
-                    <div style="font-size:12.5px; font-weight:800; color:#0f172a;">Inicio: {{ cr.fecha_inicio }}</div>
-                    <span style="display:inline-block; margin-top:4px; font-size:10px; font-weight:800; padding:2px 8px; border-radius:6px; background:{{ '#dcfce7' if esta_liq else '#fef2f2' }}; color:{{ '#15803d' if esta_liq else '#dc2626' }};">
-                        {{ 'LIQUIDADO' if esta_liq else 'ACTIVO' }}
-                    </span>
+            {% set esta_liq = (cr.saldo <= 0.01) %}
+            <div style="padding:10px 0; border-bottom:1px solid #f1f5f9;">
+                <div onclick="const el=document.getElementById('pagos-cred-{{ cr.id }}'); el.style.display = el.style.display === 'none' ? 'block' : 'none';"
+                     style="display:flex; justify-content:space-between; align-items:center; gap:8px; cursor:pointer;">
+                    <div>
+                        <div style="font-size:12.5px; font-weight:800; color:#0f172a;">Inicio: {{ cr.fecha_inicio }} <span style="font-size:11px; font-weight:600; color:#64748b;">({{ cr.frecuencia or 'Diaria' }})</span></div>
+                        <div style="display:flex; align-items:center; gap:6px; margin-top:4px; flex-wrap:wrap;">
+                            <span style="font-size:10px; font-weight:800; padding:2px 8px; border-radius:6px; background:{{ '#dcfce7' if esta_liq else '#dbeafe' }}; color:{{ '#166534' if esta_liq else '#1e40af' }};">
+                                {{ 'LIQUIDADO' if esta_liq else 'ACTIVO' }}
+                            </span>
+                            <span style="font-size:10.5px; font-weight:700; color:#475569;">
+                                {{ cr.cuotas_pagadas }}/{{ cr.total_cuotas_real }} cuotas • <b style="color:#1d4ed8;">Ver pagos ▾</b>
+                            </span>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:11px; color:#64748b; font-weight:600;">Prestado: ${{ "%.2f"|format(cr.monto|float) }}</div>
+                        <div style="font-size:11px; color:#64748b; font-weight:600;">Total: ${{ "%.2f"|format(cr.monto_total|float) }}</div>
+                        <div style="font-size:13.5px; font-weight:900; color:{{ '#16a34a' if esta_liq else '#0f2b5c' }}; margin-top:1px;">Saldo: ${{ "%.2f"|format(cr.saldo|float) }}</div>
+                    </div>
                 </div>
-                <div style="text-align:right;">
-                    <div style="font-size:11px; color:#64748b; font-weight:600;">Total: ${{ "%.2f"|format(cr.monto_total) }}</div>
-                    <div style="font-size:14px; font-weight:900; color:#0f2b5c; margin-top:2px;">Saldo: ${{ "%.2f"|format(cr.saldo) }}</div>
+
+                <!-- Tabla Desplegable de Pagos de este Crédito -->
+                <div id="pagos-cred-{{ cr.id }}" style="display:none; margin-top:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px; max-height:220px; overflow-y:auto;">
+                    {% if cr.detalle_pagos %}
+                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                        <thead>
+                            <tr style="border-bottom:1px solid #cbd5e1; color:#475569; text-align:left;">
+                                <th style="padding:4px;">#</th>
+                                <th style="padding:4px;">Vence</th>
+                                <th style="padding:4px;">Pagó</th>
+                                <th style="padding:4px; text-align:right;">Abono</th>
+                                <th style="padding:4px; text-align:right;">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in cr.detalle_pagos %}
+                            {% set vencida = (p.pagado == 0 and p.fecha < hoy_str) %}
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="padding:5px 4px; font-weight:800; color:#0f172a;">{{ p.numero }}</td>
+                                <td style="padding:5px 4px; color:#475569;">{{ p.fecha }}</td>
+                                <td style="padding:5px 4px; color:#334155; font-weight:600;">{{ p.fecha_pago_real if p.fecha_pago_real else '-' }}</td>
+                                <td style="padding:5px 4px; text-align:right; font-weight:800; color:#0f172a;">${{ "%.2f"|format((p.valor_pagado if p.pagado == 1 else p.valor)|float) }}</td>
+                                <td style="padding:5px 4px; text-align:right; font-weight:800; color:{{ '#16a34a' if p.pagado == 1 else ('#dc2626' if vencida else '#64748b') }};">
+                                    {{ 'Pagada' if p.pagado == 1 else ('Vencida' if vencida else 'Pend.') }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div style="text-align:center; color:#64748b; font-size:11px; padding:8px;">Sin cuotas registradas en este crédito.</div>
+                    {% endif %}
                 </div>
             </div>
             {% else %}
             <div style="text-align:center; font-size:12px; color:#94a3b8; padding:14px 6px; font-weight:600;">Sin créditos registrados aún.</div>
             {% endfor %}
         </div>
-        {% endif %}
 
         <!-- Geolocalización del Cliente -->
         <div style="margin-bottom:12px;">
@@ -4107,37 +4179,146 @@ def seccion_clientes_maestro():
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
 
-
 @app.route("/menu/cliente/<int:cliente_id>")
 def perfil_cliente_detalle(cliente_id):
     if not session.get("autenticado"):
         return "Sesión expirada"
-        
     conn = get_db()
     try:
+        hoy_str = date.today().isoformat()
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM clientes WHERE id = %s", (cliente_id,))
             cliente = dict(cursor.fetchone())
-            
-            cursor.execute("""
-                SELECT c.id, c.fecha_inicio, c.monto_total, c.estado,
-                       COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado
-                FROM clientes c
-                WHERE c.nombre = %s
-                ORDER BY c.id DESC
-            """, (cliente["nombre"],))
+            cedula_cli = str(cliente.get("identificacion") or "").strip()
+            nombre_cli = str(cliente.get("nombre") or "").strip()
+
+            # Buscar todos los créditos del cliente por cédula (si tiene) o por nombre
+            if cedula_cli and cedula_cli.upper() not in ("N/A", "S/N", "0", ""):
+                cursor.execute("""
+                    SELECT c.*,
+                           COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
+                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id), 0) AS total_cuotas_real,
+                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
+                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
+                    FROM clientes c
+                    WHERE TRIM(c.identificacion) = %s OR LOWER(TRIM(c.nombre)) = LOWER(%s)
+                    ORDER BY c.id DESC
+                """, (hoy_str, cedula_cli, nombre_cli))
+            else:
+                cursor.execute("""
+                    SELECT c.*,
+                           COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
+                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id), 0) AS total_cuotas_real,
+                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
+                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
+                    FROM clientes c
+                    WHERE LOWER(TRIM(c.nombre)) = LOWER(%s)
+                    ORDER BY c.id DESC
+                """, (hoy_str, nombre_cli))
+
             historial_creditos = []
+            total_cuotas_hist = 0
+            total_pagadas_hist = 0
+            total_vencidas_hist = 0
+            creditos_liquidados = 0
+            total_prestado_hist = Decimal("0.00")
+            total_abonado_hist = Decimal("0.00")
+
             for cr in cursor.fetchall():
                 cr_dict = dict(cr)
-                cr_dict["saldo"] = max(Decimal("0.00"), Decimal(str(cr_dict["monto_total"])) - Decimal(str(cr_dict["pagado"])))
+                m_tot = Decimal(str(cr_dict.get("monto_total") or "0"))
+                m_cap = Decimal(str(cr_dict.get("monto") or "0"))
+                m_pag = Decimal(str(cr_dict.get("pagado") or "0"))
+                cr_dict["saldo"] = max(Decimal("0.00"), m_tot - m_pag)
+
+                t_c = int(cr_dict.get("total_cuotas_real") or 0)
+                c_p = int(cr_dict.get("cuotas_pagadas") or 0)
+                c_v = int(cr_dict.get("cuotas_vencidas") or 0)
+
+                total_cuotas_hist += t_c
+                total_pagadas_hist += c_p
+                total_vencidas_hist += c_v
+                total_prestado_hist += m_cap
+                total_abonado_hist += m_pag
+                if cr_dict["saldo"] <= Decimal("0.01"):
+                    creditos_liquidados += 1
+
+                # Cargar cronograma detallado de pagos de este crédito
+                cursor.execute("""
+                    SELECT numero, fecha, valor, pagado, valor_pagado, fecha_pago_real
+                    FROM pagos
+                    WHERE cliente_id = %s
+                    ORDER BY numero ASC
+                """, (cr_dict["id"],))
+                cr_dict["detalle_pagos"] = [dict(p) for p in cursor.fetchall()]
                 historial_creditos.append(cr_dict)
+
+            # Cálculo automático de Calificación Crediticia (Buen Pagador vs Riesgo)
+            cuotas_exigibles = total_pagadas_hist + total_vencidas_hist
+            if cuotas_exigibles > 0:
+                puntualidad = round((total_pagadas_hist / cuotas_exigibles) * 100)
+            else:
+                puntualidad = 100
+
+            if total_vencidas_hist == 0 and (creditos_liquidados > 0 or total_pagadas_hist >= 3):
+                calificacion = {
+                    "titulo": "EXCELENTE PAGADOR",
+                    "color": "#16a34a",
+                    "bg": "#dcfce7",
+                    "borde": "#86efac",
+                    "puntualidad": puntualidad,
+                    "detalle": f"{creditos_liquidados} crédito(s) liquidado(s) • Sin cuotas vencidas"
+                }
+            elif puntualidad >= 80 and total_vencidas_hist <= 2:
+                calificacion = {
+                    "titulo": "BUEN CLIENTE",
+                    "color": "#0284c7",
+                    "bg": "#e0f2fe",
+                    "borde": "#7dd3fc",
+                    "puntualidad": puntualidad,
+                    "detalle": f"Cumplimiento del {puntualidad}% • {total_vencidas_hist} cuota(s) atrasada(s)"
+                }
+            elif puntualidad >= 55:
+                calificacion = {
+                    "titulo": "CLIENTE REGULAR",
+                    "color": "#d97706",
+                    "bg": "#fef3c7",
+                    "borde": "#fcd34d",
+                    "puntualidad": puntualidad,
+                    "detalle": f"Cumplimiento del {puntualidad}% • {total_vencidas_hist} cuota(s) vencida(s)"
+                }
+            else:
+                calificacion = {
+                    "titulo": "RIESGO / MAL PAGADOR",
+                    "color": "#dc2626",
+                    "bg": "#fee2e2",
+                    "borde": "#fca5a5",
+                    "puntualidad": puntualidad,
+                    "detalle": f"Mora alta ({total_vencidas_hist} cuotas vencidas) • Evaluar antes de renovar"
+                }
+
+            resumen_global = {
+                "total_creditos": len(historial_creditos),
+                "liquidados": creditos_liquidados,
+                "total_prestado": f"{total_prestado_hist:.2f}",
+                "total_abonado": f"{total_abonado_hist:.2f}",
+                "cuotas_pagadas": total_pagadas_hist,
+                "cuotas_vencidas": total_vencidas_hist
+            }
+
+        contexto = dict(
+            vista="perfil_cliente",
+            cliente=cliente,
+            creditos=historial_creditos,
+            calificacion=calificacion,
+            resumen=resumen_global,
+            hoy_str=hoy_str
+        )
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return render_template_string(CONTENIDO_HTML, **contexto)
+        return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
     except Exception as e:
         return f"Error al cargar ficha: {e}", 500
-
-    contexto = dict(vista="perfil_cliente", cliente=cliente, creditos=historial_creditos)
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return render_template_string(CONTENIDO_HTML, **contexto)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
 
 
 @app.route("/api/cliente/actualizar/<int:cliente_id>", methods=["POST"])
