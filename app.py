@@ -2239,7 +2239,8 @@ function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 
 
     const card = document.getElementById('cliente-card-' + clienteId);
     const nombre = card ? (card.getAttribute('data-nombre') || 'Cliente').toUpperCase() : 'Cliente #' + clienteId;
-    const alias = card ? (card.querySelector('span')?.innerText || '-') : '-';
+    const spansCard = card ? card.querySelectorAll('span') : [];
+    const alias = spansCard.length > 1 ? spansCard[1].innerText.trim() : '-';
     const cedula = card ? (card.getAttribute('data-cedula') || 'N/A') : 'N/A';
     let saldoNum = parseFloat(pendiente) || 0;
     if (card) {
@@ -2256,12 +2257,16 @@ function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 
     document.getElementById('gpNombre').innerText = nombre;
     document.getElementById('gpAlias').innerText = alias;
     document.getElementById('gpDocumento').innerText = cedula;
-    const cuadroDias = card ? card.querySelector('.circulo-check-cuota') : null;
-    const bgCuadro = cuadroDias ? (cuadroDias.getAttribute('style') || '') : '';
-    const esAdelanto = bgCuadro.includes('2563eb') || bgCuadro.includes('37, 99, 235');
+
+    // Sincronización 100% con el cuadro de Días de la tarjeta
+    const cuadroDias = card ? card.querySelector('.info-bloque-texto > div:last-child > div:nth-child(2)') : null;
+    const textoDiasCard = cuadroDias ? cuadroDias.innerText.trim() : String(Math.abs(diasMoraGlobalTemporal));
+    const estiloDiasCard = cuadroDias ? (cuadroDias.getAttribute('style') || '').toLowerCase() : '';
+    const esAdelanto = estiloDiasCard.includes('16a34a') || estiloDiasCard.includes('dcfce7') || estiloDiasCard.includes('2563eb') || diasMoraGlobalTemporal < 0;
+
     document.getElementById('gpLblDiasEstado').innerText = esAdelanto ? 'Días de adelanto' : 'Días de mora';
-    document.getElementById('gpDiasMora').innerText = diasMoraGlobalTemporal;
-    document.getElementById('gpDiasMora').style.color = esAdelanto ? '#2563eb' : '#0f172a';
+    document.getElementById('gpDiasMora').innerText = textoDiasCard;
+    document.getElementById('gpDiasMora').style.color = esAdelanto ? '#16a34a' : (parseInt(textoDiasCard) > 0 ? '#dc2626' : '#0f172a');
     document.getElementById('gpUltimoPago').innerText = card ? (card.getAttribute('data-ultpago') || 'Sin pagos previos') : '-';
     document.getElementById('gpSaldoTexto').innerText = '$' + saldoNum.toFixed(2);
 
@@ -2466,22 +2471,32 @@ function ejecutarNoPago(clienteId, prevTipo = '', prevIds = '') {
     gestionPreviaIds = prevIds;
     document.getElementById('gnpClienteId').value = clienteId;
     const card = document.getElementById('cliente-card-' + clienteId);
-    const nombre = card ? (card.querySelector('.nombre-real')?.innerText || 'Cliente') : 'Cliente #' + clienteId;
-    const alias = card ? (card.querySelector('.id-alias')?.innerText || '-') : '-';
+    const nombre = card ? (card.getAttribute('data-nombre') || 'Cliente').toUpperCase() : 'Cliente #' + clienteId;
+    const spansCard = card ? card.querySelectorAll('span') : [];
+    const alias = spansCard.length > 1 ? spansCard[1].innerText.trim() : '-';
     const cedula = card ? (card.getAttribute('data-cedula') || 'N/A') : 'N/A';
-    const diasMora = card ? (card.querySelector('.circulo-check-cuota')?.innerText || '0') : '0';
-    const saldoTxt = card ? (card.querySelector('.badge-saldo-premium b')?.innerText || '$0.00') : '$0.00';
+
+    let saldoTxt = '$0.00';
+    if (card) {
+        const bTags = card.querySelectorAll('b');
+        const lastB = bTags.length > 0 ? bTags[bTags.length - 1] : null;
+        if (lastB && lastB.innerText.includes('$')) {
+            saldoTxt = lastB.innerText.trim();
+        }
+    }
+
+    const cuadroDiasNp = card ? card.querySelector('.info-bloque-texto > div:last-child > div:nth-child(2)') : null;
+    const diasMora = cuadroDiasNp ? cuadroDiasNp.innerText.trim() : '0';
+    const bgCuadroNp = cuadroDiasNp ? (cuadroDiasNp.getAttribute('style') || '').toLowerCase() : '';
+    const esAdelantoNp = bgCuadroNp.includes('16a34a') || bgCuadroNp.includes('dcfce7') || bgCuadroNp.includes('2563eb');
 
     document.getElementById('gnpIdCliente').innerText = clienteId;
     document.getElementById('gnpNombre').innerText = nombre;
     document.getElementById('gnpAlias').innerText = alias;
     document.getElementById('gnpDocumento').innerText = cedula;
-    const cuadroDiasNp = card ? card.querySelector('.circulo-check-cuota') : null;
-    const bgCuadroNp = cuadroDiasNp ? (cuadroDiasNp.getAttribute('style') || '') : '';
-    const esAdelantoNp = bgCuadroNp.includes('2563eb') || bgCuadroNp.includes('37, 99, 235');
     document.getElementById('gnpLblDiasEstado').innerText = esAdelantoNp ? 'Días de adelanto' : 'Días de mora';
     document.getElementById('gnpDiasMora').innerText = diasMora;
-    document.getElementById('gnpDiasMora').style.color = esAdelantoNp ? '#2563eb' : '#0f172a';
+    document.getElementById('gnpDiasMora').style.color = esAdelantoNp ? '#16a34a' : (parseInt(diasMora) > 0 ? '#dc2626' : '#0f172a');
     document.getElementById('gnpUltimoPago').innerText = card ? (card.getAttribute('data-ultpago') || 'Sin pagos previos') : '-';
     document.getElementById('gnpSaldoTexto').innerText = saldoTxt;
     document.getElementById('gnpComentarios').value = '';
@@ -4077,9 +4092,17 @@ def dashboard_principal():
             else:
                 html_botones_derechos = '<span style="font-size:18px; color:#10b981; font-weight:bold; padding-right:10px;">✔</span>'
 
+            cursor.execute("""
+                SELECT fecha_pago_real FROM pagos
+                WHERE cliente_id = %s AND valor_pagado > 0 AND COALESCE(fecha_pago_real, '') <> ''
+                ORDER BY id DESC LIMIT 1
+            """, (c_id,))
+            row_ult_p = cursor.fetchone()
+            ult_pago_str = str(row_ult_p["fecha_pago_real"] if isinstance(row_ult_p, dict) else row_ult_p[0]).strip() if row_ult_p else "Sin pagos previos"
+
         # Inyección limpia en las tarjetas premium
         contexto_dash += f"""
-        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-cedula="{c.get('identificacion') or 'N/A'}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}"
+        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-cedula="{c.get('identificacion') or 'N/A'}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}" data-ultpago="{ult_pago_str}"
              style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:13px 12px; box-shadow:0 3px 10px rgba(15,23,42,0.04); display:flex; align-items:center; justify-content:space-between; gap:8px; {borde_izq_card} {display_card}">
                 <div class="card-izquierda" onclick="navegarRuta('/menu/cliente/{c_id}')" style="flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
                 <div style="padding-top:2px; flex-shrink:0;">
@@ -5555,24 +5578,25 @@ def api_marcar_pago(cliente_id, num_cuota):
     hoy_date = date.fromisoformat(hoy_str)
     monto_restante = monto_recaudado
     monto_efectivamente_aplicado = Decimal("0.00")
+    fecha_hora_pago = (datetime.utcnow() - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M")
     try:
         with conn.cursor() as cursor:
             # 1. Aplicamos el dinero recibido a las cuotas pendientes cronológicamente
             cursor.execute("SELECT id, numero, fecha, valor, valor_pagado, pagado FROM pagos WHERE cliente_id = %s AND pagado = 0 ORDER BY numero ASC", (cliente_id,))
             pagos_pendientes = cursor.fetchall()
-            
+
             for p in pagos_pendientes:
                 if monto_restante <= 0:
                     break
-                    
+
                 pendiente_cuota = Decimal(str(p["valor"])) - Decimal(str(p["valor_pagado"]))
-                
+
                 if monto_restante >= pendiente_cuota:
                     monto_restante = round(monto_restante - pendiente_cuota, 2)
                     monto_efectivamente_aplicado += pendiente_cuota
                     cursor.execute(
                         "UPDATE pagos SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
-                        (p["valor"], hoy_str, p["id"])
+                        (p["valor"], fecha_hora_pago, p["id"])
                     )
                 else:
                     nuevo_pago_parcial = round(Decimal(str(p["valor_pagado"])) + monto_restante, 2)
@@ -5580,7 +5604,7 @@ def api_marcar_pago(cliente_id, num_cuota):
                     monto_restante = Decimal("0.00")
                     cursor.execute(
                         "UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
-                        (nuevo_pago_parcial, hoy_str, p["id"])
+                        (nuevo_pago_parcial, fecha_hora_pago, p["id"])
                     )
 
             # 2. Evaluamos el estado REAL de la cuenta DESPUÉS de aplicar el pago
