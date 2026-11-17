@@ -2981,7 +2981,18 @@ async function compartirTicketAvanta() {
     ctx.font = 'bold 34px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('A', 174, 106);
-
+    // Flecha celeste cruzada sobre la letra A del logotipo
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(154, 100);
+    ctx.lineTo(192, 82);
+    ctx.moveTo(180, 82);
+    ctx.lineTo(192, 82);
+    ctx.lineTo(192, 94);
+    ctx.stroke();
     ctx.textAlign = 'left';
     ctx.fillStyle = '#0f2b5c';
     ctx.font = 'bold 32px sans-serif';
