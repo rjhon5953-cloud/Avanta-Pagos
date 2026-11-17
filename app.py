@@ -819,11 +819,20 @@ CONTENIDO_HTML = """
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     Modificar
                 </button>
+                {% set tiene_saldo_activo = (cred_activo and cred_activo.saldo > 0.01) %}
+                {% if tiene_saldo_activo %}
+                <button type="button" onclick="alert('No se puede conceder un nuevo crédito porque este cliente aún tiene un saldo pendiente de ${{ "%.2f"|format(cred_activo.saldo|float) }}.');"
+                        style="flex:1.35; padding:12px 10px; background:#cbd5e1; color:#475569; border:1.5px solid #94a3b8; border-radius:11px; font-weight:800; font-size:12.5px; cursor:not-allowed; display:flex; align-items:center; justify-content:center; gap:5px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Saldo Activo (${{ "%.2f"|format(cred_activo.saldo|float) }})
+                </button>
+                {% else %}
                 <button type="button" onclick="navegarRuta('/mover_renovacion/{{ cliente.id if cliente else 0 }}')"
-                        style="flex:1.35; padding:12px 10px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:11px; font-weight:800; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 4px 10px rgba(15,43,92,0.22);">
+                        style="flex:1.35; padding:12px 10px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:11px; font-weight:800; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 8px rgba(15,43,92,0.2);">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     Conceder Crédito
                 </button>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -4252,8 +4261,8 @@ def perfil_cliente_detalle(cliente_id):
             cedula_cli = str(cliente.get("identificacion") or "").strip()
             nombre_cli = str(cliente.get("nombre") or "").strip()
 
-            # Buscar todos los créditos del cliente por cédula (si tiene) o por nombre
-            if cedula_cli and cedula_cli.upper() not in ("N/A", "S/N", "0", ""):
+            # Buscar créditos del cliente solo por cédula válida (8+ dígitos) o por su ID único
+            if cedula_cli and len(cedula_cli) >= 8 and cedula_cli not in ("0000000000", "1111111111", "1234567890"):
                 cursor.execute("""
                     SELECT c.*,
                            COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
@@ -4261,9 +4270,9 @@ def perfil_cliente_detalle(cliente_id):
                            COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
                            COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
                     FROM clientes c
-                    WHERE TRIM(c.identificacion) = %s OR LOWER(TRIM(c.nombre)) = LOWER(%s)
+                    WHERE TRIM(c.identificacion) = %s
                     ORDER BY c.id DESC
-                """, (hoy_str, cedula_cli, nombre_cli))
+                """, (hoy_str, cedula_cli))
             else:
                 cursor.execute("""
                     SELECT c.*,
@@ -4272,9 +4281,9 @@ def perfil_cliente_detalle(cliente_id):
                            COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
                            COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
                     FROM clientes c
-                    WHERE LOWER(TRIM(c.nombre)) = LOWER(%s)
+                    WHERE c.id = %s
                     ORDER BY c.id DESC
-                """, (hoy_str, nombre_cli))
+                """, (hoy_str, cliente_id))
 
             historial_creditos = []
             total_cuotas_hist = 0
@@ -4760,6 +4769,24 @@ def guardar_nuevo_cliente():
                 from datetime import timedelta as _td
                 salto_v = 7 if frecuencia == "Semanal" else 1
                 fecha_vencimiento_dt = fecha_inicio_dt + _td(days=(cuotas - 1) * salto_v)
+
+            # Bloqueo: No permitir conceder crédito nuevo si el cliente ya tiene crédito activo con saldo pendiente
+            if not (cliente_id_renovacion and cliente_id_renovacion.isdigit()):
+                if identificacion and len(identificacion.strip()) >= 8 and identificacion.strip() not in ("0000000000", "1111111111", "1234567890"):
+                    cursor.execute("""
+                        SELECT c.id, c.nombre, c.monto_total,
+                               COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado
+                        FROM clientes c
+                        WHERE TRIM(c.identificacion) = %s AND c.estado = 'Activo'
+                    """, (identificacion.strip(),))
+                    for dup in cursor.fetchall():
+                        d_row = dict(dup) if isinstance(dup, dict) else {"id": dup[0], "nombre": dup[1], "monto_total": dup[2], "pagado": dup[3]}
+                        saldo_dup = Decimal(str(d_row["monto_total"] or "0")) - Decimal(str(d_row["pagado"] or "0"))
+                        if saldo_dup > Decimal("0.01"):
+                            return jsonify({
+                                "status": "error",
+                                "message": f"El cliente {d_row['nombre']} ya tiene un crédito activo con saldo pendiente de ${saldo_dup:.2f}. Debe liquidarlo antes de conceder otro."
+                            }), 400
 
             if cliente_id_renovacion and cliente_id_renovacion.isdigit():
                 cliente_id = int(cliente_id_renovacion)
