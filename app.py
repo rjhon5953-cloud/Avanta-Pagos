@@ -1105,11 +1105,11 @@ CONTENIDO_HTML = """
                 <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:5px;">Frecuencia de Cobro</label>
                 <input type="hidden" name="frecuencia" id="inputFreqCredito" value="Diaria">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:13px;">
-                    <div id="btnFreqDiaria" onclick="seleccionarFreqCredito('Diaria')"
+                    <div id="btnFreqDiaria" onclick="document.getElementById('inputFreqCredito').value='Diaria'; seleccionarFreqCredito('Diaria')"
                          style="padding:11px; border-radius:10px; border:2px solid #0f2b5c; background:#0f2b5c; color:#ffffff; font-size:13px; font-weight:800; text-align:center; cursor:pointer; user-select:none;">
                         Diaria
                     </div>
-                    <div id="btnFreqSemanal" onclick="seleccionarFreqCredito('Semanal')"
+                    <div id="btnFreqSemanal" onclick="document.getElementById('inputFreqCredito').value='Semanal'; seleccionarFreqCredito('Semanal')"
                          style="padding:11px; border-radius:10px; border:1.5px solid #cbd5e1; background:#f8fafc; color:#475569; font-size:13px; font-weight:700; text-align:center; cursor:pointer; user-select:none;">
                         Semanal
                     </div>
@@ -3871,21 +3871,20 @@ def dashboard_principal():
             # Diarios: salen todos los días.
             # Semanales: salen el día de su cuota y siguen saliendo cada día de esa semana hasta que completen la cuota (pagado = 1).
             cursor.execute("""
-                SELECT c.id, c.nombre, c.telefono, c.direccion, c.referencia, c.identificacion, c.frecuencia, c.cuotas, c.valor_cuota, c.monto_total, c.orden, c.estado, c.fecha_gestion
+                SELECT c.id, c.nombre, c.telefono, c.direccion, c.referencia, c.identificacion, c.frecuencia, c.cuotas, c.valor_cuota, c.monto_total, c.orden, c.estado, c.fecha_gestion, c.fecha_inicio
                 FROM clientes c
-                WHERE c.estado = 'Activo' 
+                WHERE c.estado = 'Activo'
+                  AND COALESCE(NULLIF(TRIM(c.fecha_inicio::text), '')::date, CURRENT_DATE) <= CAST(%s AS DATE)
                   AND (
-                      c.frecuencia = 'Diaria' 
-                      OR (
-                          c.frecuencia = 'Semanal' AND (
-                              EXTRACT(DOW FROM CAST(%s AS DATE)) = 1
-                              OR EXISTS (
-                                  SELECT 1 FROM pagos p 
-                                  WHERE p.cliente_id = c.id 
-                                    AND ((p.pagado = 0 AND p.fecha <= %s) OR p.fecha_pago_real = %s)
-                              )
-                          )
-                      )
+                        LOWER(TRIM(c.frecuencia)) = 'diaria'
+                     OR (
+                            LOWER(TRIM(c.frecuencia)) = 'semanal'
+                        AND EXISTS (
+                                SELECT 1 FROM pagos p
+                                WHERE p.cliente_id = c.id
+                                  AND ((p.pagado = 0 AND p.fecha <= %s) OR p.fecha_pago_real = %s)
+                            )
+                        )
                   )
                 ORDER BY c.orden ASC, c.id DESC
             """, (hoy_str, hoy_str, hoy_str))
@@ -5059,7 +5058,8 @@ def guardar_nuevo_cliente():
     except Exception:
         return jsonify({"status": "error", "message": "Valores numéricos inválidos"}), 400
 
-    frecuencia = request.form.get("frecuencia", "Diaria")
+    raw_freq = (request.form.get("frecuencia") or request.form.get("frecuencia_pago") or "Diaria").strip().lower()
+    frecuencia = "Semanal" if raw_freq == "semanal" else "Diaria"
     # 📌 CORREGIDO: Se empareja con el name real de tus opciones HTML
     aplica_seguro = request.form.get("aplicar_seguro", "NO")
     
