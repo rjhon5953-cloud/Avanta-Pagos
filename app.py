@@ -4092,13 +4092,17 @@ def dashboard_principal():
             else:
                 html_botones_derechos = '<span style="font-size:18px; color:#10b981; font-weight:bold; padding-right:10px;">✔</span>'
 
+        try:
             cursor.execute("""
                 SELECT fecha_pago_real FROM pagos
-                WHERE cliente_id = %s AND valor_pagado > 0 AND COALESCE(fecha_pago_real, '') <> ''
-                ORDER BY id DESC LIMIT 1
+                WHERE cliente_id = %s AND COALESCE(fecha_pago_real, '') <> ''
+                ORDER BY numero DESC LIMIT 1
             """, (c_id,))
             row_ult_p = cursor.fetchone()
             ult_pago_str = str(row_ult_p["fecha_pago_real"] if isinstance(row_ult_p, dict) else row_ult_p[0]).strip() if row_ult_p else "Sin pagos previos"
+        except Exception as _err:
+            conn.rollback() # type: ignore
+            ult_pago_str = "Sin pagos previos"
 
         # Inyección limpia en las tarjetas premium
         contexto_dash += f"""
