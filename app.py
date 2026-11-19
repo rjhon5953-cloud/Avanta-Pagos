@@ -4828,14 +4828,15 @@ def seccion_creditos_activos():
         return "Sesión expirada"
         
     filtro_estado = request.args.get("filter", "Activo")
+    rid = int(session.get("ruta_id") or 1)
     
     conn = get_db()
     try:
         with conn.cursor() as cursor:
             # 📊 Optimizamos la consulta principal de todos los clientes bajo el filtro seleccionado
             cursor.execute(
-                "SELECT id, nombre, frecuencia, monto_total, estado, saltado_hoy, valor_cuota FROM clientes WHERE estado = %s ORDER BY nombre ASC", 
-                (filtro_estado,)
+                "SELECT id, nombre, frecuencia, monto_total, estado, saltado_hoy, valor_cuota FROM clientes WHERE ruta_id = %s AND estado = %s ORDER BY nombre ASC",
+                (rid, filtro_estado)
             )
             todos = cursor.fetchall()
             
@@ -4858,13 +4859,13 @@ def seccion_creditos_activos():
                 clientes_completos.append(t_dict)
             
             # Consultas de conteo rápidas para los badges superiores
-            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE estado = 'Activo'")
+            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE ruta_id = %s AND estado = 'Activo'", (rid,))
             total_activos = int(cursor.fetchone()["total"])
-            
-            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE estado = 'Inactivo'")
+
+            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE ruta_id = %s AND estado = 'Inactivo'", (rid,))
             total_inactivos = int(cursor.fetchone()["total"])
-            
-            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE estado = 'Lista Negra'")
+
+            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE ruta_id = %s AND estado = 'Lista Negra'", (rid,))
             total_negra = int(cursor.fetchone()["total"])
             
     except Exception as e:
@@ -5366,12 +5367,13 @@ def api_eliminar_cliente(id):
 def mover(cliente_id, direccion):
     if not session.get("autenticado"): 
         return "No autorizado"
-        
+    
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     try:
         with conn.cursor() as cursor:
             # 📊 Recuperamos todos los clientes activos ordenados para calcular posiciones en memoria
-            cursor.execute("SELECT id, orden FROM clientes WHERE estado = 'Activo' ORDER BY orden ASC, id DESC")
+            cursor.execute("SELECT id, orden FROM clientes WHERE ruta_id = %s AND estado = 'Activo' ORDER BY orden ASC, id DESC", (rid,))
             clientes = cursor.fetchall()
             
             # 🛡️ FIJADO: Operador de comparación exacto para hallar la posición del cliente
@@ -5405,12 +5407,13 @@ def mover(cliente_id, direccion):
 def seccion_reordenar_ruta():
     if not session.get("autenticado"): 
         return "Sesión expirada"
-        
+    
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     try:
         with conn.cursor() as cursor:
             # 📊 Traemos los clientes activos en su orden actual de secuencia
-            cursor.execute("SELECT id, nombre, orden, referencia, frecuencia FROM clientes WHERE estado = 'Activo' ORDER BY orden ASC, id DESC")
+            cursor.execute("SELECT id, nombre, orden, referencia, frecuencia FROM clientes WHERE ruta_id = %s AND estado = 'Activo' ORDER BY orden ASC, id DESC", (rid,))
             todos = cursor.fetchall()
     except Exception as e:
         print(f"Error al cargar orden de ruta: {e}")
@@ -5518,7 +5521,7 @@ def seccion_listados():
         return "Sesión expirada"
 
     fecha_filtro = request.args.get("fecha_auditoria", date.today().isoformat())
-
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     try:
         with conn.cursor() as cursor:
@@ -5527,13 +5530,13 @@ def seccion_listados():
                 SELECT p.numero, p.valor_pagado, c.id AS cliente_id, c.nombre
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
-                WHERE p.fecha_pago_real = %s AND p.valor_pagado > 0
+                WHERE c.ruta_id = %s AND p.fecha_pago_real = %s AND p.valor_pagado > 0
                 ORDER BY c.nombre ASC, p.numero ASC
-                """, (fecha_filtro,)
+                """, (rid, fecha_filtro)
             )
             pagos_f = cursor.fetchall()
 
-            cursor.execute("SELECT id, nombre, monto, monto_total FROM clientes WHERE fecha_inicio = %s ORDER BY nombre ASC", (fecha_filtro,))
+            cursor.execute("SELECT id, nombre, monto, monto_total FROM clientes WHERE ruta_id = %s AND fecha_inicio = %s ORDER BY nombre ASC", (rid, fecha_filtro))
             creditos_f = cursor.fetchall()
     except Exception as e:
         print(f"Error al consultar auditoría histórica: {e}")
@@ -5671,18 +5674,19 @@ def seccion_listados():
 def seccion_agregar_lista():
     if not session.get("autenticado"):
         return "Sesión expirada"
-
+    
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
                 SELECT id, nombre, referencia, frecuencia, COALESCE(enrutado_forzado, 0) AS enrutado_forzado
                 FROM clientes
-                WHERE estado = 'Activo'
+                WHERE ruta_id = %s AND estado = 'Activo'
                 ORDER BY
                     CASE WHEN frecuencia = 'Semanal' THEN 0 ELSE 1 END ASC,
                     nombre ASC
-            """)
+                """, (rid,))    
             todos = cursor.fetchall()
     except Exception as e:
         print(f"Error al cargar enrutamiento forzado: {e}")
@@ -5817,20 +5821,21 @@ def seccion_respaldo_nube():
     error_respaldo = None
     total_clientes = 0
     total_pagos = 0
-    
+
+    rid = int(session.get("ruta_id") or 1)
     # 🔄 RESPALDO REAL: Verificación física y conteo de consistencia en Neon
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
             row_f = cursor.fetchone()
             hoy_str = row_f["valor"] if (row_f and row_f["valor"]) else date.today().isoformat()
-            
-            cursor.execute("SELECT COUNT(*) AS total FROM clientes")
+
+            cursor.execute("SELECT COUNT(*) AS total FROM clientes WHERE ruta_id = %s", (rid,))
             res_c = cursor.fetchone()
             total_clientes = res_c["total"] if isinstance(res_c, dict) else res_c[0]
-            
-            cursor.execute("SELECT COUNT(*) AS total FROM pagos WHERE pagado = 1")
+
+            cursor.execute("SELECT COUNT(*) AS total FROM pagos WHERE ruta_id = %s AND pagado = 1", (rid,))
             res_p = cursor.fetchone()
             total_pagos = res_p["total"] if isinstance(res_p, dict) else res_p[0]
             
@@ -6274,10 +6279,11 @@ def seccion_configuracion_sistema():
     if not session.get("autenticado"):
         return "Sesión expirada"
 
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT llave, valor FROM configuracion")
+            cursor.execute("SELECT llave, valor FROM configuracion WHERE ruta_id = %s", (rid,))
             filas = cursor.fetchall()
             config = {f["llave"]: f["valor"] for f in filas}
     finally:
@@ -6436,6 +6442,7 @@ def api_guardar_configuracion_maestra():
     auto_bluetooth = "1" if request.form.get("auto_bluetooth") == "1" else "0"
     nueva_clave = request.form.get("nueva_clave", "").strip()
 
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     try:
         with conn.cursor() as cursor:
@@ -6450,17 +6457,14 @@ def api_guardar_configuracion_maestra():
 
             for llave, valor in maestro_datos.items():
                 if valor != "":
-                    cursor.execute(
-                        "INSERT INTO configuracion (llave, valor) VALUES (%s, %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                        (llave, valor)
-                    )
+                    cursor.execute("DELETE FROM configuracion WHERE llave = %s AND ruta_id = %s", (llave, rid))
+                    cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES (%s, %s, %s)", (llave, valor, rid))
 
             if nueva_clave:
                 hash_clave = generate_password_hash(nueva_clave)
-                cursor.execute(
-                    "INSERT INTO configuracion (llave, valor) VALUES ('clave', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                    (hash_clave,)
-                )
+                cursor.execute("DELETE FROM configuracion WHERE llave = 'clave' AND ruta_id = %s", (rid,))
+                cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES ('clave', %s, %s)", (hash_clave, rid))
+                cursor.execute("UPDATE rutas SET clave_cobrador = %s WHERE id = %s", (nueva_clave, rid))
 
             conn.commit()
     except Exception as e:
@@ -6562,9 +6566,10 @@ def seccion_perfil():
     if not session.get("autenticado"): 
         return "Sesión expirada"
     
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     with conn.cursor() as cursor:
-        cursor.execute("SELECT llave, valor FROM configuracion WHERE llave IN ('usuario', 'cobrador_nombre', 'cobrador_cedula', 'cobrador_celular', 'cobrador_correo')")
+        cursor.execute("SELECT llave, valor FROM configuracion WHERE ruta_id = %s AND llave IN ('usuario', 'cobrador_nombre', 'cobrador_cedula', 'cobrador_celular', 'cobrador_correo')", (rid,))
         filas = cursor.fetchall()
         
     datos = {f["llave"]: f["valor"] for f in filas}
@@ -6594,9 +6599,9 @@ def api_guardar_perfil():
     cel = request.args.get("celular")
     cor = request.args.get("correo")
     
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     with conn.cursor() as cursor:
-        # 🛡️ MODO ELIMINACIÓN Y COCCIÓN REAL: Limpia duplicados fantasmas en Neon
         for llave_conf, valor_conf in [
             ('usuario', nuevo_usuario),
             ('cobrador_nombre', nom),
@@ -6604,14 +6609,14 @@ def api_guardar_perfil():
             ('cobrador_celular', cel),
             ('cobrador_correo', cor)
         ]:
-            # Primero borramos cualquier rastro previo para evitar conflictos de filas duplicadas sin índice
-            cursor.execute("DELETE FROM configuracion WHERE llave = %s", (llave_conf,))
-            # Insertamos el valor fresco enviado desde el celular
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES (%s, %s)", (llave_conf, valor_conf))
+            cursor.execute("DELETE FROM configuracion WHERE llave = %s AND ruta_id = %s", (llave_conf, rid))
+            cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES (%s, %s, %s)", (llave_conf, valor_conf, rid))
 
         if nueva_clave and nueva_clave.strip() != "":
             clave_encriptada = generate_password_hash(nueva_clave)
-            cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = 'clave'", (clave_encriptada,))
+            cursor.execute("DELETE FROM configuracion WHERE llave = 'clave' AND ruta_id = %s", (rid,))
+            cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES ('clave', %s, %s)", (clave_encriptada, rid))
+            cursor.execute("UPDATE rutas SET clave_cobrador = %s WHERE id = %s", (nueva_clave.strip(), rid))
     conn.commit()
     
     session["usuario"] = nuevo_usuario
@@ -6623,7 +6628,8 @@ def seccion_pagos_hoy():
         return "Sesión expirada"
         
     hoy_str = date.today().isoformat()
-    
+
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     try:
         with conn.cursor() as cursor:
@@ -6633,9 +6639,9 @@ def seccion_pagos_hoy():
                 SELECT p.id AS pago_id, c.id AS cliente_id, c.nombre, p.numero, p.valor_pagado
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
-                WHERE p.fecha_pago_real = %s AND p.valor_pagado > 0
+                WHERE c.ruta_id = %s AND p.fecha_pago_real = %s AND p.valor_pagado > 0
                 ORDER BY c.nombre ASC, p.numero ASC
-                """, (hoy_str,)
+                """, (rid, hoy_str)
             )
             pagos_individuales = cursor.fetchall()
 
@@ -6644,10 +6650,10 @@ def seccion_pagos_hoy():
                 """
                 SELECT id AS cliente_id, nombre, saltado_hoy
                 FROM clientes
-                WHERE fecha_gestion = %s AND estado = 'Activo' AND id NOT IN (
+                WHERE ruta_id = %s AND fecha_gestion = %s AND estado = 'Activo' AND id NOT IN (
                     SELECT DISTINCT cliente_id FROM pagos WHERE fecha_pago_real = %s
                 )
-                """, (hoy_str, hoy_str)
+                """, (rid, hoy_str, hoy_str)
             )
             saltados = cursor.fetchall()
     except Exception as e:
