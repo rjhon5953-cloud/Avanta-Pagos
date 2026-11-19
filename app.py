@@ -4023,7 +4023,7 @@ def dashboard_principal():
     for cl in clientes_ruta:
         if cl.get("estado_hoy") == "pendiente":
             for p in cl["pagos"]:
-                if not p["pagado"] and p["fecha"] <= hoy_str:
+                if not p["pagado"] and str(p["fecha"])[:10] < str(hoy_str).replace("[", "").replace("]", "").replace("'", "").split(",")[0].split("_")[0].strip()[:10]:
                     debido_total_acumulado += (Decimal(str(p["valor"])) - Decimal(str(p["valor_pagado"])))
                 
     capital_en_calle = Decimal("0.00")
@@ -4919,10 +4919,10 @@ def seccion_balance_maestro():
             cursor.execute(
                 """
                 SELECT
-                    COALESCE(SUM(CASE WHEN tipo = 'Entrada' THEN monto ELSE 0 END), 0) -
-                    COALESCE(SUM(CASE WHEN tipo = 'Salida' THEN monto ELSE 0 END), 0)
+                    COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('ingreso', 'entrada', 'inyeccion', 'base', 'abono') THEN monto ELSE 0 END), 0) -
+                    COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('egreso', 'gasto', 'retiro', 'salida', 'credito') THEN monto ELSE 0 END), 0)
                 FROM balance_movimientos
-                WHERE ruta_id = %s AND fecha < %s
+                WHERE ruta_id = %s AND fecha != %s
                 """,
                 (rid, hoy_str)
             )
@@ -4937,14 +4937,14 @@ def seccion_balance_maestro():
             else:
                 saldo_acumulado_ayer = Decimal("0.00")
 
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_base' AND ruta_id = %s", (rid,))
+            cursor.execute("SELECT valor FROM configuracion WHERE LOWER(llave) LIKE '%%base%%' AND ruta_id = %s LIMIT 1", (rid,))
             res_caja = cursor.fetchone()
 
             if res_caja:
                 if isinstance(res_caja, dict):
                     caja_inicial_sistema = Decimal(str(res_caja.get("valor", "0.00") or "0.00"))
                 else:
-                    caja_inicial_sistema = Decimal(str(res_caja or "0.00"))
+                    caja_inicial_sistema = Decimal(str(res_caja[0] or "0.00"))
             else:
                 caja_inicial_sistema = Decimal("100.00") if rid == 1 else Decimal("0.00")
 
@@ -4980,8 +4980,8 @@ def seccion_balance_maestro():
         pass
         
     # #️⃣ Agrupamos los flujos de la tabla de movimientos manuales con precisión Decimal
-    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if m["tipo"] == "Entrada" and "MICROSEGURO" not in m["concepto"].upper() and m["categoria"] != "Cobranza")
-    salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if m["tipo"] == "Salida" and "CRÉDITO NUEVO" not in m["concepto"].upper())
+    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "inyeccion", "base", "abono") and "MICROSEGURO" not in m["concepto"].upper() and m["categoria"] != "Cobranza")
+    salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("salida", "egreso", "gasto", "retiro", "credito") and "CRÉDITO NUEVO" not in m["concepto"].upper())
 
     # 📊 FÓRMULA CONTABLE UNIVERSAL MOSTRANDO VALORES NETOS REALES
     entradas_totales = total_abonos_hoy + total_seguros_hoy + entradas_manuales
