@@ -6065,13 +6065,14 @@ def api_marcar_pago(cliente_id, num_cuota):
     if not hora_local_cliente:
         hora_local_cliente = datetime.now().strftime("%d/%m/%Y %H:%M")
             
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     with conn.cursor() as cur_f:
-        cur_f.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+        cur_f.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
         row_f = cur_f.fetchone()
         hoy_str = str(row_f["valor"]).split("_")[0] if (row_f and row_f["valor"]) else date.today().isoformat()
-        
-    hoy_date = date.fromisoformat(hoy_str)
+
+    hoy_date = date.today()
     monto_restante = monto_recaudado
     monto_efectivamente_aplicado = Decimal("0.00")
     fecha_hora_pago = (datetime.utcnow() - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M")
@@ -6106,14 +6107,14 @@ def api_marcar_pago(cliente_id, num_cuota):
             # 2. Evaluamos el estado REAL de la cuenta DESPUÉS de aplicar el pago
             cursor.execute("SELECT fecha, pagado FROM pagos WHERE cliente_id = %s ORDER BY numero ASC", (cliente_id,))
             estado_final_cuotas = cursor.fetchall()
-            
+
             dias_mora_real = 0
             dias_adelanto_real = 0
             tiene_mora = False
 
             for q in estado_final_cuotas:
-                f_q = datetime.strptime(q["fecha"], "%Y-%m-%d").date() if isinstance(q["fecha"], str) else q["fecha"]
-                if int(q["pagado"]) == 0 and f_q < hoy_date:
+                f_q = datetime.strptime(str(q["fecha"])[:10], "%Y-%m-%d").date() if isinstance(q["fecha"], str) else q["fecha"]
+                if int(q["pagado"]) == 0 and f_q <= hoy_date:
                     tiene_mora = True
                     dias_mora_real += 1
                 elif int(q["pagado"]) == 1 and f_q > hoy_date:
