@@ -144,17 +144,22 @@ def init_db_contable():
                 """
             )
             
-            # 🔐 FIJADO: Encriptación segura de contraseña administrativa con hash seguro
-            password_encriptada = generate_password_hash("1234")
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('usuario', 'admin') ON CONFLICT DO NOTHING")
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('clave', %s) ON CONFLICT DO NOTHING", (password_encriptada,))
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('empresa_nombre', 'AVANTA PAGOS') ON CONFLICT DO NOTHING")
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('empresa_telefono', '593991234567') ON CONFLICT DO NOTHING")
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('ticket_encabezado', '¡BIENVENIDO A AVANTA PAGOS!') ON CONFLICT DO NOTHING")
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('caja_base', '100.00') ON CONFLICT DO NOTHING")
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('balance_estado', 'Sin cerrar') ON CONFLICT DO NOTHING")
-            # 🔐 FIJADO: Inicialización de la llave de seguridad para la autorización de jornada
-            cursor.execute("INSERT INTO configuracion (llave, valor) VALUES ('caja_autorizada', '0') ON CONFLICT DO NOTHING")
+            cursor.execute("SELECT COUNT(*) AS total FROM configuracion")
+            res_cfg = cursor.fetchone()
+            cnt_cfg = res_cfg["total"] if isinstance(res_cfg, dict) else res_cfg[0]
+            if int(cnt_cfg or 0) == 0:
+                password_encriptada = generate_password_hash("1234")
+                for k_def, v_def in [
+                    ("usuario", "admin"),
+                    ("clave", password_encriptada),
+                    ("empresa_nombre", "AVANTA PAGOS"),
+                    ("empresa_telefono", "593991234567"),
+                    ("ticket_encabezado", "¡BIENVENIDO A AVANTA PAGOS!"),
+                    ("caja_base", "100.00"),
+                    ("balance_estado", "Sin cerrar"),
+                    ("caja_autorizada", "0")
+                ]:
+                    cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES (%s, %s, 1)", (k_def, v_def))
         conn.commit()
     finally:
         release_db(conn)
