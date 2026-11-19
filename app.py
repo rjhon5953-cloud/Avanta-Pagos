@@ -4737,33 +4737,25 @@ def perfil_cliente_detalle(cliente_id):
             else:
                 puntualidad = 100
 
-            if total_vencidas_hist == 0 and (creditos_liquidados > 0 or total_pagadas_hist >= 3):
+            if total_vencidas_hist == 0:
                 calificacion = {
-                    "titulo": "EXCELENTE PAGADOR",
+                    "titulo": "BUEN PAGADOR • AL DÍA",
                     "color": "#16a34a",
                     "bg": "#dcfce7",
                     "borde": "#86efac",
                     "puntualidad": puntualidad,
                     "detalle": f"{creditos_liquidados} crédito(s) liquidado(s) • Sin cuotas vencidas"
                 }
-            elif puntualidad >= 80 and total_vencidas_hist <= 2:
+            elif total_vencidas_hist <= 2 or puntualidad >= 50:
                 calificacion = {
-                    "titulo": "BUEN CLIENTE",
-                    "color": "#0284c7",
-                    "bg": "#e0f2fe",
-                    "borde": "#7dd3fc",
-                    "puntualidad": puntualidad,
-                    "detalle": f"Cumplimiento del {puntualidad}% • {total_vencidas_hist} cuota(s) atrasada(s)"
-                }
-            elif puntualidad >= 55:
-                calificacion = {
-                    "titulo": "CLIENTE REGULAR",
+                    "titulo": "CLIENTE REGULAR • EN OBSERVACIÓN",
                     "color": "#d97706",
                     "bg": "#fef3c7",
                     "borde": "#fcd34d",
                     "puntualidad": puntualidad,
                     "detalle": f"Cumplimiento del {puntualidad}% • {total_vencidas_hist} cuota(s) vencida(s)"
                 }
+
             else:
                 calificacion = {
                     "titulo": "RIESGO / MAL PAGADOR",
@@ -5536,9 +5528,9 @@ def seccion_listados():
                 SELECT p.numero, p.valor_pagado, c.id AS cliente_id, c.nombre
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
-                WHERE c.ruta_id = %s AND p.fecha_pago_real = %s AND p.valor_pagado > 0
+                WHERE c.ruta_id = %s AND CAST(p.fecha_pago_real AS TEXT) LIKE %s AND p.valor_pagado > 0
                 ORDER BY c.nombre ASC, p.numero ASC
-                """, (rid, fecha_filtro)
+                """, (rid, f"{fecha_filtro}%")
             )
             pagos_f = cursor.fetchall()
 
