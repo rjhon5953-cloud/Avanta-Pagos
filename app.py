@@ -4925,9 +4925,9 @@ def seccion_balance_maestro():
             if res_saldo_historico:
                 if isinstance(res_saldo_historico, dict):
                     valores_lista = list(res_saldo_historico.values())
-                    saldo_acumulado_ayer = Decimal(str(valores_lista)) if valores_lista and valores_lista is not None else Decimal("0.00")
+                    saldo_acumulado_ayer = Decimal(str(valores_lista[0])) if valores_lista and valores_lista[0] is not None else Decimal("0.00")
                 else:
-                    saldo_acumulado_ayer = Decimal(str(res_saldo_historico)) if res_saldo_historico and res_saldo_historico is not None else Decimal("0.00")
+                    saldo_acumulado_ayer = Decimal(str(res_saldo_historico[0])) if res_saldo_historico and res_saldo_historico[0] is not None else Decimal("0.00")
             else:
                 saldo_acumulado_ayer = Decimal("0.00")
 
