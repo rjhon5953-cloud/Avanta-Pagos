@@ -1473,7 +1473,7 @@ CONTENIDO_HTML = """
         
         <div style="display:flex; align-items:center; gap:16px; position:relative; z-index:1;">
             <div style="width:62px; height:62px; border-radius:50%; background:linear-gradient(135deg, #38bdf8, #0284c7); border:3px solid rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:white; flex-shrink:0; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
-                {{ (nombre[:2] if nombre else 'AV')|upper }}
+                {{ ((nombre.split()[0][0] + nombre.split()[1][0]) if (nombre and nombre.split()|length >= 2) else (nombre[:2] if nombre else 'AV'))|upper }}
             </div>
             <div style="text-align:left; flex:1;">
                 <div style="display:inline-flex; align-items:center; gap:5px; background:rgba(16,185,129,0.2); border:1px solid rgba(16,185,129,0.4); color:#6ee7b7; padding:3px 9px; border-radius:20px; font-size:10px; font-weight:800; letter-spacing:0.4px; margin-bottom:6px;">
