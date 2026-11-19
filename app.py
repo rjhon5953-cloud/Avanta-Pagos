@@ -5534,7 +5534,22 @@ def seccion_listados():
             )
             pagos_f = cursor.fetchall()
 
-            cursor.execute("SELECT id, nombre, monto, monto_total FROM clientes WHERE ruta_id = %s AND fecha_inicio = %s ORDER BY nombre ASC", (rid, fecha_filtro))
+            cursor.execute("""
+                SELECT
+                    COALESCE(c.id, bm.id) AS id,
+                    TRIM(SPLIT_PART(bm.concepto, 'CLIENTE:', 2)) AS nombre,
+                    bm.monto AS monto,
+                    COALESCE(c.monto_total, bm.monto) AS monto_total
+                FROM balance_movimientos bm
+                LEFT JOIN clientes c
+                    ON c.ruta_id = bm.ruta_id
+                    AND LOWER(TRIM(c.nombre)) = LOWER(TRIM(SPLIT_PART(bm.concepto, 'CLIENTE:', 2)))
+                WHERE bm.ruta_id = %s
+                  AND bm.tipo = 'Salida'
+                  AND bm.concepto LIKE '%%CRÉDITO NUEVO%%'
+                  AND CAST(bm.fecha AS TEXT) LIKE %s
+                ORDER BY bm.id ASC
+            """, (rid, f"{fecha_filtro}%"))
             creditos_f = cursor.fetchall()
     except Exception as e:
         print(f"Error al consultar auditoría histórica: {e}")
