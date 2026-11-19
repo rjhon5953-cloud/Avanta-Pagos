@@ -3833,7 +3833,11 @@ def dashboard_principal():
     else:
         hoy_str = date.today().isoformat()
         turno_id = hoy_str
-        hoy_str = str(hoy_str).replace("[", "").replace("]", "").replace("'", "").replace('"', "").split(",").split("_").strip()[:10]
+
+    turno_id = str(turno_id)
+    fecha_hoy_real = date.today().isoformat()
+    hoy_str = fecha_hoy_real
+
     # FECHA EN TIEMPO REAL: Formateo en español para el badge superior
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
@@ -3842,13 +3846,15 @@ def dashboard_principal():
 
     try:
         with conn_val.cursor() as cursor:
-            # 1. Suma real en dólares del recaudo asentado el día de hoy en esta ruta
+            # 1. Suma real en dólares del recaudo asentado hoy o en el turno activo
             cursor.execute("""
                 SELECT COALESCE(SUM(p.valor_pagado), 0) AS total
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
-                WHERE c.ruta_id = %s AND p.pagado = 1 AND CAST(p.fecha_pago_real AS TEXT) LIKE %s
-            """, (rid, f"{hoy_str}%"))
+                WHERE c.ruta_id = %s
+                    AND p.pagado = 1
+                    AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
+            """, (rid, f"{fecha_hoy_real}%", f"{turno_id[:10]}%"))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
 
             # 2. Conteo y detalle completo de créditos entregados en el turno activo de esta ruta
@@ -3953,20 +3959,22 @@ def dashboard_principal():
             """, (rid, hoy_str, hoy_str, hoy_str))
             clientes_crudos = cursor.fetchall()
 
-            # Consultamos los abonos reales asentados hoy en la tabla pagos para esta ruta
+            # Consultamos los abonos reales asentados hoy o en el turno activo
             cursor.execute("""
                 SELECT p.id AS pago_id, p.cliente_id, p.valor_pagado
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
-                WHERE c.ruta_id = %s AND p.pagado = 1 AND CAST(p.fecha_pago_real AS TEXT) LIKE %s
-            """, (rid, f"{hoy_str}%"))
+                WHERE c.ruta_id = %s
+                  AND p.pagado = 1
+                  AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
+            """, (rid, f"{fecha_hoy_real}%", f"{turno_id[:10]}%"))
             abonos_turno_rows = cursor.fetchall()
 
             mapa_pagos_hoy = defaultdict(lambda: {"monto": Decimal("0.00"), "ids": []})
             for ab in abonos_turno_rows:
-                cid_h = int(ab["cliente_id"] if isinstance(ab, dict) else ab)
-                m_ab = Decimal(str(ab["valor_pagado"] if isinstance(ab, dict) else ab))
-                pid_h = str(ab["pago_id"] if isinstance(ab, dict) else ab)
+                cid_h = int(ab["cliente_id"])
+                m_ab = Decimal(str(ab["valor_pagado"]))
+                pid_h = str(ab["pago_id"])
                 mapa_pagos_hoy[cid_h]["monto"] += m_ab
                 mapa_pagos_hoy[cid_h]["ids"].append(pid_h)
 
