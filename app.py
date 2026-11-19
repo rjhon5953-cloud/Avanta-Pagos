@@ -1498,34 +1498,34 @@ CONTENIDO_HTML = """
 
             <div style="margin-bottom:14px;">
                 <label style="font-size:11px; font-weight:700; color:#64748b; display:flex; align-items:center; gap:6px; margin-bottom:6px; text-transform:uppercase;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                     Nombre Completo
                 </label>
-                <input type="text" id="perfilNombre" value="{{ nombre }}" placeholder="Ej: Jhon Ramírez" style="width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; background:#f8fafc; box-sizing:border-box;">
+                <input type="text" id="perfilNombre" value="{{ nombre }}" style="width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; color:#0f172a; box-sizing:border-box;">
             </div>
 
             <div style="margin-bottom:14px;">
                 <label style="font-size:11px; font-weight:700; color:#64748b; display:flex; align-items:center; gap:6px; margin-bottom:6px; text-transform:uppercase;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="13" y2="16"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="7" y1="8" x2="17" y2="8"></line><line x1="7" y1="12" x2="13" y2="12"></line></svg>
                     Cédula de Identidad
                 </label>
-                <input type="text" id="perfilCedula" value="{{ cedula }}" placeholder="Ej: 1314792449" style="width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; background:#f8fafc; box-sizing:border-box;">
+                <input type="text" id="perfilCedula" value="{{ cedula }}" style="width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; color:#0f172a; box-sizing:border-box;">
             </div>
 
             <div style="margin-bottom:14px;">
                 <label style="font-size:11px; font-weight:700; color:#64748b; display:flex; align-items:center; gap:6px; margin-bottom:6px; text-transform:uppercase;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
                     Número de Celular
                 </label>
-                <input type="text" id="perfilCelular" value="{{ celular }}" placeholder="Ej: 0989329300" style="width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; background:#f8fafc; box-sizing:border-box;">
+                <input type="text" id="perfilCelular" value="{{ celular }}" style="width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; color:#0f172a; box-sizing:border-box;">
             </div>
 
             <div style="margin-bottom:20px;">
                 <label style="font-size:11px; font-weight:700; color:#64748b; display:flex; align-items:center; gap:6px; margin-bottom:6px; text-transform:uppercase;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                     Correo Electrónico
                 </label>
-                <input type="email" id="perfilCorreo" value="{{ correo }}" placeholder="correo@empresa.com" style="width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; font-weight:600; color:#0f172a; background:#f8fafc; box-sizing:border-box;">
+                <input type="email" id="perfilCorreo" value="{{ correo }}" style="width:100%; padding:12px 14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; color:#0f172a; box-sizing:border-box;">
             </div>
 
             <button type="submit" style="width:100%; border:none; padding:14px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); border-radius:12px; font-size:14px; font-weight:800; color:white; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(15,43,92,0.25);">
@@ -2772,12 +2772,36 @@ function actualizarPerfilCompleto(e) {
     fetch('/api/perfil/guardar?' + params.toString())
         .then(res => res.json())
         .then(data => {
-            if(data.status === 'ok') {
-                alert('👤 Datos del cobrador actualizados con éxito en la ruta.');
-                window.location.reload();
-            } else {
-                alert('⚠️ Error al guardar los cambios.');
-            }
+            const exito = (data.status === 'ok');
+            const prevModal = document.getElementById('modalPerfilAvanta');
+            if (prevModal) prevModal.remove();
+
+            const modalHtml = `
+                <div id="modalPerfilAvanta" style="position:fixed; inset:0; background:rgba(15,23,42,0.72); backdrop-filter:blur(4px); z-index:99999; display:flex; align-items:center; justify-content:center; padding:20px;">
+                    <div style="background:#ffffff; border-radius:20px; width:100%; max-width:340px; padding:26px 22px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.28); border:1px solid #e2e8f0; animation:fadeIn 0.2s ease;">
+                        <div style="width:58px; height:58px; border-radius:50%; margin:0 auto 14px auto; display:flex; align-items:center; justify-content:center; background:${exito ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg,#dc2626,#b91c1c)'}; color:#ffffff; box-shadow:0 8px 18px ${exito ? 'rgba(22,163,74,0.32)' : 'rgba(220,38,38,0.32)'};">
+                            ${exito
+                                ? '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+                                : '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
+                            }
+                        </div>
+                        <h3 style="margin:0 0 6px 0; font-size:17px; font-weight:800; color:#0f172a; letter-spacing:-0.2px;">
+                            ${exito ? 'Perfil Actualizado' : 'Error al Guardar'}
+                        </h3>
+                        <p style="margin:0 0 20px 0; font-size:13px; color:#475569; line-height:1.45;">
+                            ${exito ? 'Los datos del cobrador se han actualizado correctamente en la ruta.' : 'No se pudieron guardar los cambios. Intenta nuevamente.'}
+                        </p>
+                        <button type="button" id="btnCerrarModalPerfil" style="width:100%; border:none; padding:13px; border-radius:12px; background:linear-gradient(135deg,#0f2b5c,#1e3a8a); color:#ffffff; font-size:14px; font-weight:700; cursor:pointer; box-shadow:0 6px 14px rgba(15,43,92,0.28);">
+                            Aceptar
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            document.getElementById('btnCerrarModalPerfil').onclick = function() {
+                document.getElementById('modalPerfilAvanta').remove();
+                if (exito) window.location.reload();
+            };
         })
         .catch(err => console.error('Error:', err));
 }
