@@ -1635,7 +1635,7 @@ HTML_TEMPLATE = """
                 <div style="font-size: 15px; font-weight: 900; color: #ffffff; letter-spacing: 0.4px; line-height: 1.15;">AVANTA PAGOS</div>
                 <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
                     <span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block;"></span>
-                    <span style="font-size: 11px; font-weight: 700; color: #cbd5e1; letter-spacing: 0.3px;">RUTA-01 • PRO V1.3</span>
+                    <span style="font-size: 11px; font-weight: 700; color: #cbd5e1; letter-spacing: 0.3px;">{{ session.get('nombre_ruta', 'RUTA-01') }} • PRO V1.3</span>
                 </div>
             </div>
         </div>
@@ -3800,7 +3800,7 @@ def dashboard_principal():
     if row_j and (row_j["valor"] if isinstance(row_j, dict) else row_j):
         raw_j = row_j["valor"] if isinstance(row_j, dict) else row_j
         turno_id = str(raw_j)
-        hoy_str = turno_id.split("_")
+        hoy_str = turno_id.split("_")[0]
     else:
         hoy_str = date.today().isoformat()
         turno_id = hoy_str
@@ -4605,13 +4605,14 @@ def seccion_clientes_maestro():
     if not session.get("autenticado"):
         return "Sesión expirada"
 
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     total_con_saldo = 0
     total_sin_saldo = 0
     try:
         with conn.cursor() as cursor:
             cursor.execute("""
-                SELECT 
+                SELECT
                     MAX(c.id) AS id,
                     MAX(TRIM(c.nombre)) AS nombre,
                     MAX(c.telefono) AS telefono,
@@ -4623,9 +4624,10 @@ def seccion_clientes_maestro():
                         ELSE 0 END
                     ), 0) AS saldo_activo
                 FROM clientes c
+                WHERE c.ruta_id = %s
                 GROUP BY LOWER(TRIM(c.nombre))
                 ORDER BY MAX(TRIM(c.nombre)) ASC
-            """)
+            """, (rid,))
             lista_unica = []
             for r in cursor.fetchall():
                 d = dict(r)
@@ -4891,79 +4893,77 @@ def seccion_balance_maestro():
     if not session.get("autenticado"):
         return "Sesión expirada"
         
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            # Recuperamos la jornada activa para que el balance no se vacíe a medianoche
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+            # Recuperamos la jornada activa de esta ruta
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
             row_j = cursor.fetchone()
             if row_j and row_j["valor"]:
                 hoy_str = row_j["valor"]
             else:
                 hoy_str = date.today().isoformat()
-                cursor.execute(
-                    "INSERT INTO configuracion (llave, valor) VALUES ('fecha_jornada_activa', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                    (hoy_str,)
-                )
-                conn.commit()
+                cursor.execute("DELETE FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
+                cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES ('fecha_jornada_activa', %s, %s)", (hoy_str, rid))
+            conn.commit()
 
-            ## 1. CÁLCULO DINÁMICO DE CAJA BASE - ARRASTRE REAL DE CARTERA NEON
+            ## 1. CÁLCULO DINÁMICO DE CAJA BASE - ARRASTRE REAL DE CARTERA NEON POR RUTA
             cursor.execute(
                 """
-                SELECT 
+                SELECT
                     COALESCE(SUM(CASE WHEN tipo = 'Entrada' THEN monto ELSE 0 END), 0) -
                     COALESCE(SUM(CASE WHEN tipo = 'Salida' THEN monto ELSE 0 END), 0)
                 FROM balance_movimientos
-                WHERE fecha < %s
+                WHERE ruta_id = %s AND fecha < %s
                 """,
-                (hoy_str,)
+                (rid, hoy_str)
             )
             res_saldo_historico = cursor.fetchone()
-        
-            # Extraemos el valor de forma segura sin importar si el cursor devuelve tupla o diccionario
+
             if res_saldo_historico:
                 if isinstance(res_saldo_historico, dict):
                     valores_lista = list(res_saldo_historico.values())
-                    saldo_acumulado_ayer = Decimal(str(valores_lista[0])) if valores_lista and valores_lista[0] is not None else Decimal("0.00")
+                    saldo_acumulado_ayer = Decimal(str(valores_lista)) if valores_lista and valores_lista is not None else Decimal("0.00")
                 else:
-                    saldo_acumulado_ayer = Decimal(str(res_saldo_historico[0])) if res_saldo_historico and res_saldo_historico[0] is not None else Decimal("0.00")
+                    saldo_acumulado_ayer = Decimal(str(res_saldo_historico)) if res_saldo_historico and res_saldo_historico is not None else Decimal("0.00")
             else:
                 saldo_acumulado_ayer = Decimal("0.00")
 
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_base'")
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_base' AND ruta_id = %s", (rid,))
             res_caja = cursor.fetchone()
 
             if res_caja:
                 if isinstance(res_caja, dict):
-                    caja_inicial_sistema = Decimal(str(res_caja.get("valor", "100.00") or "100.00"))
+                    caja_inicial_sistema = Decimal(str(res_caja.get("valor", "0.00") or "0.00"))
                 else:
-                    caja_inicial_sistema = Decimal(str(res_caja[0] or "100.00"))
+                    caja_inicial_sistema = Decimal(str(res_caja or "0.00"))
             else:
-                caja_inicial_sistema = Decimal("100.00")
-            
-            # La caja base real de hoy es el acumulado histórico de flujos hasta el día de ayer
+                caja_inicial_sistema = Decimal("100.00") if rid == 1 else Decimal("0.00")
+
             caja_base = caja_inicial_sistema + saldo_acumulado_ayer
-            
-            # 📊 2. Consultamos si la jornada ya fue sellada hoy
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = %s", (f"cierre_caja_{hoy_str}",))
+
+            # 2. Consultamos si la jornada ya fue sellada hoy en esta ruta
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = %s AND ruta_id = %s", (f"cierre_caja_{hoy_str}", rid))
             res_cierre = cursor.fetchone()
             estado_cierre = res_cierre["valor"] if res_cierre else "Abierta"
-            
-            # 📝 3. Traemos los movimientos manuales de la tabla de flujos
-            cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE fecha = %s ORDER BY id DESC", (hoy_str,))
+
+            # 3. Traemos los movimientos manuales de esta ruta
+            cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND fecha = %s ORDER BY id DESC", (rid, hoy_str))
             movimientos = cursor.fetchall()
-            
-            # 🪙 4. Sumamos en tiempo real los abonos en efectivo cobrados en la calle hoy
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (hoy_str,))
+
+            # 4. Sumamos en tiempo real los abonos en efectivo cobrados en esta ruta hoy
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (rid, hoy_str))
             total_abonos_hoy = Decimal(str(cursor.fetchone()["total"]))
-            
-            # 🛡️ NUEVO QUERY: Sumatoria de los microseguros cobrados hoy en Neon
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND concepto LIKE '%%MICROSEGURO%%' AND fecha = %s", (hoy_str,))
+
+            # Sumatoria de los microseguros cobrados hoy en esta ruta
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Entrada' AND concepto LIKE '%%MICROSEGURO%%' AND fecha = %s", (rid, hoy_str))
             total_seguros_hoy = Decimal(str(cursor.fetchone()["total"]))
 
-            # 📊 5. Calculamos el dinero prestado real leyendo las transacciones de Neon
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s", (hoy_str,))
+            # 5. Calculamos el dinero prestado real en esta ruta hoy
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s", (rid, hoy_str))
             total_prestado_hoy = Decimal(str(cursor.fetchone()["total"]))
+
     except Exception as e:
         print(f"Error en balance: {e}")
         caja_base = total_abonos_hoy = total_seguros_hoy = total_prestado_hoy = Decimal("0.00")
