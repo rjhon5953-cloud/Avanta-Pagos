@@ -3986,7 +3986,8 @@ def dashboard_principal():
                         cnt_semanal += 1
 
                     # 📊 CÁLCULO EXACTO POR CUOTAS HÁBILES (SIN CONTAR DOMINGOS)
-                    hoy_dt = date.fromisoformat(hoy_str)
+                    hoy_clean = str(hoy_str).replace("[", "").replace("]", "").replace("'", "").replace('"', "").split(",")[0].split("_")[0].strip()[:10]
+                    hoy_dt = date.fromisoformat(hoy_clean) if len(hoy_clean) == 10 else date.today()
                     dias_mora = 0
                     dias_adelanto = 0
                     for p in d_cl["pagos"]:
