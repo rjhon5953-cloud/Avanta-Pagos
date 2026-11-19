@@ -3843,7 +3843,7 @@ def dashboard_principal():
     try:
         with conn_val.cursor() as cursor:
             # 1. Suma real en dólares del recaudo asentado el día de hoy en esta ruta
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (rid, turno_id))
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Entrada' AND categoria = 'Cobranza' AND (fecha = %s OR CAST(fecha AS TEXT) LIKE %s)", (rid, turno_id, f"{hoy_str}%"))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
 
             # 2. Conteo y detalle completo de créditos entregados en el turno activo de esta ruta
@@ -3948,13 +3948,13 @@ def dashboard_principal():
             """, (rid, hoy_str, hoy_str, hoy_str))
             clientes_crudos = cursor.fetchall()
 
-            # Consultamos los abonos asentados EXCLUSIVAMENTE en el turno activo actual (turno_id)
+            # Consultamos los abonos asentados en el turno activo o fecha de hoy
             cursor.execute(
                 """
                 SELECT concepto, monto
                 FROM balance_movimientos
-                WHERE ruta_id = %s AND tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s
-                """, (rid, turno_id)
+                WHERE ruta_id = %s AND tipo = 'Entrada' AND categoria = 'Cobranza' AND (fecha = %s OR CAST(fecha AS TEXT) LIKE %s)
+                """, (rid, turno_id, f"{hoy_str}%")
             )
             abonos_turno_rows = cursor.fetchall()
 
