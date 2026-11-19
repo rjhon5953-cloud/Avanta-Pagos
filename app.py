@@ -3675,49 +3675,67 @@ function aplicarFiltrosDashboard() {
 def login_route():
     error_msg = None
     usuario_def = ""
-    unidad_txt = "RUTA-01"
-    caja_txt = "Unidad cerrada"
-    caja_clase = "caja-cerrada"
-    caja_abierta_bool = False
+    unidad_txt = "AVANTA PAGOS"
+    caja_txt = "Ingresa tus credenciales"
+    caja_clase = "caja-abierta"
+    caja_abierta_bool = True
 
     conn = get_db()
     try:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT llave, valor FROM configuracion WHERE llave IN ('usuario', 'clave', 'nombre', 'perfil_nombre', 'nombre_completo', 'caja_autorizada', 'fecha_jornada_activa')")
-            cfg = {r["llave"]: r["valor"] for r in cursor.fetchall()}
+        if request.method == "POST":
+            usuario_ingresado = request.form.get("usuario", "").strip()
+            clave_ingresada = request.form.get("clave", "").strip()
+            usuario_def = usuario_ingresado
 
-            usuario_def = cfg.get("usuario", "")
-            unidad_txt = (cfg.get("nombre") or cfg.get("perfil_nombre") or cfg.get("nombre_completo") or "").strip() or "Ruta-01"
-            autorizada = str(cfg.get("caja_autorizada", "0")).strip()
-            fecha_jor = str(cfg.get("fecha_jornada_activa", "")).strip()
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT id, nombre, usuario_cobrador, clave_cobrador, estado, gps_habilitado
+                    FROM rutas
+                    WHERE LOWER(usuario_cobrador) = LOWER(%s)
+                    LIMIT 1
+                """, (usuario_ingresado,))
+                ruta_row = cursor.fetchone()
 
-            if autorizada == "1":
-                caja_abierta_bool = True
-                fecha_limpia = fecha_jor.split("_")[0] if fecha_jor else date.today().isoformat()
-                fecha_fmt = fecha_limpia.replace("-", "/")
-                caja_txt = f"ABIERTA: {fecha_fmt}"
-                caja_clase = "caja-abierta"
-            else:
-                caja_abierta_bool = False
-                caja_txt = "Unidad cerrada"
-                caja_clase = "caja-cerrada"
+                if ruta_row:
+                    r_dict = dict(ruta_row)
+                    rid = int(r_dict["id"])
+                    clv_ruta = str(r_dict.get("clave_cobrador") or "").strip()
+                    estado_ruta = str(r_dict.get("estado") or "Activa").strip()
 
-            if request.method == "POST":
-                if not caja_abierta_bool:
-                    error_msg = "Tu caja se encuentra cerrada. Solicita apertura al Administrador."
+                    if estado_ruta != "Activa":
+                        error_msg = "Esta ruta se encuentra suspendida por el Administrador."
+                    elif clave_ingresada != clv_ruta:
+                        error_msg = "Contraseña incorrecta para esta ruta."
+                    else:
+                        cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_autorizada' AND ruta_id = %s", (rid,))
+                        row_aut = cursor.fetchone()
+                        val_aut = str(row_aut["valor"] if isinstance(row_aut, dict) else (row_aut[0] if row_aut else "0")).strip()
+                        if val_aut != "1":
+                            error_msg = f"La caja de {r_dict['nombre']} está cerrada. Solicita apertura al Administrador."
+                        else:
+                            session["autenticado"] = True
+                            session["usuario"] = usuario_ingresado
+                            session["ruta_id"] = rid
+                            session["nombre_ruta"] = r_dict["nombre"]
+                            session["gps_habilitado"] = int(r_dict.get("gps_habilitado") or 1)
+                            return redirect("/")
                 else:
-                    usuario_ingresado = request.form.get("usuario", "").strip()
-                    clave_ingresada = request.form.get("clave", "")
+                    # Respaldo legado para configuracion de Ruta 1
+                    cursor.execute("SELECT llave, valor FROM configuracion WHERE llave IN ('usuario', 'clave', 'caja_autorizada') AND ruta_id = 1")
+                    cfg = {r["llave"]: r["valor"] for r in cursor.fetchall()}
                     usr_db = cfg.get("usuario", "")
                     clv_db = cfg.get("clave", "")
-
                     if usr_db and clv_db and usuario_ingresado == usr_db and check_password_hash(clv_db, clave_ingresada):
-                        session["autenticado"] = True
-                        session["usuario"] = usuario_ingresado
-                        return redirect("/")
+                        if str(cfg.get("caja_autorizada") or "0").strip() != "1":
+                            error_msg = "Tu caja se encuentra cerrada. Solicita apertura al Administrador."
+                        else:
+                            session["autenticado"] = True
+                            session["usuario"] = usuario_ingresado
+                            session["ruta_id"] = 1
+                            session["nombre_ruta"] = "RUTA - 01"
+                            return redirect("/")
                     else:
-                        error_msg = "Credenciales incorrectas."
-                        usuario_def = usuario_ingresado
+                        error_msg = "Credenciales de ruta incorrectas."
     except Exception as e:
         print(f"Error en login_route: {e}")
         if request.method == "POST":
@@ -3744,27 +3762,27 @@ def dashboard_principal():
     if not session.get("autenticado"):
         return redirect("/login")
         
-    # 🔐 VALIDACIÓN INTEGRAL DE JORNADA CONTROLADA POR EL DUEÑO
+    rid = int(session.get("ruta_id") or 1)
+
+    # VALIDACIÓN INTEGRAL DE JORNADA CONTROLADA POR EL DUEÑO
     conn_val = get_db()
     try:
         with conn_val.cursor() as cur_val:
-            cur_val.execute("SELECT valor FROM configuracion WHERE llave = 'caja_autorizada';")
+            cur_val.execute("SELECT valor FROM configuracion WHERE llave = 'caja_autorizada' AND ruta_id = %s", (rid,))
             res_status = cur_val.fetchone()
-            
-            # Extraemos el valor del registro sin importar si Neon responde tupla o dict
+
             val_caja = "0"
             if res_status:
                 if isinstance(res_status, dict):
                     val_caja = res_status.get("valor", "0")
                 else:
-                    val_caja = res_status[0]
-            
-            # Si el dueño no ha presionado el botón verde, se congela la pantalla
+                    val_caja = res_status
+
             if val_caja == "0" or val_caja == 0:
                 return """
                 <div style="text-align:center; padding:50px; font-family:sans-serif; background:#0f172a; color:white; min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
                     <h1 style="color:#ef4444; font-size:32px; margin-bottom:10px;">⚠️ Jornada No Autorizada</h1>
-                    <p style="color:#cbd5e1; font-size:16px; max-width:450px; line-height:1.6;">Tu caja se encuentra actualmente cerrada. Solicita al Administrador el pase de apertura para poder iniciar las actividades de hoy.</p>
+                    <p style="color:#cbd5e1; font-size:16px; max-width:450px; line-height:1.6;">Tu caja se encuentra actualmente cerrada. Solicita al Administrador el pase de apertura de jornada para iniciar operaciones hoy.</p>
                     <br>
                     <a href="/login" style="color:#a855f7; text-decoration:none; font-weight:bold; background:rgba(168,85,247,0.1); padding:10px 20px; border-radius:8px; border:1px solid #a855f7;">Volver al Login</a>
                 </div>
@@ -3774,40 +3792,38 @@ def dashboard_principal():
     finally:
         pass
 
-    # 🛡️ CONTROL MAESTRO: Lee la jornada activa real congelada desde Neon para que nada cambie a medianoche
+    # CONTROL MAESTRO: Lee la jornada activa real congelada desde Neon para esta ruta
     cursor_j = conn_val.cursor()
-    cursor_j.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+    cursor_j.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
     row_j = cursor_j.fetchone()
     cursor_j.close()
-    if row_j and (row_j["valor"] if isinstance(row_j, dict) else row_j[0]):
-        raw_j = row_j["valor"] if isinstance(row_j, dict) else row_j[0]
+    if row_j and (row_j["valor"] if isinstance(row_j, dict) else row_j):
+        raw_j = row_j["valor"] if isinstance(row_j, dict) else row_j
         turno_id = str(raw_j)
-        hoy_str = turno_id.split("_")[0]
+        hoy_str = turno_id.split("_")
     else:
         hoy_str = date.today().isoformat()
         turno_id = hoy_str
-    
-    # 📅 FECHA EN TIEMPO REAL: Formateo en español para el badge superior
+
+    # FECHA EN TIEMPO REAL: Formateo en español para el badge superior
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     ahora = datetime.now()
     fecha_legible = f"{dias_semana[ahora.weekday()]}, {ahora.day:02d} de {meses[ahora.month - 1]} de {ahora.year}"
-    
+
     try:
         with conn_val.cursor() as cursor:
-            # 💵 1. Suma real en dólares del recaudo asentado el día de hoy
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (turno_id,))
+            # 1. Suma real en dólares del recaudo asentado el día de hoy en esta ruta
+            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (rid, turno_id))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
-            
-            # 📌 2. Conteo y detalle completo de créditos entregados en el turno activo
-            cursor.execute(
-                """
+
+            # 2. Conteo y detalle completo de créditos entregados en el turno activo de esta ruta
+            cursor.execute("""
                 SELECT id, concepto, monto
                 FROM balance_movimientos
-                WHERE tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s
+                WHERE ruta_id = %s AND tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s
                 ORDER BY id DESC
-                """, (turno_id,)
-            )
+            """, (rid, turno_id))
             rows_creditos_turno = cursor.fetchall()
             creditos_hoy = len(rows_creditos_turno)
 
@@ -3815,18 +3831,18 @@ def dashboard_principal():
             total_colocado_turno = Decimal("0.00")
             for rc in rows_creditos_turno:
                 is_d = isinstance(rc, dict)
-                mov_id_c = int((rc["id"] if is_d else rc[0]) or 0)
-                conc_c = str(rc["concepto"] if is_d else rc[1])
-                monto_c = Decimal(str(rc["monto"] if is_d else rc[2]))
+                mov_id_c = int((rc["id"] if is_d else rc) or 0)
+                conc_c = str(rc["concepto"] if is_d else rc)
+                monto_c = Decimal(str(rc["monto"] if is_d else rc))
                 total_colocado_turno += monto_c
 
                 nombre_cli_c = conc_c.split("CLIENTE:")[-1].strip() if "CLIENTE:" in conc_c else conc_c
                 cursor.execute("""
                     SELECT id, COALESCE(interes_porcentaje, 20) AS interes, COALESCE(frecuencia, 'Diaria') AS frecuencia, COALESCE(cuotas, 20) AS cuotas, COALESCE(valor_cuota, 0) AS valor_cuota
                     FROM clientes
-                    WHERE LOWER(TRIM(nombre)) = LOWER(%s)
+                    WHERE ruta_id = %s AND LOWER(TRIM(nombre)) = LOWER(%s)
                     ORDER BY id DESC LIMIT 1
-                """, (nombre_cli_c,))
+                """, (rid, nombre_cli_c))
                 cli_row = cursor.fetchone()
 
                 cli_id_c = 0
@@ -3854,11 +3870,11 @@ def dashboard_principal():
                     if row_p_info:
                         cnt_p = row_p_info["total_c"] if isinstance(row_p_info, dict) else row_p_info[0]
                         val_p = row_p_info["val_c"] if isinstance(row_p_info, dict) else row_p_info[1]
-                        cuotas_c = int(cnt_p) if int(cnt_p) > 0 else int(c_dict.get("cuotas") or c_dict.get("plazo") or 20)
-                        v_cuota_c = float(val_p) if float(val_p) > 0 else float(c_dict.get("valor_cuota") or v_cuota_c)
+                        cuotas_c = int(cnt_p) if int(cnt_p) > 0 else int(c_dict.get("cuotas") or c_dict.get("plazo") or 20) # type: ignore
+                        v_cuota_c = float(val_p) if float(val_p) > 0 else float(c_dict.get("valor_cuota") or v_cuota_c) # type: ignore
                     else:
-                        cuotas_c = int(c_dict.get("cuotas") or c_dict.get("plazo") or 20)
-                        v_cuota_c = float(c_dict.get("valor_cuota") or v_cuota_c)
+                        cuotas_c = int(c_dict.get("cuotas") or c_dict.get("plazo") or 20) # type: ignore
+                        v_cuota_c = float(c_dict.get("valor_cuota") or v_cuota_c) # type: ignore
 
                 nombre_safe = nombre_cli_c.replace("'", "\\'")
                 lista_creditos_html += f"""
@@ -3886,7 +3902,7 @@ def dashboard_principal():
             cursor.execute("""
                 SELECT c.id, c.nombre, c.telefono, c.direccion, c.referencia, c.identificacion, c.frecuencia, c.cuotas, c.valor_cuota, c.monto_total, c.orden, c.estado, c.fecha_gestion, c.fecha_inicio
                 FROM clientes c
-                WHERE c.estado = 'Activo'
+                WHERE c.ruta_id = %s AND c.estado = 'Activo'
                   AND COALESCE(NULLIF(TRIM(c.fecha_inicio::text), '')::date, CURRENT_DATE) <= CAST(%s AS DATE)
                   AND (
                         LOWER(TRIM(c.frecuencia)) = 'diaria'
@@ -3900,7 +3916,7 @@ def dashboard_principal():
                         )
                   )
                 ORDER BY c.orden ASC, c.id DESC
-            """, (hoy_str, hoy_str, hoy_str))
+            """, (rid, hoy_str, hoy_str, hoy_str))
             clientes_crudos = cursor.fetchall()
 
             # Consultamos los abonos asentados EXCLUSIVAMENTE en el turno activo actual (turno_id)
@@ -3908,8 +3924,8 @@ def dashboard_principal():
                 """
                 SELECT concepto, monto
                 FROM balance_movimientos
-                WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s
-                """, (turno_id,)
+                WHERE ruta_id = %s AND tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s
+                """, (rid, turno_id)
             )
             abonos_turno_rows = cursor.fetchall()
 
@@ -5106,7 +5122,8 @@ def guardar_nuevo_cliente():
                     raw_val = raw_val.strip() if raw_val else "0"
                     microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
                     
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+            rid = int(session.get("ruta_id") or 1)
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
             row_j_cred = cursor.fetchone()
             turno_balance_cred = row_j_cred["valor"] if (row_j_cred and row_j_cred["valor"]) else date.today().isoformat()
 
@@ -5115,20 +5132,20 @@ def guardar_nuevo_cliente():
                 concepto_seguro = f"🛡️ RECAUDO MICROSEGURO - CLIENTE: {nombre}"
                 cursor.execute(
                     """
-                    INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
-                    VALUES ('Entrada', 'Inversión', %s, %s, %s, '')
+                    INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante, ruta_id)
+                    VALUES ('Entrada', 'Inversión', %s, %s, %s, '', %s)
                     """,
-                    (concepto_seguro, microseguro_valor, turno_balance_cred)
+                    (concepto_seguro, microseguro_valor, turno_balance_cred, rid)
                 )
 
             # 💸 2. ÚNICO ASIENTO DE EGRESO DE CAPITAL en el turno activo
             concepto_egreso = f"💸 CAPITAL ENTREGADO EN CRÉDITO NUEVO - CLIENTE: {nombre}"
             cursor.execute(
                 """
-                INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
-                VALUES ('Salida', 'Inversión', %s, %s, %s, '')
+                INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante, ruta_id)
+                VALUES ('Salida', 'Inversión', %s, %s, %s, '', %s)
                 """,
-                (concepto_egreso, monto, turno_balance_cred)
+                (concepto_egreso, monto, turno_balance_cred, rid)
             )
             
             # 📊 3. Calcular posición secuencial de enrutamiento (Blindado contra DictRow)
@@ -5162,8 +5179,8 @@ def guardar_nuevo_cliente():
                         SELECT c.id, c.nombre, c.monto_total,
                                COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado
                         FROM clientes c
-                        WHERE TRIM(c.identificacion) = %s AND c.estado = 'Activo'
-                    """, (identificacion.strip(),))
+                        WHERE c.ruta_id = %s AND TRIM(c.identificacion) = %s AND c.estado = 'Activo'
+                        """, (rid, identificacion.strip()))
                     for dup in cursor.fetchall():
                         d_row = dict(dup) if isinstance(dup, dict) else {"id": dup[0], "nombre": dup[1], "monto_total": dup[2], "pagado": dup[3]}
                         saldo_dup = Decimal(str(d_row["monto_total"] or "0")) - Decimal(str(d_row["pagado"] or "0"))
@@ -5190,10 +5207,10 @@ def guardar_nuevo_cliente():
             else:
                 cursor.execute(
                     """
-                    INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, estado, latitud, longitud, foto_cedula_frente, foto_cedula_reverso)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Activo', %s, %s, %s, %s) RETURNING id
+                    INSERT INTO clientes (orden, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio, fecha_vencimiento, estado, latitud, longitud, foto_cedula_frente, foto_cedula_reverso, ruta_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'Activo', %s, %s, %s, %s, %s) RETURNING id
                     """,
-                    (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud, foto_cedula_frente, foto_cedula_reverso)
+                    (max_orden + 1, nombre, telefono, direccion, referencia, identificacion, monto, interes_porcentaje, monto_total, cuotas, frecuencia, valor_cuota, fecha_inicio_dt.isoformat(), fecha_vencimiento_dt.isoformat(), latitud, longitud, foto_cedula_frente, foto_cedula_reverso, rid)
                 )
                 res_id = cursor.fetchone()
                 cliente_id = res_id["id"] if isinstance(res_id, dict) else res_id[0]
@@ -5218,10 +5235,10 @@ def guardar_nuevo_cliente():
                         
                     cursor.execute(
                         """
-                        INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real)
-                        VALUES (%s, %s, %s, %s, 0, 0, '')
+                        INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real, ruta_id)
+                        VALUES (%s, %s, %s, %s, 0, 0, '', %s)
                         """,
-                        (cliente_id, num, f_cuota.isoformat(), valor_cuota_real)
+                        (cliente_id, num, f_cuota.isoformat(), valor_cuota_real, rid)
                     )
                     
         conn.commit()
@@ -5271,15 +5288,16 @@ def balance_guardar_movimiento():
     conn = get_db()
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+            rid = int(session.get("ruta_id") or 1)
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
             row_j = cursor.fetchone()
             hoy_str = row_j["valor"] if (row_j and row_j["valor"]) else date.today().isoformat()
 
             cursor.execute(
                 """
-                INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """, (tipo, categoria, concepto, monto, hoy_str, base64_str)
+                INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante, ruta_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (tipo, categoria, concepto, monto, hoy_str, base64_str, rid)
             )
             conn.commit()
     except Exception as e:
@@ -6067,17 +6085,18 @@ def api_marcar_pago(cliente_id, num_cuota):
 
             # 4. Asentar únicamente el dinero neto cobrado hoy en el turno activo del balance
             if monto_efectivamente_aplicado > 0:
-                cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+                rid = int(session.get("ruta_id") or 1)
+                cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
                 row_j_pago = cursor.fetchone()
                 turno_balance_pago = row_j_pago["valor"] if (row_j_pago and row_j_pago["valor"]) else hoy_str
 
                 concepto_abono = f"💵 ABONO CUOTA - CLIENTE: {c['nombre']} (ID:{cliente_id})"
                 cursor.execute(
                     """
-                    INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante)
-                    VALUES ('Entrada', 'Cobranza', %s, %s, %s, '')
+                    INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante, ruta_id)
+                    VALUES ('Entrada', 'Cobranza', %s, %s, %s, '', %s)
                     """,
-                    (concepto_abono, monto_efectivamente_aplicado, turno_balance_pago)
+                    (concepto_abono, monto_efectivamente_aplicado, turno_balance_pago, rid)
                 )
                 
             conn.commit()
@@ -6782,30 +6801,28 @@ def api_procesar_cierre_caja():
         
     conn = get_db()
     try:
+        rid = int(session.get("ruta_id") or 1)
         with conn.cursor() as cursor:
-            # Recuperamos la fecha de la jornada que se está cerrando
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+            # Recuperamos la fecha de la jornada que se está cerrando en esta ruta
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
             row_j = cursor.fetchone()
             fecha_cierre_real = row_j["valor"] if (row_j and row_j["valor"]) else date.today().isoformat()
 
-            # Sello inmutable de la jornada en Neon Cloud
-            cursor.execute(
-                "INSERT INTO configuracion (llave, valor) VALUES (%s, %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                (f"cierre_caja_{fecha_cierre_real}", detalle_status)
-            )
-            
-            # Avanzamos la jornada activa al día siguiente o la limpiamos para el próximo turno
+            # Sello inmutable de la jornada en Neon Cloud asociado a esta ruta
+            llave_cierre = f"cierre_caja_{fecha_cierre_real}"
+            cursor.execute("DELETE FROM configuracion WHERE llave = %s AND ruta_id = %s", (llave_cierre, rid))
+            cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES (%s, %s, %s)", (llave_cierre, detalle_status, rid))
+
+            # Avanzamos la jornada activa al día siguiente para esta ruta
             proxima_jornada = (date.today() + timedelta(days=1)).isoformat() if fecha_cierre_real == date.today().isoformat() else date.today().isoformat()
-            cursor.execute(
-                "INSERT INTO configuracion (llave, valor) VALUES ('fecha_jornada_activa', %s) ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor",
-                (proxima_jornada,)
-            )
-            
-            # Cierre automático integrado: Bloquea el acceso hasta nueva autorización
-            cursor.execute(
-                "INSERT INTO configuracion (llave, valor) VALUES ('caja_autorizada', '0') ON CONFLICT (llave) DO UPDATE SET valor = EXCLUDED.valor"
-            )
-        conn.commit()
+            cursor.execute("DELETE FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
+            cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES ('fecha_jornada_activa', %s, %s)", (proxima_jornada, rid))
+
+            # Cierre automático integrado: Bloquea únicamente esta ruta hasta nueva autorización
+            cursor.execute("DELETE FROM configuracion WHERE llave = 'caja_autorizada' AND ruta_id = %s", (rid,))
+            cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES ('caja_autorizada', '0', %s)", (rid,))
+            conn.commit()
+
     except Exception as e:
         print(f"Error crítico en el asiento del cierre: {e}")
     finally:
