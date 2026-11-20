@@ -4083,18 +4083,26 @@ def dashboard_principal():
                     hoy_dt = date.fromisoformat(hoy_clean) if len(hoy_clean) == 10 else date.today()
                     dias_mora = 0
                     dias_adelanto = 0
+                    total_pagadas = 0
                     for p in d_cl["pagos"]:
                         f_q = datetime.strptime(p["fecha"], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
-                        if int(p["pagado"]) == 0 and f_q <= hoy_dt:
+                        if int(p["pagado"]) == 1:
+                            total_pagadas += 1
+                            if f_q >= hoy_dt:
+                                dias_adelanto += 1
+                        elif int(p["pagado"]) == 0 and f_q <= hoy_dt:
                             dias_mora += 1
-                        elif int(p["pagado"]) == 1 and f_q > hoy_dt:
-                            dias_adelanto += 1
+
+                    # Si hoy se le marcó No Pago, consume 1 día de su adelanto (quedando en 0 al día)
+                    if d_cl["estado_hoy"] == "no_pago" and dias_adelanto > 0:
+                        dias_adelanto -= 1
 
                     if dias_mora > 0:
                         dias_adelanto = 0
 
                     d_cl["dias_mora"] = dias_mora
                     d_cl["dias_adelanto"] = dias_adelanto
+
                     clientes_ruta.append(d_cl)
 
     except Exception as e:
@@ -6313,25 +6321,26 @@ def api_marcar_no_pago(cliente_id):
     if not session.get("autenticado"):
         return jsonify({"status": "error", "message": "No autorizado"})
         
+    rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     with conn.cursor() as cur_f:
-        cur_f.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+        cur_f.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
         row_f = cur_f.fetchone()
-        hoy_str = str(row_f["valor"]).split("_")[0] if (row_f and row_f["valor"]) else date.today().isoformat()
+        val_f = (row_f["valor"] if isinstance(row_f, dict) else row_f) if row_f else ""
+        hoy_str = str(val_f).split("_")[0].strip() if val_f else date.today().isoformat()
+        if not hoy_str:
+            hoy_str = date.today().isoformat()
     try:
         with conn.cursor() as cursor:
-            # 🛡️ FIJADO: Incrementa el contador de saltos del día y bloquea la fuga en el pool de Neon
             cursor.execute(
-                "UPDATE clientes SET saltado_hoy = saltado_hoy + 1, fecha_gestion = %s WHERE id = %s",
-                (hoy_str, cliente_id)
+                "UPDATE clientes SET saltado_hoy = COALESCE(saltado_hoy, 0) + 1, fecha_gestion = %s WHERE id = %s AND ruta_id = %s",
+                (hoy_str, cliente_id, rid)
             )
         conn.commit()
     except Exception as e:
         print(f"Error crítico al registrar no pago del cliente: {e}")
         return jsonify({"status": "error", "message": "Error interno del servidor"})
-    finally:
-        pass
-        
+
     return jsonify({"status": "ok"})
 
 @app.route("/menu/bluetooth")
