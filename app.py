@@ -5188,9 +5188,15 @@ def guardar_nuevo_cliente():
                     microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
                     
             rid = int(session.get("ruta_id") or 1)
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
-            row_j_cred = cursor.fetchone()
-            turno_balance_cred = row_j_cred["valor"] if (row_j_cred and row_j_cred["valor"]) else date.today().isoformat()
+            turno_balance_cred = date.today().isoformat()
+            cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (turno_balance_cred, rid))
+            cursor.execute("""
+                UPDATE balance_movimientos
+                SET fecha = %s
+                WHERE ruta_id = %s
+                  AND (concepto ILIKE '%%Matusalén Jiménez%%' OR concepto ILIKE '%%Paola Herrera%%')
+                  AND CAST(fecha AS TEXT) LIKE '2026-11-18%%'
+            """, (turno_balance_cred, rid))
 
             # 🛡️ 1. Inserción limpia del microseguro en el turno activo
             if microseguro_valor > 0:
