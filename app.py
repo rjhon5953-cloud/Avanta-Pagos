@@ -2580,6 +2580,12 @@ function ejecutarNoPago(clienteId, prevTipo = '', prevIds = '') {
     const alias = spansCard.length > 1 ? spansCard[1].innerText.trim() : '-';
     const cedula = card ? (card.getAttribute('data-cedula') || 'N/A') : 'N/A';
 
+    const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+    setTxt('gnpIdCliente', clienteId);
+    setTxt('gnpNombre', nombre);
+    setTxt('gnpAlias', alias || '-');
+    setTxt('gnpDocumento', cedula);
+
     let saldoTxt = '$0.00';
     if (card) {
         const bTags = card.querySelectorAll('b');
@@ -2592,12 +2598,16 @@ function ejecutarNoPago(clienteId, prevTipo = '', prevIds = '') {
     const diasMora = card ? (card.getAttribute('data-dias') || '0').trim() : '0';
     const esAdelantoNp = card ? (card.getAttribute('data-es-adelanto') === '1') : false;
 
-    document.getElementById('gnpLblDiasEstado').innerText = esAdelantoNp ? 'Días de adelanto' : 'Días de mora';
-    document.getElementById('gnpDiasMora').innerText = diasMora;
-    document.getElementById('gnpDiasMora').style.color = esAdelantoNp ? '#16a34a' : (parseInt(diasMora) > 0 ? '#dc2626' : '#0f172a');
-    document.getElementById('gnpUltimoPago').innerText = card ? (card.getAttribute('data-ultpago') || 'Sin pagos previos') : '-';
-    document.getElementById('gnpSaldoTexto').innerText = saldoTxt;
-    document.getElementById('gnpComentarios').value = '';
+    setTxt('gnpLblDiasEstado', esAdelantoNp ? 'Días de adelanto' : 'Días de mora');
+    const elDias = document.getElementById('gnpDiasMora');
+    if (elDias) {
+        elDias.innerText = diasMora;
+        elDias.style.color = esAdelantoNp ? '#0284c7' : (parseInt(diasMora) > 0 ? '#dc2626' : '#16a34a');
+    }
+    setTxt('gnpUltimoPago', card ? (card.getAttribute('data-ultpago') || 'Sin pagos previos') : '-');
+    setTxt('gnpSaldoTexto', saldoTxt);
+    const elCom = document.getElementById('gnpComentarios');
+    if (elCom) elCom.value = '';
 
     document.getElementById('vistaGestorNoPago').style.display = 'flex';
 }
