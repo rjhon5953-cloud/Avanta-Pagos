@@ -3822,20 +3822,18 @@ def dashboard_principal():
         pass
 
     # CONTROL MAESTRO: Lee la jornada activa real congelada desde Neon para esta ruta
-    cursor_j = conn_val.cursor()
-    cursor_j.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
-    row_j = cursor_j.fetchone()
-    cursor_j.close()
-    if row_j and (row_j["valor"] if isinstance(row_j, dict) else row_j):
-        raw_j = row_j["valor"] if isinstance(row_j, dict) else row_j
-        turno_id = str(raw_j)
-        hoy_str = turno_id.split("_")[0]
-    else:
-        hoy_str = date.today().isoformat()
-        turno_id = hoy_str
+    turno_id_real = date.today().isoformat()
+    if conn_val:
+        cursor_j = conn_val.cursor()
+        cursor_j.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
+        row_j = cursor_j.fetchone()
+        cursor_j.close()
+        if row_j and (row_j["valor"] if isinstance(row_j, dict) else row_j[0]):
+            val_j = row_j["valor"] if isinstance(row_j, dict) else row_j[0]
+            turno_id_real = str(val_j).strip()
 
-    turno_id = str(turno_id)
     fecha_hoy_real = date.today().isoformat()
+    turno_id = fecha_hoy_real
     hoy_str = fecha_hoy_real
 
     # FECHA EN TIEMPO REAL: Formateo en español para el badge superior
@@ -3864,9 +3862,9 @@ def dashboard_principal():
                 WHERE ruta_id = %s
                   AND tipo = 'Salida'
                   AND concepto LIKE '%%CRÉDITO NUEVO%%'
-                  AND (CAST(fecha AS TEXT) LIKE %s OR CAST(fecha AS TEXT) LIKE %s)
+                  AND (fecha = %s OR CAST(fecha AS TEXT) LIKE %s OR CAST(fecha AS TEXT) LIKE %s)
                 ORDER BY id DESC
-            """, (rid, f"{fecha_hoy_real}%", f"{turno_id[:10]}%"))
+            """, (rid, turno_id_real, f"{fecha_hoy_real}%", f"{turno_id_real[:10]}%"))
             rows_creditos_turno = cursor.fetchall()
             creditos_hoy = len(rows_creditos_turno)
 
@@ -4411,7 +4409,7 @@ def dashboard_principal():
             estado_mora_cl = "en_mora"
         elif mora_real > 0:
             dias_calculados = mora_real
-            estado_mora_cl = "en_mora"
+            estado_mora_cl = "al_dia"
         elif adelanto_real > 0:
             dias_calculados = adelanto_real
             estado_mora_cl = "adelantado"
@@ -5152,6 +5150,8 @@ def guardar_nuevo_cliente():
         fecha_inicio_dt = datetime.strptime(fecha_inicio_str, "%Y-%m-%d").date()
     except ValueError:
         fecha_inicio_dt = date.today()
+    if fecha_inicio_dt <= date.today():
+        fecha_inicio_dt = date.today() + timedelta(days=1)
 
     monto_interes = monto * (interes_porcentaje / Decimal("100"))
     monto_total = monto + monto_interes
@@ -7028,20 +7028,21 @@ def api_editar_credito_hoy():
                     (monto, f"CRÉDITO NUEVO - CLIENTE: {nombre_final}", mov_id)
                 )
 
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
+            rid = int(session.get("ruta_id") or 1)
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
             row_t = cursor.fetchone()
-            turno_act = str(row_t["valor"] if isinstance(row_t, dict) else row_t[0]) if row_t else date.today().isoformat()
+            turno_act = str(row_t["valor"] if isinstance(row_t, dict) else row_t) if row_t else date.today().isoformat()
 
             cursor.execute(
                 """
                 SELECT id FROM balance_movimientos
-                WHERE tipo = 'Entrada' AND concepto ILIKE %s AND fecha = %s
+                WHERE ruta_id = %s AND tipo = 'Entrada' AND concepto ILIKE %s AND fecha = %s
                 ORDER BY id DESC LIMIT 1
-                """, (f"%MICROSEGURO%{nombre_anterior}%", turno_act)
+                """, (rid, f"%MICROSEGURO%{nombre_anterior}%", turno_act)
             )
             row_ms = cursor.fetchone()
             if row_ms:
-                ms_id = row_ms["id"] if isinstance(row_ms, dict) else row_ms[0]
+                ms_id = row_ms["id"] if isinstance(row_ms, dict) else row_ms
                 if microseguro > 0:
                     cursor.execute(
                         "UPDATE balance_movimientos SET monto = %s, concepto = %s WHERE id = %s",
@@ -7052,9 +7053,9 @@ def api_editar_credito_hoy():
             elif microseguro > 0:
                 cursor.execute(
                     """
-                    INSERT INTO balance_movimientos (fecha, tipo, categoria, concepto, monto)
-                    VALUES (%s, 'Entrada', 'Microseguro', %s, %s)
-                    """, (turno_act, f"MICROSEGURO - CLIENTE: {nombre_final}", microseguro)
+                    INSERT INTO balance_movimientos (fecha, tipo, categoria, concepto, monto, ruta_id)
+                    VALUES (%s, 'Entrada', 'Microseguro', %s, %s, %s)
+                    """, (turno_act, f"MICROSEGURO - CLIENTE: {nombre_final}", microseguro, rid)
                 )
 
             conn.commit()
