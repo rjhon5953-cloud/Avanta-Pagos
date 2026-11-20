@@ -2626,13 +2626,17 @@ function seleccionarRazonNoPago(btn, razon) {
 
 async function confirmarNoPagoGestor() {
     const clienteId = document.getElementById('gnpClienteId').value;
+    if (!clienteId) return;
     cerrarGestorPantallas();
     if (gestionPreviaTipo === 'pago' && gestionPreviaIds) {
-        await fetch('/api/revertir_gestion/pago/' + gestionPreviaIds);
+        await fetch('/api/revertir_gestion/pago/' + gestionPreviaIds, { method: 'POST' }).catch(() => {});
     }
     gestionPreviaTipo = '';
     gestionPreviaIds = '';
-    fetch('/api/marcar_no_pago/' + clienteId)
+    fetch('/api/marcar_no_pago/' + clienteId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
         .then(res => res.json())
         .then(data => {
             if (data.status === 'ok') {
@@ -4018,14 +4022,14 @@ def dashboard_principal():
             """, (rid, f"{fecha_hoy_real}%", f"{turno_id_real[:10]}%", hoy_str, hoy_str, f"{fecha_hoy_real}%"))
             clientes_crudos = cursor.fetchall()
 
-            # Consultamos los abonos reales asentados hoy o en el turno activo
+            # Consultamos los abonos reales asentados hoy o en el turno activo (incluye parciales)
             cursor.execute("""
                 SELECT p.id AS pago_id, p.cliente_id, p.valor_pagado
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
                 WHERE c.ruta_id = %s
-                  AND p.pagado = 1
-                  AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
+                    AND COALESCE(p.valor_pagado, 0) > 0
+                    AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
             """, (rid, f"{fecha_hoy_real}%", f"{turno_id[:10]}%"))
             abonos_turno_rows = cursor.fetchall()
 
@@ -4065,8 +4069,8 @@ def dashboard_principal():
                     d_cl["pagos"] = pagos_mep.get(d_cl["id"], [])
 
                     # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
-                    # Calcular fecha del último pago real
-                    fechas_p = [str(p["fecha_pago_real"]).strip() for p in d_cl["pagos"] if int(p["pagado"]) == 1 and p.get("fecha_pago_real")]
+                    # Calcular fecha del último pago real (completo o parcial)
+                    fechas_p = [str(p["fecha_pago_real"]).strip() for p in d_cl["pagos"] if (int(p["pagado"]) == 1 or float(p.get("valor_pagado") or 0) > 0) and p.get("fecha_pago_real")]
                     d_cl["ultimo_pago_str"] = sorted(fechas_p)[-1] if fechas_p else "Sin pagos previos"
 
                     # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
@@ -4443,7 +4447,7 @@ def dashboard_principal():
         </div>
     </div>
 
-    <div id="clientesContainer" style="display:flex; flex-direction:column; gap:10px; width:100%; box-sizing:border-box;">
+    <div id="clientesContainer" style="display:flex; flex-direction:column; gap:5px; width:100%; box-sizing:border-box;">
     """
     
         # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO (DISEÑO LIMPIO EN DASHBOARD)
@@ -4453,10 +4457,13 @@ def dashboard_principal():
     
         valor_cuota_dec = Decimal(str(c["valor_cuota"]))
         
-        # Contador con flotantes (.1f) idéntico a TryController
+        # Contador decimal exacto según saldo pendiente real
         cuotas_totales_float = float(c["cuotas"])
-        cuotas_pendientes_float = float(len([p for p in c["pagos"] if int(p["pagado"]) == 0]))
-        cuotas_pagadas = int(c["cuotas"] - cuotas_pendientes_float)
+        if float(valor_cuota_dec) > 0:
+            cuotas_pendientes_float = round(float(saldo_restante) / float(valor_cuota_dec), 1)
+        else:
+            cuotas_pendientes_float = float(len([p for p in c["pagos"] if int(p["pagado"]) == 0]))
+        cuotas_pagadas = int(round(cuotas_totales_float - cuotas_pendientes_float))
     
         cuota_p = next((p for p in c["pagos"] if int(p["pagado"]) == 0), None)
         
@@ -4624,8 +4631,8 @@ def dashboard_principal():
 
         # Inyección limpia en las tarjetas premium
         contexto_dash += f"""
-        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-cedula="{c.get('identificacion') or 'N/A'}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}" data-ultpago="{ult_pago_str}" data-dias="{texto_cuadro_dias}" data-es-adelanto="{1 if ('2563eb' in estilo_cuadro_dias or 'dbeafe' in estilo_cuadro_dias or '1d4ed8' in estilo_cuadro_dias or '0284c7' in estilo_cuadro_dias or 'eff6ff' in estilo_cuadro_dias) else 0}"
-            style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:13px 12px; box-shadow:0 3px 10px rgba(15,23,42,0.04); display:flex; align-items:center; justify-content:space-between; gap:8px; {borde_izq_card} {display_card}">
+        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-cedula="{c.get('identificacion') or 'N/A'}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}" data-dias="{dias_calculados}" data-es-adelanto="{1 if adelanto_real > 0 else 0}" data-ultpago="{ult_pago_str}"
+            style="background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:9px 10px; margin-bottom:0; box-shadow:0 2px 6px rgba(15,23,42,0.04); display:flex; align-items:center; justify-content:space-between; gap:8px; {borde_izq_card}">
                 <div class="card-izquierda" onclick="navegarRuta('/menu/cliente/{c_id}')" style="flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
                 <div style="padding-top:2px; flex-shrink:0;">
                     {html_indicador_mora}
