@@ -3857,16 +3857,20 @@ def dashboard_principal():
             """, (rid, f"{fecha_hoy_real}%", f"{turno_id[:10]}%"))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
 
-            # 2. Conteo y detalle completo de créditos entregados en el turno activo de esta ruta
+            # 2. Conteo y detalle completo de créditos entregados hoy en esta ruta
             cursor.execute("""
                 SELECT id, concepto, monto
                 FROM balance_movimientos
-                WHERE ruta_id = %s AND tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s
+                WHERE ruta_id = %s
+                  AND tipo = 'Salida'
+                  AND concepto LIKE '%%CRÉDITO NUEVO%%'
+                  AND (CAST(fecha AS TEXT) LIKE %s OR CAST(fecha AS TEXT) LIKE %s)
                 ORDER BY id DESC
-            """, (rid, turno_id))
+            """, (rid, f"{fecha_hoy_real}%", f"{turno_id[:10]}%"))
             rows_creditos_turno = cursor.fetchall()
             creditos_hoy = len(rows_creditos_turno)
 
+            ids_creditos_hoy = set()
             lista_creditos_html = ""
             total_colocado_turno = Decimal("0.00")
             for rc in rows_creditos_turno:
@@ -3899,34 +3903,44 @@ def dashboard_principal():
                         cuotas_c = int(cli_row.get("cuotas") or 20)
                         v_cuota_c = float(cli_row.get("valor_cuota") or v_cuota_c)
                     else:
-                        cli_id_c = int(cli_row[0] or 0)
-                        interes_c = float(cli_row[1] or 20)
-                        freq_c = str(cli_row[2] or "Diaria")
-                        cuotas_c = int(cli_row[3] or 20)
-                        v_cuota_c = float(cli_row[4] or v_cuota_c)
+                        cli_id_c = int(cli_row or 0)
+                        interes_c = float(cli_row or 20)
+                        freq_c = str(cli_row or "Diaria")
+                        cuotas_c = int(cli_row or 20)
+                        v_cuota_c = float(cli_row or v_cuota_c)
 
+                if cli_id_c > 0:
+                    ids_creditos_hoy.add(cli_id_c)
                     cursor.execute("SELECT COUNT(*) AS total_c, COALESCE(MAX(valor), 0) AS val_c FROM pagos WHERE cliente_id = %s", (cli_id_c,))
                     row_p_info = cursor.fetchone()
                     if row_p_info:
-                        cnt_p = row_p_info["total_c"] if isinstance(row_p_info, dict) else row_p_info[0]
-                        val_p = row_p_info["val_c"] if isinstance(row_p_info, dict) else row_p_info[1]
-                        cuotas_c = int(cnt_p) if int(cnt_p) > 0 else int(c_dict.get("cuotas") or c_dict.get("plazo") or 20) # type: ignore
-                        v_cuota_c = float(val_p) if float(val_p) > 0 else float(c_dict.get("valor_cuota") or v_cuota_c) # type: ignore
-                    else:
-                        cuotas_c = int(c_dict.get("cuotas") or c_dict.get("plazo") or 20) # type: ignore
-                        v_cuota_c = float(c_dict.get("valor_cuota") or v_cuota_c) # type: ignore
+                        cnt_p = row_p_info["total_c"] if isinstance(row_p_info, dict) else row_p_info
+                        val_p = row_p_info["val_c"] if isinstance(row_p_info, dict) else row_p_info
+                        if int(cnt_p or 0) > 0:
+                            cuotas_c = int(cnt_p)
+                        if float(val_p or 0) > 0:
+                            v_cuota_c = float(val_p)
 
                 nombre_safe = nombre_cli_c.replace("'", "\\'")
                 lista_creditos_html += f"""
-                <div onclick="abrirEditorCreditoHoy({cli_id_c}, {mov_id_c}, '{nombre_safe}', {float(monto_c):.2f}, {interes_c}, {cuotas_c}, '{freq_c}')"
-                     style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px; margin-bottom:8px; cursor:pointer;">
-                    <div style="text-align:left;">
-                        <div style="font-size:13.5px; font-weight:800; color:#0f172a;">{nombre_cli_c}</div>
-                        <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">{cuotas_c} cuotas ({freq_c}) • Cuota: ${v_cuota_c:.2f}</div>
+                <div style="display:flex; flex-direction:column; gap:10px; padding:12px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="text-align:left;">
+                            <div style="font-size:13.5px; font-weight:800; color:#0f172a;">{nombre_cli_c}</div>
+                            <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">{cuotas_c} cuotas ({freq_c}) • Cuota: ${v_cuota_c:.2f}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:14.5px; font-weight:900; color:#0f2b5c;">${monto_c:.2f}</div>
+                            <span style="display:inline-block; margin-top:3px; font-size:10px; font-weight:800; color:#1d4ed8; background:#dbeafe; padding:2px 7px; border-radius:6px;">HOY</span>
+                        </div>
                     </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:14.5px; font-weight:900; color:#0f2b5c;">${monto_c:.2f}</div>
-                        <span style="display:inline-block; margin-top:3px; font-size:10px; font-weight:800; color:#1d4ed8; background:#dbeafe; padding:2px 7px; border-radius:6px;">Editar ✎</span>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; border-top:1px solid #e2e8f0; padding-top:8px;">
+                        <button type="button" onclick="abrirEditorCreditoHoy({cli_id_c}, {mov_id_c}, '{nombre_safe}', {float(monto_c):.2f}, {interes_c}, {cuotas_c}, '{freq_c}')" style="padding:8px; border:1px solid #cbd5e1; border-radius:8px; background:#ffffff; color:#0f2b5c; font-size:11.5px; font-weight:700; cursor:pointer;">
+                            ✏️ Editar Crédito
+                        </button>
+                        <button type="button" onclick="document.getElementById('modalCreditosHoy').style.display='none'; abrirGestorPago({cli_id_c}, '{nombre_safe}', {v_cuota_c:.2f}, {v_cuota_c * cuotas_c:.2f}, 0);" style="padding:8px; border:none; border-radius:8px; background:#16a34a; color:#ffffff; font-size:11.5px; font-weight:700; cursor:pointer;">
+                            💵 Registrar Abono
+                        </button>
                     </div>
                 </div>
                 """
@@ -3997,11 +4011,16 @@ def dashboard_principal():
                     
                 for c in clientes_crudos:
                     d_cl = dict(c)
-                    d_cl["pagos"] = pagos_mep.get(c["id"], [])
-                    
+                    info_hoy = mapa_pagos_hoy.get(d_cl["id"])
+
+                    # Todo crédito otorgado hoy inicia su cobro en lista de pendientes mañana
+                    if int(d_cl["id"]) in ids_creditos_hoy and not (info_hoy and info_hoy["monto"] > 0):
+                        continue
+
+                    d_cl["pagos"] = pagos_mep.get(d_cl["id"], [])
+
                     # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
-                    info_hoy = mapa_pagos_hoy.get(c["id"])
-                    f_gest = str(c["fecha_gestion"]) if c.get("fecha_gestion") else ""
+                    f_gest = str(d_cl["fecha_gestion"]) if d_cl.get("fecha_gestion") else ""
                     
                     if info_hoy and info_hoy["monto"] > 0:
                         d_cl["estado_hoy"] = "pago"
@@ -4392,7 +4411,7 @@ def dashboard_principal():
             estado_mora_cl = "en_mora"
         elif mora_real > 0:
             dias_calculados = mora_real
-            estado_mora_cl = "al_dia"
+            estado_mora_cl = "en_mora"
         elif adelanto_real > 0:
             dias_calculados = adelanto_real
             estado_mora_cl = "adelantado"
