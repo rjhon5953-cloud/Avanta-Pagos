@@ -4031,7 +4031,7 @@ def dashboard_principal():
                     dias_adelanto = 0
                     for p in d_cl["pagos"]:
                         f_q = datetime.strptime(p["fecha"], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
-                        if int(q["pagado"]) == 0 and f_q <= hoy_dt:
+                        if int(p["pagado"]) == 0 and f_q <= hoy_dt:
                             dias_mora += 1
                         elif int(p["pagado"]) == 1 and f_q > hoy_dt:
                             dias_adelanto += 1
