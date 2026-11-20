@@ -4031,7 +4031,7 @@ def dashboard_principal():
                     dias_adelanto = 0
                     for p in d_cl["pagos"]:
                         f_q = datetime.strptime(p["fecha"], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
-                        if int(p["pagado"]) == 0 and f_q < hoy_dt:
+                        if int(q["pagado"]) == 0 and f_q <= hoy_dt:
                             dias_mora += 1
                         elif int(p["pagado"]) == 1 and f_q > hoy_dt:
                             dias_adelanto += 1
@@ -4055,11 +4055,10 @@ def dashboard_principal():
     
     debido_total_acumulado = Decimal("0.00")
     for cl in clientes_ruta:
-        if cl.get("estado_hoy") == "pendiente":
-            for p in cl["pagos"]:
-                if not p["pagado"] and str(p["fecha"])[:10] < str(hoy_str).replace("[", "").replace("]", "").replace("'", "").split(",")[0].split("_")[0].strip()[:10]:
-                    debido_total_acumulado += (Decimal(str(p["valor"])) - Decimal(str(p["valor_pagado"])))
-                
+        for p in cl["pagos"]:
+            if not p["pagado"] and str(p["fecha"])[:10] <= hoy_str:
+                debido_total_acumulado += (Decimal(str(p["valor"])) - Decimal(str(p["valor_pagado"])))
+
     capital_en_calle = Decimal("0.00")
     for c in clientes_ruta:
         pagado_cliente = sum(Decimal(str(p["valor_pagado"])) for p in c["pagos"])
