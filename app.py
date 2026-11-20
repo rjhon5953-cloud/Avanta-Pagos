@@ -3703,9 +3703,11 @@ function aplicarFiltrosDashboard() {
             });
         }
 
+let gpsIniciado = false;
 function reportarUbicacionCobrador() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(function(pos) {
+        gpsIniciado = true;
         fetch('/api/gps/reportar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3714,10 +3716,11 @@ function reportarUbicacionCobrador() {
                 longitud: pos.coords.longitude.toFixed(6)
             })
         }).catch(() => {});
-    }, function(err) {
-        console.warn('GPS:', err.message);
-    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    }, function() {}, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 }
+document.addEventListener('click', function() {
+    if (!gpsIniciado) reportarUbicacionCobrador();
+});
 window.addEventListener('load', function() {
     reportarUbicacionCobrador();
     setInterval(reportarUbicacionCobrador, 30000);
