@@ -3714,11 +3714,13 @@ function reportarUbicacionCobrador() {
                 longitud: pos.coords.longitude.toFixed(6)
             })
         }).catch(() => {});
-    }, function() {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 });
+    }, function(err) {
+        console.warn('GPS:', err.message);
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 }
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(reportarUbicacionCobrador, 2500);
-    setInterval(reportarUbicacionCobrador, 45000);
+window.addEventListener('load', function() {
+    reportarUbicacionCobrador();
+    setInterval(reportarUbicacionCobrador, 30000);
 });
 
 </script>
