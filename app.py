@@ -2357,6 +2357,13 @@ function cerrarGestorPantallas() {
 let gestionPreviaTipo = '';
 let gestionPreviaIds = '';
 
+function abrirGestorPago(clienteId, nombre, valorCuota, saldoTotal, diasMora = 0) {
+    abrirModalAbono(clienteId, 1, saldoTotal, valorCuota, diasMora);
+    if (nombre) {
+        document.getElementById('gpNombre').innerText = String(nombre).toUpperCase();
+    }
+}
+
 function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 0, prevTipo = '', prevIds = '') {
     gestionPreviaTipo = prevTipo;
     gestionPreviaIds = prevIds;
