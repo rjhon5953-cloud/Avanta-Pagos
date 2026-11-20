@@ -4696,6 +4696,7 @@ def perfil_cliente_detalle(cliente_id):
         return "Sesión expirada"
     conn = get_db()
     try:
+        rid = int(session.get("ruta_id") or 1)
         hoy_str = date.today().isoformat()
         with conn.cursor() as cursor:
             cursor.execute("SELECT * FROM clientes WHERE id = %s", (cliente_id,))
@@ -4703,25 +4704,25 @@ def perfil_cliente_detalle(cliente_id):
             cedula_cli = str(cliente.get("identificacion") or "").strip()
             nombre_cli = str(cliente.get("nombre") or "").strip()
 
-            # Buscar créditos del cliente solo por cédula válida (8+ dígitos) o por su ID único
+            # Buscar créditos del cliente solo por cédula válida (8+ dígitos) o por su ID único dentro de la ruta
             if cedula_cli and len(cedula_cli) >= 8 and cedula_cli not in ("0000000000", "1111111111", "1234567890"):
                 cursor.execute("""
                     SELECT c.*,
-                           COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
-                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id), 0) AS total_cuotas_real,
-                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
-                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
+                        COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
+                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id), 0) AS total_cuotas_real,
+                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
+                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha <= %s), 0) AS cuotas_vencidas
                     FROM clientes c
-                    WHERE TRIM(c.identificacion) = %s
+                    WHERE c.ruta_id = %s AND TRIM(c.identificacion) = %s
                     ORDER BY c.id DESC
-                """, (hoy_str, cedula_cli))
+                """, (hoy_str, rid, cedula_cli))
             else:
                 cursor.execute("""
                     SELECT c.*,
-                           COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
-                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id), 0) AS total_cuotas_real,
-                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
-                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
+                        COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
+                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id), 0) AS total_cuotas_real,
+                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
+                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha <= %s), 0) AS cuotas_vencidas
                     FROM clientes c
                     WHERE c.id = %s
                     ORDER BY c.id DESC
