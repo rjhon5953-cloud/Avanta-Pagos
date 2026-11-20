@@ -5595,6 +5595,15 @@ def seccion_listados():
     conn = get_db()
     try:
         with conn.cursor() as cursor:
+            cursor.execute("""
+                UPDATE balance_movimientos
+                SET fecha = '2026-11-19'
+                WHERE ruta_id = %s
+                  AND (concepto ILIKE '%%Matusalén Jiménez%%' OR concepto ILIKE '%%Paola Herrera%%')
+                  AND CAST(fecha AS TEXT) LIKE '2026-11-18%%'
+            """, (rid,))
+            conn.commit()
+
             cursor.execute(
                 """
                 SELECT p.numero, p.valor_pagado, c.id AS cliente_id, c.nombre
