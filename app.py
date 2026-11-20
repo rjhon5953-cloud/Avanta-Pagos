@@ -3702,6 +3702,25 @@ function aplicarFiltrosDashboard() {
                 btn.innerText = 'Guardar Cambios';
             });
         }
+
+function reportarUbicacionCobrador() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(function(pos) {
+        fetch('/api/gps/reportar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                latitud: pos.coords.latitude.toFixed(6),
+                longitud: pos.coords.longitude.toFixed(6)
+            })
+        }).catch(() => {});
+    }, function() {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 });
+}
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(reportarUbicacionCobrador, 2500);
+    setInterval(reportarUbicacionCobrador, 45000);
+});
+
 </script>
 </body>
 </html>
@@ -7090,6 +7109,37 @@ def api_editar_credito_hoy():
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/gps/reportar", methods=["POST"])
+def api_gps_reportar():
+    if not session.get("autenticado"):
+        return jsonify({"status": "error"}), 401
+    rid = int(session.get("ruta_id") or 1)
+    data = request.get_json(silent=True) or {}
+    lat = str(data.get("latitud") or "").strip()
+    lon = str(data.get("longitud") or "").strip()
+    if not lat or not lon:
+        return jsonify({"status": "error"}), 400
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT COALESCE(gps_habilitado, 1) AS gps FROM rutas WHERE id = %s", (rid,))
+            row_g = cursor.fetchone()
+            gps_on = int((row_g["gps"] if isinstance(row_g, dict) else row_g) or 0) if row_g else 1
+            if gps_on != 1:
+                return jsonify({"status": "disabled"})
+
+            hora_ec = (datetime.utcnow() - timedelta(hours=5)).strftime("%d/%m/%Y %H:%M")
+            cursor.execute(
+                "UPDATE rutas SET latitud_actual = %s, longitud_actual = %s, ultima_ubicacion = %s WHERE id = %s",
+                (lat, lon, hora_ec, rid)
+            )
+            conn.commit()
+            return jsonify({"status": "ok", "hora": hora_ec})
+    except Exception as e:
+        print(f"Error GPS reportar: {e}")
+        return jsonify({"status": "error"}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
