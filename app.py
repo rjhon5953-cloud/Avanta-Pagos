@@ -422,7 +422,7 @@ CONTENIDO_HTML = """
             {% set cuotas_pagadas = c.pagos | selectattr('pagado', 'equalto', 1) | list | length %}
             {% set es_mora = c.saltado_hoy > 0 or c.cuotas_atrasadas > 0 %}
 
-            <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}">
+            <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}" data-cedula="{{ c.identificacion or 'N/A' }}" data-dias="{{ c.dias_adelanto if c.dias_adelanto > 0 else c.dias_mora }}" data-es-adelanto="{{ 1 if c.dias_adelanto > 0 else 0 }}" data-ultpago="{{ c.ultimo_pago_str or 'Sin pagos previos' }}">
                 <div class="card-izquierda">
                     <div class="circulo-frecuencia {% if not es_mora %}al-dia{% else %}mora-leve{% endif %}">
                         {{ 'D' if c.frecuencia == 'Diaria' else 'S' }}
@@ -4047,7 +4047,7 @@ def dashboard_principal():
 
             if clientes_crudos:
                 c_ids = [c["id"] for c in clientes_crudos]
-                cursor.execute("SELECT id, cliente_id, numero, valor, valor_pagado, pagado, fecha FROM pagos WHERE cliente_id = ANY(%s) ORDER BY numero ASC", (c_ids,))
+                cursor.execute("SELECT id, cliente_id, numero, valor, valor_pagado, pagado, fecha, fecha_pago_real FROM pagos WHERE cliente_id = ANY(%s) ORDER BY numero ASC", (c_ids,))
                 todos_pagos = cursor.fetchall()
                 
                 pagos_mep = defaultdict(list)
@@ -4065,14 +4065,21 @@ def dashboard_principal():
                     d_cl["pagos"] = pagos_mep.get(d_cl["id"], [])
 
                     # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
-                    f_gest = str(d_cl["fecha_gestion"]) if d_cl.get("fecha_gestion") else ""
-                    
+                    # Calcular fecha del último pago real
+                    fechas_p = [str(p["fecha_pago_real"]).strip() for p in d_cl["pagos"] if int(p["pagado"]) == 1 and p.get("fecha_pago_real")]
+                    d_cl["ultimo_pago_str"] = sorted(fechas_p)[-1] if fechas_p else "Sin pagos previos"
+
+                    # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
+                    f_gest = str(d_cl["fecha_gestion"]).strip()[:10] if d_cl.get("fecha_gestion") else ""
+                    hoy_base = str(hoy_str).strip()[:10]
+
                     if info_hoy and info_hoy["monto"] > 0:
                         d_cl["estado_hoy"] = "pago"
                         d_cl["monto_pagado_hoy"] = info_hoy["monto"]
                         d_cl["pago_ids_hoy"] = ",".join(info_hoy["ids"])
                         cnt_pagos += 1
-                    elif f_gest == hoy_str:
+                    elif f_gest and (f_gest == hoy_base or f_gest == hoy_str):
+
                         d_cl["estado_hoy"] = "no_pago"
                         d_cl["monto_pagado_hoy"] = Decimal("0.00")
                         d_cl["pago_ids_hoy"] = ""
