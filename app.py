@@ -7118,21 +7118,26 @@ def api_editar_credito_hoy():
 @app.route("/api/gps/reportar", methods=["POST"])
 def api_gps_reportar():
     if not session.get("autenticado"):
-        return jsonify({"status": "error"}), 401
+        return jsonify({"status": "error", "msg": "No autenticado"}), 401
     rid = int(session.get("ruta_id") or 1)
     data = request.get_json(silent=True) or {}
     lat = str(data.get("latitud") or "").strip()
     lon = str(data.get("longitud") or "").strip()
     if not lat or not lon:
-        return jsonify({"status": "error"}), 400
+        return jsonify({"status": "error", "msg": "Sin coordenadas"}), 400
 
     conn = get_db()
     try:
         with conn.cursor() as cursor:
+            cursor.execute("ALTER TABLE rutas ADD COLUMN IF NOT EXISTS latitud_actual TEXT")
+            cursor.execute("ALTER TABLE rutas ADD COLUMN IF NOT EXISTS longitud_actual TEXT")
+            cursor.execute("ALTER TABLE rutas ADD COLUMN IF NOT EXISTS ultima_ubicacion TEXT")
+            cursor.execute("ALTER TABLE rutas ADD COLUMN IF NOT EXISTS gps_habilitado INTEGER DEFAULT 1")
+
             cursor.execute("SELECT COALESCE(gps_habilitado, 1) AS gps FROM rutas WHERE id = %s", (rid,))
             row_g = cursor.fetchone()
-            gps_on = int((row_g["gps"] if isinstance(row_g, dict) else row_g) or 0) if row_g else 1
-            if gps_on != 1:
+            gps_on = int((row_g["gps"] if isinstance(row_g, dict) else row_g[0]) or 1) if row_g else 1
+            if gps_on == 0:
                 return jsonify({"status": "disabled"})
 
             hora_ec = (datetime.utcnow() - timedelta(hours=5)).strftime("%d/%m/%Y %H:%M")
@@ -7141,10 +7146,10 @@ def api_gps_reportar():
                 (lat, lon, hora_ec, rid)
             )
             conn.commit()
-            return jsonify({"status": "ok", "hora": hora_ec})
+            return jsonify({"status": "ok", "ruta_id": rid, "hora": hora_ec})
     except Exception as e:
         print(f"Error GPS reportar: {e}")
-        return jsonify({"status": "error"}), 500
+        return jsonify({"status": "error", "msg": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
