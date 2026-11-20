@@ -7151,6 +7151,10 @@ def api_gps_reportar():
         print(f"Error GPS reportar: {e}")
         return jsonify({"status": "error", "msg": str(e)}), 500
 
+@app.route("/ping")
+def ping_keep_alive():
+    return jsonify({"status": "ok"}), 200
+
 if __name__ == "__main__":
     app.run(debug=True)
     # Servidor local configurado para ejecutarse en el puerto estricto 8080
