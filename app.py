@@ -3872,10 +3872,10 @@ def dashboard_principal():
             lista_creditos_html = ""
             total_colocado_turno = Decimal("0.00")
             for rc in rows_creditos_turno:
-                is_d = isinstance(rc, dict)
-                mov_id_c = int((rc["id"] if is_d else rc) or 0)
-                conc_c = str(rc["concepto"] if is_d else rc)
-                monto_c = Decimal(str(rc["monto"] if is_d else rc))
+                d_rc = dict(rc)
+                mov_id_c = int(d_rc.get("id") or 0)
+                conc_c = str(d_rc.get("concepto") or "")
+                monto_c = Decimal(str(d_rc.get("monto") or "0.00"))
                 total_colocado_turno += monto_c
 
                 nombre_cli_c = conc_c.split("CLIENTE:")[-1].strip() if "CLIENTE:" in conc_c else conc_c
@@ -3894,32 +3894,28 @@ def dashboard_principal():
                 v_cuota_c = float(monto_c) * 1.20 / 20.0
 
                 if cli_row:
-                    if isinstance(cli_row, dict):
-                        cli_id_c = int(cli_row.get("id") or 0)
-                        interes_c = float(cli_row.get("interes") or 20)
-                        freq_c = str(cli_row.get("frecuencia") or "Diaria")
-                        cuotas_c = int(cli_row.get("cuotas") or 20)
-                        v_cuota_c = float(cli_row.get("valor_cuota") or v_cuota_c)
-                    else:
-                        cli_id_c = int(cli_row or 0)
-                        interes_c = float(cli_row or 20)
-                        freq_c = str(cli_row or "Diaria")
-                        cuotas_c = int(cli_row or 20)
-                        v_cuota_c = float(cli_row or v_cuota_c)
+                    d_cli_c = dict(cli_row)
+                    cli_id_c = int(d_cli_c.get("id") or 0)
+                    interes_c = float(d_cli_c.get("interes") or 20)
+                    freq_c = str(d_cli_c.get("frecuencia") or "Diaria")
+                    cuotas_c = int(d_cli_c.get("cuotas") or 20)
+                    v_cuota_c = float(d_cli_c.get("valor_cuota") or v_cuota_c)
 
                 if cli_id_c > 0:
                     ids_creditos_hoy.add(cli_id_c)
                     cursor.execute("SELECT COUNT(*) AS total_c, COALESCE(MAX(valor), 0) AS val_c FROM pagos WHERE cliente_id = %s", (cli_id_c,))
                     row_p_info = cursor.fetchone()
                     if row_p_info:
-                        cnt_p = row_p_info["total_c"] if isinstance(row_p_info, dict) else row_p_info
-                        val_p = row_p_info["val_c"] if isinstance(row_p_info, dict) else row_p_info
-                        if int(cnt_p or 0) > 0:
-                            cuotas_c = int(cnt_p)
-                        if float(val_p or 0) > 0:
-                            v_cuota_c = float(val_p)
+                        d_pi = dict(row_p_info)
+                        cnt_p = int(d_pi.get("total_c") or 0)
+                        val_p = float(d_pi.get("val_c") or 0)
+                        if cnt_p > 0:
+                            cuotas_c = cnt_p
+                        if val_p > 0:
+                            v_cuota_c = val_p
 
                 nombre_safe = nombre_cli_c.replace("'", "\\'")
+
                 lista_creditos_html += f"""
                 <div style="display:flex; flex-direction:column; gap:10px; padding:12px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
