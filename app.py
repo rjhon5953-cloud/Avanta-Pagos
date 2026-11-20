@@ -3958,20 +3958,30 @@ def dashboard_principal():
                 SELECT c.id, c.nombre, c.telefono, c.direccion, c.referencia, c.identificacion, c.frecuencia, c.cuotas, c.valor_cuota, c.monto_total, c.orden, c.estado, c.fecha_gestion, c.fecha_inicio
                 FROM clientes c
                 WHERE c.ruta_id = %s AND c.estado = 'Activo'
-                  AND COALESCE(NULLIF(TRIM(c.fecha_inicio::text), '')::date, CURRENT_DATE) <= CAST(%s AS DATE)
                   AND (
-                        LOWER(TRIM(c.frecuencia)) = 'diaria'
-                     OR (
-                            LOWER(TRIM(c.frecuencia)) = 'semanal'
-                        AND EXISTS (
-                                SELECT 1 FROM pagos p
-                                WHERE p.cliente_id = c.id
-                                  AND ((p.pagado = 0 AND p.fecha <= %s) OR p.fecha_pago_real = %s)
-                            )
-                        )
+                      EXISTS (
+                          SELECT 1 FROM pagos p_hoy
+                          WHERE p_hoy.cliente_id = c.id
+                            AND p_hoy.pagado = 1
+                            AND (CAST(p_hoy.fecha_pago_real AS TEXT) LIKE %s OR CAST(p_hoy.fecha_pago_real AS TEXT) LIKE %s)
+                      )
+                      OR (
+                          COALESCE(NULLIF(TRIM(c.fecha_inicio::text), '')::date, CURRENT_DATE) <= CAST(%s AS DATE)
+                          AND (
+                              LOWER(TRIM(c.frecuencia)) = 'diaria'
+                              OR (
+                                  LOWER(TRIM(c.frecuencia)) = 'semanal'
+                                  AND EXISTS (
+                                      SELECT 1 FROM pagos p
+                                      WHERE p.cliente_id = c.id
+                                        AND ((p.pagado = 0 AND p.fecha <= %s) OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
+                                  )
+                              )
+                          )
+                      )
                   )
                 ORDER BY c.orden ASC, c.id DESC
-            """, (rid, hoy_str, hoy_str, hoy_str))
+            """, (rid, f"{fecha_hoy_real}%", f"{turno_id_real[:10]}%", hoy_str, hoy_str, f"{fecha_hoy_real}%"))
             clientes_crudos = cursor.fetchall()
 
             # Consultamos los abonos reales asentados hoy o en el turno activo
