@@ -422,7 +422,7 @@ CONTENIDO_HTML = """
             {% set cuotas_pagadas = c.pagos | selectattr('pagado', 'equalto', 1) | list | length %}
             {% set es_mora = c.saltado_hoy > 0 or c.cuotas_atrasadas > 0 %}
 
-            <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}">
+            <div class="cliente-card-premium" id="cliente-card-{{ c.id }}" data-nombre="{{ c.nombre | lower }}" data-mora="{{ 1 if es_mora else 0 }}" data-cedula="{{ c.identificacion or 'N/A' }}" data-dias="{{ c.dias_adelanto if c.dias_adelanto > 0 else c.dias_mora }}" data-es-adelanto="{{ 1 if c.dias_adelanto > 0 else 0 }}" data-ultpago="{{ c.ultimo_pago_str or 'Sin pagos previos' }}">
                 <div class="card-izquierda">
                     <div class="circulo-frecuencia {% if not es_mora %}al-dia{% else %}mora-leve{% endif %}">
                         {{ 'D' if c.frecuencia == 'Diaria' else 'S' }}
@@ -2580,6 +2580,12 @@ function ejecutarNoPago(clienteId, prevTipo = '', prevIds = '') {
     const alias = spansCard.length > 1 ? spansCard[1].innerText.trim() : '-';
     const cedula = card ? (card.getAttribute('data-cedula') || 'N/A') : 'N/A';
 
+    const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+    setTxt('gnpIdCliente', clienteId);
+    setTxt('gnpNombre', nombre);
+    setTxt('gnpAlias', alias || '-');
+    setTxt('gnpDocumento', cedula);
+
     let saldoTxt = '$0.00';
     if (card) {
         const bTags = card.querySelectorAll('b');
@@ -2592,12 +2598,16 @@ function ejecutarNoPago(clienteId, prevTipo = '', prevIds = '') {
     const diasMora = card ? (card.getAttribute('data-dias') || '0').trim() : '0';
     const esAdelantoNp = card ? (card.getAttribute('data-es-adelanto') === '1') : false;
 
-    document.getElementById('gnpLblDiasEstado').innerText = esAdelantoNp ? 'Días de adelanto' : 'Días de mora';
-    document.getElementById('gnpDiasMora').innerText = diasMora;
-    document.getElementById('gnpDiasMora').style.color = esAdelantoNp ? '#16a34a' : (parseInt(diasMora) > 0 ? '#dc2626' : '#0f172a');
-    document.getElementById('gnpUltimoPago').innerText = card ? (card.getAttribute('data-ultpago') || 'Sin pagos previos') : '-';
-    document.getElementById('gnpSaldoTexto').innerText = saldoTxt;
-    document.getElementById('gnpComentarios').value = '';
+    setTxt('gnpLblDiasEstado', esAdelantoNp ? 'Días de adelanto' : 'Días de mora');
+    const elDias = document.getElementById('gnpDiasMora');
+    if (elDias) {
+        elDias.innerText = diasMora;
+        elDias.style.color = esAdelantoNp ? '#0284c7' : (parseInt(diasMora) > 0 ? '#dc2626' : '#16a34a');
+    }
+    setTxt('gnpUltimoPago', card ? (card.getAttribute('data-ultpago') || 'Sin pagos previos') : '-');
+    setTxt('gnpSaldoTexto', saldoTxt);
+    const elCom = document.getElementById('gnpComentarios');
+    if (elCom) elCom.value = '';
 
     document.getElementById('vistaGestorNoPago').style.display = 'flex';
 }
@@ -2616,13 +2626,17 @@ function seleccionarRazonNoPago(btn, razon) {
 
 async function confirmarNoPagoGestor() {
     const clienteId = document.getElementById('gnpClienteId').value;
+    if (!clienteId) return;
     cerrarGestorPantallas();
     if (gestionPreviaTipo === 'pago' && gestionPreviaIds) {
-        await fetch('/api/revertir_gestion/pago/' + gestionPreviaIds);
+        await fetch('/api/revertir_gestion/pago/' + gestionPreviaIds, { method: 'POST' }).catch(() => {});
     }
     gestionPreviaTipo = '';
     gestionPreviaIds = '';
-    fetch('/api/marcar_no_pago/' + clienteId)
+    fetch('/api/marcar_no_pago/' + clienteId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
         .then(res => res.json())
         .then(data => {
             if (data.status === 'ok') {
@@ -3702,6 +3716,30 @@ function aplicarFiltrosDashboard() {
                 btn.innerText = 'Guardar Cambios';
             });
         }
+
+let gpsIniciado = false;
+function reportarUbicacionCobrador() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(function(pos) {
+        gpsIniciado = true;
+        fetch('/api/gps/reportar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                latitud: pos.coords.latitude.toFixed(6),
+                longitud: pos.coords.longitude.toFixed(6)
+            })
+        }).catch(() => {});
+    }, function() {}, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+}
+document.addEventListener('click', function() {
+    if (!gpsIniciado) reportarUbicacionCobrador();
+});
+window.addEventListener('load', function() {
+    reportarUbicacionCobrador();
+    setInterval(reportarUbicacionCobrador, 30000);
+});
+
 </script>
 </body>
 </html>
@@ -3857,7 +3895,7 @@ def dashboard_principal():
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
                 WHERE c.ruta_id = %s
-                    AND p.pagado = 1
+                    AND COALESCE(p.valor_pagado, 0) > 0
                     AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
             """, (rid, f"{fecha_hoy_real}%", f"{turno_id[:10]}%"))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
@@ -3984,14 +4022,14 @@ def dashboard_principal():
             """, (rid, f"{fecha_hoy_real}%", f"{turno_id_real[:10]}%", hoy_str, hoy_str, f"{fecha_hoy_real}%"))
             clientes_crudos = cursor.fetchall()
 
-            # Consultamos los abonos reales asentados hoy o en el turno activo
+            # Consultamos los abonos reales asentados hoy o en el turno activo (incluye parciales)
             cursor.execute("""
                 SELECT p.id AS pago_id, p.cliente_id, p.valor_pagado
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
                 WHERE c.ruta_id = %s
-                  AND p.pagado = 1
-                  AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
+                    AND COALESCE(p.valor_pagado, 0) > 0
+                    AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
             """, (rid, f"{fecha_hoy_real}%", f"{turno_id[:10]}%"))
             abonos_turno_rows = cursor.fetchall()
 
@@ -4013,7 +4051,7 @@ def dashboard_principal():
 
             if clientes_crudos:
                 c_ids = [c["id"] for c in clientes_crudos]
-                cursor.execute("SELECT id, cliente_id, numero, valor, valor_pagado, pagado, fecha FROM pagos WHERE cliente_id = ANY(%s) ORDER BY numero ASC", (c_ids,))
+                cursor.execute("SELECT id, cliente_id, numero, valor, valor_pagado, pagado, fecha, fecha_pago_real FROM pagos WHERE cliente_id = ANY(%s) ORDER BY numero ASC", (c_ids,))
                 todos_pagos = cursor.fetchall()
                 
                 pagos_mep = defaultdict(list)
@@ -4031,14 +4069,21 @@ def dashboard_principal():
                     d_cl["pagos"] = pagos_mep.get(d_cl["id"], [])
 
                     # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
-                    f_gest = str(d_cl["fecha_gestion"]) if d_cl.get("fecha_gestion") else ""
-                    
+                    # Calcular fecha del último pago real (completo o parcial)
+                    fechas_p = [str(p["fecha_pago_real"]).strip() for p in d_cl["pagos"] if (int(p["pagado"]) == 1 or float(p.get("valor_pagado") or 0) > 0) and p.get("fecha_pago_real")]
+                    d_cl["ultimo_pago_str"] = sorted(fechas_p)[-1] if fechas_p else "Sin pagos previos"
+
+                    # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
+                    f_gest = str(d_cl["fecha_gestion"]).strip()[:10] if d_cl.get("fecha_gestion") else ""
+                    hoy_base = str(hoy_str).strip()[:10]
+
                     if info_hoy and info_hoy["monto"] > 0:
                         d_cl["estado_hoy"] = "pago"
                         d_cl["monto_pagado_hoy"] = info_hoy["monto"]
                         d_cl["pago_ids_hoy"] = ",".join(info_hoy["ids"])
                         cnt_pagos += 1
-                    elif f_gest == hoy_str:
+                    elif f_gest and f_gest in (hoy_base, fecha_hoy_real, turno_id[:10]):
+
                         d_cl["estado_hoy"] = "no_pago"
                         d_cl["monto_pagado_hoy"] = Decimal("0.00")
                         d_cl["pago_ids_hoy"] = ""
@@ -4054,20 +4099,29 @@ def dashboard_principal():
                     else:
                         cnt_semanal += 1
 
-                    # 📊 CÁLCULO EXACTO POR CUOTAS HÁBILES (SIN CONTAR DOMINGOS)
+                    # CÁLCULO EXACTO DE MORA Y ADELANTO (POR CUOTAS EXIGIBLES A HOY)
                     hoy_clean = str(hoy_str).replace("[", "").replace("]", "").replace("'", "").replace('"', "").split(",")[0].split("_")[0].strip()[:10]
                     hoy_dt = date.fromisoformat(hoy_clean) if len(hoy_clean) == 10 else date.today()
                     dias_mora = 0
-                    dias_adelanto = 0
+                    total_pagadas = 0
+                    cuotas_exigibles_hoy = 0
+                    f_inicio_c = datetime.strptime(str(d_cl["fecha_inicio"])[:10], "%Y-%m-%d").date() if d_cl.get("fecha_inicio") else hoy_dt
+
                     for p in d_cl["pagos"]:
-                        f_q = datetime.strptime(p["fecha"], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
+                        f_q = datetime.strptime(str(p["fecha"])[:10], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
+                        if int(p["pagado"]) == 1:
+                            total_pagadas += 1
+                        if f_q < hoy_dt:
+                            cuotas_exigibles_hoy += 1
                         if int(p["pagado"]) == 0 and f_q <= hoy_dt:
                             dias_mora += 1
-                        elif int(p["pagado"]) == 1 and f_q > hoy_dt:
-                            dias_adelanto += 1
 
-                    if dias_mora > 0:
-                        dias_adelanto = 0
+                    # Si inició ayer y hoy es su primer día de cobro, cuotas_exigibles_hoy = 0; si pagó 1 ayer, lleva 1 día de adelanto
+                    dias_adelanto = max(0, total_pagadas - cuotas_exigibles_hoy) if dias_mora == 0 else 0
+
+                    # Si hoy se le marcó No Pago, consume 1 día de adelanto (bajando de 1 azul a 0 verde al día)
+                    if d_cl["estado_hoy"] == "no_pago" and dias_adelanto > 0:
+                        dias_adelanto -= 1
 
                     d_cl["dias_mora"] = dias_mora
                     d_cl["dias_adelanto"] = dias_adelanto
@@ -4394,7 +4448,7 @@ def dashboard_principal():
         </div>
     </div>
 
-    <div id="clientesContainer" style="display:flex; flex-direction:column; gap:10px; width:100%; box-sizing:border-box;">
+    <div id="clientesContainer" style="display:flex; flex-direction:column; gap:5px; width:100%; box-sizing:border-box;">
     """
     
         # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO (DISEÑO LIMPIO EN DASHBOARD)
@@ -4404,10 +4458,13 @@ def dashboard_principal():
     
         valor_cuota_dec = Decimal(str(c["valor_cuota"]))
         
-        # Contador con flotantes (.1f) idéntico a TryController
+        # Contador decimal exacto según saldo pendiente real
         cuotas_totales_float = float(c["cuotas"])
-        cuotas_pendientes_float = float(len([p for p in c["pagos"] if int(p["pagado"]) == 0]))
-        cuotas_pagadas = int(c["cuotas"] - cuotas_pendientes_float)
+        if float(valor_cuota_dec) > 0:
+            cuotas_pendientes_float = round(float(saldo_restante) / float(valor_cuota_dec), 1)
+        else:
+            cuotas_pendientes_float = float(len([p for p in c["pagos"] if int(p["pagado"]) == 0]))
+        cuotas_pagadas = int(round(cuotas_totales_float - cuotas_pendientes_float))
     
         cuota_p = next((p for p in c["pagos"] if int(p["pagado"]) == 0), None)
         
@@ -4575,8 +4632,8 @@ def dashboard_principal():
 
         # Inyección limpia en las tarjetas premium
         contexto_dash += f"""
-        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-cedula="{c.get('identificacion') or 'N/A'}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}" data-ultpago="{ult_pago_str}" data-dias="{texto_cuadro_dias}" data-es-adelanto="{1 if ('2563eb' in estilo_cuadro_dias or 'dbeafe' in estilo_cuadro_dias or '1d4ed8' in estilo_cuadro_dias or '0284c7' in estilo_cuadro_dias or 'eff6ff' in estilo_cuadro_dias) else 0}"
-            style="background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:13px 12px; box-shadow:0 3px 10px rgba(15,23,42,0.04); display:flex; align-items:center; justify-content:space-between; gap:8px; {borde_izq_card} {display_card}">
+        <div class="cliente-card-premium" id="cliente-card-{c_id}" data-cedula="{c.get('identificacion') or 'N/A'}" data-nombre="{c_nombre_lower}" data-mora="{clase_mora_badge}" data-estado="{estado_hoy}" data-frecuencia="{freq_slug}" data-dias="{dias_calculados}" data-es-adelanto="{1 if adelanto_real > 0 else 0}" data-ultpago="{ult_pago_str}"
+            style="background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:9px 10px; margin-bottom:0; box-shadow:0 2px 6px rgba(15,23,42,0.04); display:flex; align-items:center; justify-content:space-between; gap:8px; {borde_izq_card}">
                 <div class="card-izquierda" onclick="navegarRuta('/menu/cliente/{c_id}')" style="flex:1; min-width:0; display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
                 <div style="padding-top:2px; flex-shrink:0;">
                     {html_indicador_mora}
@@ -4660,6 +4717,7 @@ def dashboard_principal():
 
             document.getElementById('msgSinResultados').style.display = visibles === 0 ? 'block' : 'none';
         }
+        aplicarFiltrosDashboard();
     </script>
     """
     
@@ -6283,31 +6341,25 @@ def api_marcar_pago(cliente_id, num_cuota):
     }
     return jsonify({"status": "ok", "recibo": recibo, "ticket_pago": ticket_pago})
 
-
-@app.route("/api/marcar_no_pago/<int:cliente_id>")
+@app.route("/api/marcar_no_pago/<int:cliente_id>", methods=["POST", "GET"])
 def api_marcar_no_pago(cliente_id):
     if not session.get("autenticado"):
-        return jsonify({"status": "error", "message": "No autorizado"})
-        
+        return jsonify({"status": "error", "message": "No autorizado"}), 401
+
+    rid = int(session.get("ruta_id") or 1)
+    hoy_str = date.today().isoformat()
     conn = get_db()
-    with conn.cursor() as cur_f:
-        cur_f.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa'")
-        row_f = cur_f.fetchone()
-        hoy_str = str(row_f["valor"]).split("_")[0] if (row_f and row_f["valor"]) else date.today().isoformat()
     try:
         with conn.cursor() as cursor:
-            # 🛡️ FIJADO: Incrementa el contador de saltos del día y bloquea la fuga en el pool de Neon
             cursor.execute(
-                "UPDATE clientes SET saltado_hoy = saltado_hoy + 1, fecha_gestion = %s WHERE id = %s",
-                (hoy_str, cliente_id)
+                "UPDATE clientes SET saltado_hoy = COALESCE(saltado_hoy, 0) + 1, fecha_gestion = %s WHERE id = %s AND ruta_id = %s",
+                (hoy_str, cliente_id, rid)
             )
         conn.commit()
     except Exception as e:
         print(f"Error crítico al registrar no pago del cliente: {e}")
-        return jsonify({"status": "error", "message": "Error interno del servidor"})
-    finally:
-        pass
-        
+        return jsonify({"status": "error", "message": "Error interno del servidor"}), 500
+
     return jsonify({"status": "ok"})
 
 @app.route("/menu/bluetooth")
@@ -7090,6 +7142,46 @@ def api_editar_credito_hoy():
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/gps/reportar", methods=["POST"])
+def api_gps_reportar():
+    if not session.get("autenticado"):
+        return jsonify({"status": "error", "msg": "No autenticado"}), 401
+    rid = int(session.get("ruta_id") or 1)
+    data = request.get_json(silent=True) or {}
+    lat = str(data.get("latitud") or "").strip()
+    lon = str(data.get("longitud") or "").strip()
+    if not lat or not lon:
+        return jsonify({"status": "error", "msg": "Sin coordenadas"}), 400
+
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("ALTER TABLE rutas ADD COLUMN IF NOT EXISTS latitud_actual TEXT")
+            cursor.execute("ALTER TABLE rutas ADD COLUMN IF NOT EXISTS longitud_actual TEXT")
+            cursor.execute("ALTER TABLE rutas ADD COLUMN IF NOT EXISTS ultima_ubicacion TEXT")
+            cursor.execute("ALTER TABLE rutas ADD COLUMN IF NOT EXISTS gps_habilitado INTEGER DEFAULT 1")
+
+            cursor.execute("SELECT COALESCE(gps_habilitado, 1) AS gps FROM rutas WHERE id = %s", (rid,))
+            row_g = cursor.fetchone()
+            gps_on = int((row_g["gps"] if isinstance(row_g, dict) else row_g[0]) or 1) if row_g else 1
+            if gps_on == 0:
+                return jsonify({"status": "disabled"})
+
+            hora_ec = (datetime.utcnow() - timedelta(hours=5)).strftime("%d/%m/%Y %H:%M")
+            cursor.execute(
+                "UPDATE rutas SET latitud_actual = %s, longitud_actual = %s, ultima_ubicacion = %s WHERE id = %s",
+                (lat, lon, hora_ec, rid)
+            )
+            conn.commit()
+            return jsonify({"status": "ok", "ruta_id": rid, "hora": hora_ec})
+    except Exception as e:
+        print(f"Error GPS reportar: {e}")
+        return jsonify({"status": "error", "msg": str(e)}), 500
+
+@app.route("/ping")
+def ping_keep_alive():
+    return jsonify({"status": "ok"}), 200
 
 if __name__ == "__main__":
     app.run(debug=True)
