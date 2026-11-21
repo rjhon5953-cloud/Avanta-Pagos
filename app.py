@@ -708,74 +708,60 @@ CONTENIDO_HTML = """
 
         <!-- HISTORIAL DE PAGOS (EXCLUSIVO DEL CRÉDITO ACTIVO ACTUAL) -->
         {% set cred_activo = creditos[0] if creditos else None %}
-        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left; width:100%; box-sizing:border-box;">
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding-bottom:8px; margin-bottom:8px; border-bottom:1.5px solid #f1f5f9;">
-            <div style="display:flex; align-items:center; gap:7px;">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                <span style="font-size:12px; font-weight:800; color:#0f2b5c; text-transform:uppercase; letter-spacing:0.3px;">Historial de Pagos</span>
+        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding-bottom:8px; margin-bottom:8px; border-bottom:1.5px solid #f1f5f9;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    <span style="font-size:12.5px; font-weight:800; color:#0f2b5c; text-transform:uppercase; letter-spacing:0.3px;">Historial de Pagos (Activo)</span>
+                </div>
+                {% if cred_activo %}
+                <span style="font-size:11px; font-weight:800; color:#0f2b5c; background:#eff6ff; padding:2px 8px; border-radius:6px;">Cuota: ${{ "%.2f"|format(cred_activo.valor_cuota|float) }}</span>
+                {% endif %}
             </div>
-            {% if cred_activo %}
-            <div style="display:flex; align-items:center; gap:6px;">
-                <span style="font-size:11px; font-weight:800; color:#0f2b5c; background:#eff6ff; padding:4px 8px; border-radius:6px;">Cuota: ${{ "%.2f"|format(cred_activo.valor_cuota) }}</span>
-                <button type="button" onclick="abrirTicketCreditoDesdeExp()"
-                    style="background:#0f2b5c; color:#ffffff; border:none; border-radius:6px; padding:5px 9px; font-size:10px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                    Ticket Crédito
-                </button>
+
+            {% if cred_activo and cred_activo.detalle_pagos %}
+            <div style="max-height:260px; overflow-y:auto; border:1px solid #f1f5f9; border-radius:10px;">
+                <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                    <thead style="position:sticky; top:0; background:#f8fafc; z-index:1;">
+                        <tr style="border-bottom:1px solid #cbd5e1; color:#475569; text-align:left;">
+                            <th style="padding:6px 5px;">#</th>
+                            <th style="padding:6px 5px;">Fecha</th>
+                            <th style="padding:6px 5px;">Pagó el</th>
+                            <th style="padding:6px 5px; text-align:right;">Abono / Cuota</th>
+                            <th style="padding:6px 5px; text-align:right;">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in cred_activo.detalle_pagos %}
+                        {% set v_cuota = p.valor|float %}
+                        {% set v_pagado = p.valor_pagado|float %}
+                        {% set es_completa = (p.pagado == 1 or v_pagado >= (v_cuota - 0.01)) %}
+                        {% set es_incompleta = (not es_completa and v_pagado > 0) %}
+                        {% set es_vencida = (not es_completa and not es_incompleta and p.fecha < hoy_str) %}
+                        <tr style="border-bottom:1px solid #f1f5f9; background:{{ '#f0fdf4' if es_completa else ('#fffbeb' if es_incompleta else ('#fef2f2' if es_vencida else '#ffffff')) }};">
+                            <td style="padding:6px 5px; font-weight:800; color:#0f172a;">{{ p.numero }}</td>
+                            <td style="padding:6px 5px; color:#475569;">{{ p.fecha }}</td>
+                            <td style="padding:6px 5px; color:#334155; font-weight:600;">{{ p.fecha_pago_real if p.fecha_pago_real else '-' }}</td>
+                            <td style="padding:6px 5px; text-align:right; font-weight:800; color:#0f172a;">
+                                {% if es_completa %}
+                                    ${{ "%.2f"|format(v_pagado if v_pagado > 0 else v_cuota) }}
+                                {% elif es_incompleta %}
+                                    <span style="color:#d97706;">${{ "%.2f"|format(v_pagado) }}</span> <span style="color:#64748b; font-weight:600;">/ ${{ "%.2f"|format(v_cuota) }}</span>
+                                {% else %}
+                                    <span style="color:#64748b; font-weight:600;">$0.00 / ${{ "%.2f"|format(v_cuota) }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding:6px 5px; text-align:right; font-weight:900; color:{{ '#16a34a' if es_completa else ('#d97706' if es_incompleta else ('#dc2626' if es_vencida else '#64748b')) }};">
+                                {{ 'Completa' if es_completa else ('Incompleta' if es_incompleta else ('Vencida' if es_vencida else 'Pendiente')) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
+            {% else %}
+            <div style="text-align:center; font-size:12px; color:#94a3b8; padding:14px 6px; font-weight:600;">Este cliente no tiene un crédito activo con cuotas pendientes.</div>
             {% endif %}
-
-    {% if cred_activo and cred_activo.detalle_pagos %}
-    <div style="max-height:250px; overflow-y:auto; overflow-x:hidden; border:1px solid #e2e8f0; border-radius:10px; width:100%; box-sizing:border-box;">
-        <table style="width:100%; border-collapse:collapse; font-size:10.5px; table-layout:fixed;">
-            <thead style="position:sticky; top:0; background:#f8fafc; z-index:1;">
-                <tr style="border-bottom:1px solid #cbd5e1; color:#475569; text-align:left;">
-                    <th style="padding:6px 4px; width:24px;">#</th>
-                    <th style="padding:6px 4px; width:74px;">Fecha</th>
-                    <th style="padding:6px 4px;">Pagó el</th>
-                    <th style="padding:6px 4px; width:64px; text-align:right;">Abono</th>
-                    <th style="padding:6px 5px; width:66px; text-align:right;">Estado</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in cred_activo.detalle_pagos %}
-                {% set v_cuota = p.valor|float %}
-                {% set v_pagado = p.valor_pagado|float %}
-                {% set es_completa = (p.pagado == 1 or v_pagado >= (v_cuota - 0.01)) %}
-                {% set es_incompleta = (not es_completa and v_pagado > 0) %}
-                {% set es_vencida = (not es_completa and not es_incompleta and p.fecha < hoy_str) %}
-                <tr style="border-bottom:1px solid #f1f5f9; background:{{ '#f0fdf4' if es_completa else ('#fffbeb' if es_incompleta else ('#fef2f2' if es_vencida else '#ffffff')) }};">
-                    <td style="padding:6px 4px; font-weight:800; color:#0f172a;">{{ p.numero }}</td>
-                    <td style="padding:6px 4px; color:#334155; font-weight:600; white-space:nowrap;">{{ p.fecha }}</td>
-                    <td style="padding:6px 4px; color:#64748b; font-size:9.5px; line-height:1.2; word-break:break-word;">{{ p.fecha_pago_real or '-' }}</td>
-                    <td style="padding:6px 4px; text-align:right; font-weight:800; color:#0f172a;">
-                        {% if es_completa %}
-                        ${{ "%.2f"|format(v_cuota) }}
-                        {% else %}
-                        ${{ "%.2f"|format(v_pagado) }}<div style="font-size:9px; color:#64748b; font-weight:600;">/${{ "%.2f"|format(v_cuota) }}</div>
-                        {% endif %}
-                    </td>
-                    <td style="padding:6px 5px; text-align:right; font-weight:900; color:{{ '#16a34a' if es_completa else ('#d97706' if es_incompleta else ('#dc2626' if es_vencida else '#64748b')) }};">
-                        {% if es_completa or es_incompleta %}
-                        <button type="button"
-                            onclick="abrirTicketPagoDesdeExp('{{ p.numero }}', '{{ '%.2f'|format(v_pagado if v_pagado > 0 else v_cuota) }}', '{{ p.fecha_pago_real or p.fecha }}')"
-                            style="background:#16a34a; color:#ffffff; border:none; border-radius:6px; padding:4px 6px; font-size:9.5px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:2px;">
-                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                            Ticket
-                        </button>
-                        {% else %}
-                        {{ 'Vencida' if es_vencida else 'Pendiente' }}
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <div style="text-align:center; font-size:12px; color:#94a3b8; padding:14px 6px; font-weight:600;">Este cliente no tiene un crédito activo con cuotas pendientes.</div>
-    {% endif %}
-
         </div>
 
         <!-- Geolocalización del Cliente -->
@@ -793,24 +779,6 @@ CONTENIDO_HTML = """
                 </div>
             {% endif %}
         </div>
-{% if cred_activo %}
-<div id="datosTicketExpediente" style="display:none;"
-    data-cliente="{{ cliente.nombre or '' }}"
-    data-cedula="{{ cliente.identificacion or 'N/A' }}"
-    data-telefono="{{ cliente.telefono or 'N/A' }}"
-    data-direccion="{{ cliente.direccion or 'N/A' }}"
-    data-referencia="{{ cliente.referencia or '' }}"
-    data-codigo="{{ '%06d'|format(cred_activo.id) }}"
-    data-frecuencia="{{ cred_activo.frecuencia or 'Diaria' }}"
-    data-inicio="{{ cred_activo.fecha_inicio or '' }}"
-    data-capital="{{ '%.2f'|format(cred_activo.monto | float) }}"
-    data-total="{{ '%.2f'|format(cred_activo.monto_total | float) }}"
-    data-cuota="{{ '%.2f'|format(cred_activo.valor_cuota | float) }}"
-    data-cuotas="{{ cred_activo.cuotas }}"
-    data-saldo="{{ '%.2f'|format((cred_activo.saldo_actual if cred_activo.saldo_actual is defined else (cred_activo.saldo if cred_activo.saldo is defined else 0)) | float) }}"
-    data-vencimiento="{{ cred_activo.detalle_pagos[-1].fecha if cred_activo.detalle_pagos else '' }}">
-</div>
-{% endif %}
 
         <!-- Ficha de Datos Personales y Acciones -->
         <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
@@ -2202,17 +2170,12 @@ HTML_TEMPLATE = """
 
         <div style="font-size:11px; font-weight:700; color:#94a3b8; margin-top:8px;">Comprobante Digital • AVANTA PAGOS</div>
 
-        <!-- Botones WhatsApp Directo e Imagen -->
-        <div style="width:100%; max-width:340px; margin-top:14px; display:flex; flex-direction:column; gap:8px;">
-            <button type="button" onclick="enviarTicketWhatsappDirecto()"
-                style="width:100%; padding:13px 16px; background:linear-gradient(135deg, #16a34a, #15803d); color:#ffffff; border:none; border-radius:11px; font-size:14px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 6px 14px rgba(22,163,74,0.28);">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-                Enviar Comprobante
-            </button>
+        <!-- Botón Compartir Ticket como Imagen o WhatsApp -->
+        <div style="width:100%; max-width:340px; margin-top:14px; display:flex; gap:10px;">
             <button type="button" onclick="compartirTicketAvanta()"
-                style="width:100%; padding:11px 16px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:11px; font-size:13px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-                Compartir Ticket como Imagen
+                    style="flex:1; padding:13px 16px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:11px; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; box-shadow:0 4px 12px rgba(15,43,92,0.25);">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                Compartir Ticket
             </button>
         </div>
     </div>
@@ -2419,13 +2382,6 @@ function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 
         const lastB = bTags.length > 0 ? bTags[bTags.length - 1] : null;
         if (lastB && lastB.innerText.includes('$')) {
             saldoNum = parseFloat(lastB.innerText.replace(/[^0-9.]/g, '')) || saldoNum;
-        }
-        if (prevTipo === 'pago') {
-            const pagoHoyEl = card.querySelector('[style*="color:#16a34a"]');
-            if (pagoHoyEl && pagoHoyEl.innerText.includes('$')) {
-                const montoPrevio = parseFloat(pagoHoyEl.innerText.replace(/[^0-9.]/g, '')) || 0;
-                saldoNum += montoPrevio;
-            }
         }
     }
     const vCuota = parseFloat(valorCuota) || parseFloat(pendiente) || 0;
@@ -2922,68 +2878,23 @@ document.addEventListener("DOMContentLoaded", function() {
             if (typeof manejarTipoSeguro === 'function') manejarTipoSeguro();
         }
 
-async function comprimirImagenForm(file) {
-    if (!file || !file.type || !file.type.startsWith('image/')) return file;
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const img = new Image();
-            img.onload = () => {
-                const maxDim = 1024;
-                let w = img.width, h = img.height;
-                if (w > maxDim || h > maxDim) {
-                    if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
-                    else { w = Math.round(w * maxDim / h); h = maxDim; }
-                }
-                const canvas = document.createElement('canvas');
-                canvas.width = w; canvas.height = h;
-                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                canvas.toBlob((blob) => {
-                    if (blob) resolve(new File([blob], file.name || 'foto.jpg', { type: 'image/jpeg' }));
-                    else resolve(file);
-                }, 'image/jpeg', 0.78);
-            };
-            img.onerror = () => resolve(file);
-            img.src = ev.target.result;
-        };
-        reader.onerror = () => resolve(file);
-        reader.readAsDataURL(file);
-    });
-}
-
-async function enviarCreditoAsincrono(event) {
-    event.preventDefault();
-    const form = document.getElementById('formNuevoCredito');
-    const btn = document.getElementById('btnGuardarCredito');
-    const txtOriginal = btn ? btn.innerText : 'Guardar y Crear Crédito';
-    if (btn) {
-        btn.disabled = true;
-        btn.innerText = 'Guardando crédito...';
-    }
-
-    try {
-        const fd = new FormData(form);
-        const inputsFile = form.querySelectorAll('input[type="file"]');
-        for (const inp of inputsFile) {
-            if (inp.files && inp.files.length > 0 && inp.name) {
-                const comprimida = await comprimirImagenForm(inp.files[0]);
-                fd.set(inp.name, comprimida);
+        async function enviarCreditoAsincrono(event) {
+            event.preventDefault();
+            const form = document.getElementById('formNuevoCredito');
+            const btn = document.getElementById('btnGuardarCredito');
+            const txtOriginal = btn ? btn.innerText : 'Guardar y Crear Crédito';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = 'Guardando crédito...';
             }
-        }
 
-        const resp = await fetch(form.action, {
-            method: 'POST',
-            body: fd,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-        const textoResp = await resp.text();
-        let res = {};
-        try {
-            res = JSON.parse(textoResp);
-        } catch (parseErr) {
-            throw new Error('Respuesta inesperada del servidor (' + resp.status + ')');
-        }
-
+            try {
+                const resp = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const res = await resp.json();
         if (resp.ok && (res.status === 'ok' || res.success)) {
             if (res.ticket && typeof mostrarTicketAvanta === 'function') {
                 mostrarTicketAvanta(res.ticket);
@@ -3003,7 +2914,7 @@ async function enviarCreditoAsincrono(event) {
             }
         }
     } catch (e) {
-        alert('Error al guardar el crédito: ' + (e.message || 'Verifica tu conexión.'));
+        alert('Error de conexión al guardar el crédito.');
         if (btn) {
             btn.disabled = false;
             btn.innerText = txtOriginal;
@@ -3089,101 +3000,8 @@ function mostrarTicketAvanta(tk) {
 function cerrarTicketAvantaYVolver() {
     const modal = document.getElementById('modalTicketAvanta');
     if (modal) modal.style.display = 'none';
-    if (!document.getElementById('datosTicketExpediente')) {
-        window.location.href = '/';
-    }
+    window.location.href = '/';
 }
-function abrirTicketCreditoDesdeExp() {
-    const el = document.getElementById('datosTicketExpediente');
-    if (!el) return;
-    const d = el.dataset;
-    mostrarTicketAvanta({
-        tipo: 'credito',
-        cliente: d.cliente,
-        cedula: d.cedula,
-        telefono: d.telefono,
-        direccion: d.direccion,
-        referencia: d.referencia,
-        codigo: d.codigo,
-        frecuencia: d.frecuencia,
-        fecha_inicio: d.inicio,
-        monto_capital: d.capital,
-        monto_total: d.total,
-        valor_cuota: d.cuota,
-        cuotas: d.cuotas,
-        saldo_restante: d.saldo,
-        fecha_vencimiento: d.vencimiento,
-        fecha_emision: d.inicio
-    });
-}
-
-function abrirTicketPagoDesdeExp(numCuota, montoCobrado, fechaPago) {
-    const el = document.getElementById('datosTicketExpediente');
-    if (!el) return;
-    const d = el.dataset;
-    mostrarTicketAvanta({
-        tipo: 'pago',
-        cliente: d.cliente,
-        cedula: d.cedula,
-        telefono: d.telefono,
-        direccion: d.direccion,
-        referencia: d.referencia,
-        monto_cobrado: montoCobrado,
-        cuota_procesada: numCuota,
-        saldo_restante: d.saldo,
-        fecha_pago: fechaPago,
-        titulo_estado: '¡Gracias por su puntualidad y pago!',
-        detalle_estado: 'Comprobante reemitido desde historial'
-    });
-}
-
-function enviarTicketWhatsappDirecto() {
-    if (!ultimoTicketAvantaData) return;
-    const tk = ultimoTicketAvantaData;
-    const esPago = (tk.tipo === 'pago');
-
-    let msg = '';
-    if (esPago) {
-        msg = `*AVANTA PAGOS - COMPROBANTE OFICIAL*\n`
-            + `--------------------------------\n`
-            + `*Cliente:* ${tk.cliente || '-'}\n`
-            + `*Fecha:* ${tk.fecha_pago || '-'}\n`
-            + `*Monto Cobrado:* $${tk.monto_cobrado || '0.00'}\n`
-            + `*Cuota Procesada:* #${tk.cuota_procesada || '1'}\n`
-            + `*Saldo Restante:* $${tk.saldo_restante || '0.00'}\n`
-            + `--------------------------------\n`
-            + `${tk.titulo_estado || '¡Gracias por su puntualidad y pago!'}\n`
-            + `_Comprobante Digital • AVANTA PAGOS_`;
-    } else {
-        msg = `*AVANTA PAGOS - COMPROBANTE DE CRÉDITO*\n`
-            + `--------------------------------\n`
-            + `*Cliente:* ${tk.cliente || '-'}\n`
-            + `*Cód. Crédito:* ${tk.codigo || '-'}\n`
-            + `*Capital Entregado:* $${tk.monto_capital || '0.00'}\n`
-            + `*Total a Pagar:* $${tk.monto_total || '0.00'}\n`
-            + `*Valor Cuota:* $${tk.valor_cuota || '0.00'} (${tk.cuotas || 0} ${tk.frecuencia || 'Diaria'})\n`
-            + `*Vence:* ${tk.fecha_vencimiento || '-'}\n`
-            + `--------------------------------\n`
-            + `_Comprobante Digital • AVANTA PAGOS_`;
-    }
-
-    let rawTel = String(tk.telefono || '').trim();
-    if (!rawTel || rawTel === 'N/A' || rawTel === '-') {
-        const elTel = document.getElementById('tkClienteTel');
-        if (elTel) rawTel = elTel.innerText.replace(/[^0-9]/g, '');
-    }
-    const telLimpio = rawTel.replace(/[^0-9]/g, '');
-    const textoCod = encodeURIComponent(msg);
-
-    if (telLimpio.length >= 9) {
-        const ultimos9 = telLimpio.slice(-9);
-        const numWa = '593' + ultimos9;
-        window.location.href = 'whatsapp://send?phone=' + numWa + '&text=' + textoCod;
-    } else {
-        window.location.href = 'whatsapp://send?text=' + textoCod;
-    }
-}
-
 
 async function compartirTicketAvanta() {
     if (!ultimoTicketAvantaData) return;
@@ -4293,7 +4111,7 @@ def dashboard_principal():
                         f_q = datetime.strptime(str(p["fecha"])[:10], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
                         if int(p["pagado"]) == 1:
                             total_pagadas += 1
-                        if f_q <= hoy_dt:
+                        if f_q < hoy_dt:
                             cuotas_exigibles_hoy += 1
                         if int(p["pagado"]) == 0 and f_q <= hoy_dt:
                             dias_mora += 1
@@ -4803,16 +4621,12 @@ def dashboard_principal():
 
         try:
             cursor.execute("""
-                SELECT CAST(fecha_pago_real AS TEXT) AS fp FROM pagos
-                WHERE cliente_id = %s AND fecha_pago_real IS NOT NULL AND TRIM(CAST(fecha_pago_real AS TEXT)) <> ''
-                ORDER BY CAST(fecha_pago_real AS TEXT) DESC LIMIT 1
-            """, (int(c_id),))
+                SELECT fecha_pago_real FROM pagos
+                WHERE cliente_id = %s AND COALESCE(fecha_pago_real, '') <> ''
+                ORDER BY fecha_pago_real DESC LIMIT 1
+            """, (c_id,))
             row_ult_p = cursor.fetchone()
-            if row_ult_p:
-                val_up = row_ult_p["fp"] if isinstance(row_ult_p, dict) else row_ult_p
-                ult_pago_str = str(val_up).strip() if val_up else "Sin pagos previos"
-            else:
-                ult_pago_str = "Sin pagos previos"
+            ult_pago_str = str(row_ult_p["fecha_pago_real"] if isinstance(row_ult_p, dict) else row_ult_p).strip() if row_ult_p else "Sin pagos previos"
         except Exception:
             ult_pago_str = "Sin pagos previos"
 
@@ -5414,12 +5228,7 @@ def guardar_nuevo_cliente():
     monto_total = monto + monto_interes
     valor_cuota = round(monto_total / Decimal(str(cuotas)), 2)
     
-    try:
-        fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frecuencia)
-    except Exception:
-        from datetime import timedelta as _td0
-        salto_v0 = 7 if frecuencia == "Semanal" else 1
-        fecha_vencimiento_dt = fecha_inicio_dt + _td0(days=(cuotas - 1) * salto_v0)
+    fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frecuencia)
 
     conn = get_db()
     try:
@@ -5486,7 +5295,7 @@ def guardar_nuevo_cliente():
             cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS foto_cedula_reverso TEXT")
 
             try:
-                fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frecuencia)
+                fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frequency=frecuencia)
             except Exception:
                 from datetime import timedelta as _td
                 salto_v = 7 if frecuencia == "Semanal" else 1
@@ -5548,7 +5357,7 @@ def guardar_nuevo_cliente():
                     acumulado += valor_cuota_real
                     
                     try:
-                        f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
+                        f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frequency=frecuencia)
                     except Exception:
                         from datetime import timedelta
                         f_cuota = fecha_inicio_dt + timedelta(days=(num - 1) * 7 if frecuencia == "Semanal" else (num - 1))
@@ -7075,15 +6884,8 @@ def api_revertir_gestion(tipo, id_str):
                 
                 if cliente_afectado:
                     cursor.execute(
-                        """
-                        DELETE FROM balance_movimientos
-                        WHERE id IN (
-                            SELECT id FROM balance_movimientos
-                            WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND concepto LIKE %s
-                            ORDER BY id DESC LIMIT 1
-                        )
-                        """,
-                        (f"%(ID:{cliente_afectado})%",)
+                        "DELETE FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s AND concepto LIKE %s",
+                        (hoy_str, f"%(ID:{cliente_afectado})%")
                     )
 
             elif tipo == "salto":
