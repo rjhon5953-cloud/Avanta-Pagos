@@ -811,7 +811,7 @@ CONTENIDO_HTML = """
                 monto_total: '{{ "%.2f"|format(cred_activo.monto_total | float) }}',
                 valor_cuota: '{{ "%.2f"|format(cred_activo.valor_cuota | float) }}',
                 cuotas: '{{ cred_activo.cuotas }}',
-                saldo_restante: '{{ "%.2f"|format(cred_activo.saldo_pendiente | float) }}',
+                saldo_restante: '{{ "%.2f"|format((cred_activo.saldo_actual if cred_activo.saldo_actual is defined else saldo_activo_total) | float) }}',
                 fecha_vencimiento: '{{ cred_activo.detalle_pagos[-1].fecha if cred_activo.detalle_pagos else "" }}',
                 fecha_emision: {{ (cred_activo.fecha_inicio or '') | tojson }}
             });
@@ -826,7 +826,7 @@ CONTENIDO_HTML = """
                 referencia: {{ (cliente.referencia or '') | tojson }},
                 monto_cobrado: montoCobrado,
                 cuota_procesada: numCuota,
-                saldo_restante: '{{ "%.2f"|format(cred_activo.saldo_pendiente | float) }}',
+                saldo_restante: '{{ "%.2f"|format((cred_activo.saldo_actual if cred_activo.saldo_actual is defined else saldo_activo_total) | float) }}',
                 fecha_pago: fechaPago,
                 titulo_estado: '¡Gracias por su puntualidad y pago!',
                 detalle_estado: 'Comprobante reemitido desde historial'
