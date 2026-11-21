@@ -714,10 +714,16 @@ CONTENIDO_HTML = """
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                     <span style="font-size:12.5px; font-weight:800; color:#0f2b5c; text-transform:uppercase; letter-spacing:0.3px;">Historial de Pagos (Activo)</span>
                 </div>
-                {% if cred_activo %}
-                <span style="font-size:11px; font-weight:800; color:#0f2b5c; background:#eff6ff; padding:2px 8px; border-radius:6px;">Cuota: ${{ "%.2f"|format(cred_activo.valor_cuota|float) }}</span>
-                {% endif %}
+            {% if cred_activo %}
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:11px; font-weight:800; color:#0f2b5c; background:#eff6ff; padding:3px 8px; border-radius:6px;">Cuota: ${{ "%.2f"|format(cred_activo.valor_cuota) }}</span>
+                <button type="button" onclick="abrirTicketCreditoDesdeExp()"
+                    style="background:#0f2b5c; color:#ffffff; border:none; border-radius:6px; padding:4px 8px; font-size:10px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    Ticket Crédito
+                </button>
             </div>
+            {% endif %}
 
             {% if cred_activo and cred_activo.detalle_pagos %}
             <div style="max-height:260px; overflow-y:auto; border:1px solid #f1f5f9; border-radius:10px;">
@@ -751,9 +757,18 @@ CONTENIDO_HTML = """
                                     <span style="color:#64748b; font-weight:600;">$0.00 / ${{ "%.2f"|format(v_cuota) }}</span>
                                 {% endif %}
                             </td>
-                            <td style="padding:6px 5px; text-align:right; font-weight:900; color:{{ '#16a34a' if es_completa else ('#d97706' if es_incompleta else ('#dc2626' if es_vencida else '#64748b')) }};">
-                                {{ 'Completa' if es_completa else ('Incompleta' if es_incompleta else ('Vencida' if es_vencida else 'Pendiente')) }}
-                            </td>
+                        <td style="padding:6px 5px; text-align:right; font-weight:900; color:{{ '#16a34a' if es_completa else ('#d97706' if es_incompleta else ('#dc2626' if es_vencida else '#64748b')) }};">
+                            {% if es_completa or es_incompleta %}
+                            <button type="button"
+                                onclick="abrirTicketPagoDesdeExp('{{ p.numero }}', '{{ '%.2f'|format(v_pagado if v_pagado > 0 else v_cuota) }}', '{{ p.fecha_pago_real or p.fecha }}')"
+                                style="background:#16a34a; color:#ffffff; border:none; border-radius:6px; padding:3px 7px; font-size:10px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                Ticket
+                            </button>
+                            {% else %}
+                            {{ 'Vencida' if es_vencida else 'Pendiente' }}
+                            {% endif %}
+                        </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -779,6 +794,46 @@ CONTENIDO_HTML = """
                 </div>
             {% endif %}
         </div>
+        {% if cred_activo %}
+        <script>
+        function abrirTicketCreditoDesdeExp() {
+            mostrarTicketAvanta({
+                tipo: 'credito',
+                cliente: {{ (cliente.nombre or '') | tojson }},
+                cedula: {{ (cliente.identificacion or 'N/A') | tojson }},
+                telefono: {{ (cliente.telefono or 'N/A') | tojson }},
+                direccion: {{ (cliente.direccion or 'N/A') | tojson }},
+                referencia: {{ (cliente.referencia or '') | tojson }},
+                codigo: '{{ "%06d"|format(cred_activo.id) }}',
+                frecuencia: {{ (cred_activo.frecuencia or 'Diaria') | tojson }},
+                fecha_inicio: {{ (cred_activo.fecha_inicio or '') | tojson }},
+                monto_capital: '{{ "%.2f"|format(cred_activo.monto | float) }}',
+                monto_total: '{{ "%.2f"|format(cred_activo.monto_total | float) }}',
+                valor_cuota: '{{ "%.2f"|format(cred_activo.valor_cuota | float) }}',
+                cuotas: '{{ cred_activo.cuotas }}',
+                saldo_restante: '{{ "%.2f"|format(cred_activo.saldo_pendiente | float) }}',
+                fecha_vencimiento: '{{ cred_activo.detalle_pagos[-1].fecha if cred_activo.detalle_pagos else "" }}',
+                fecha_emision: {{ (cred_activo.fecha_inicio or '') | tojson }}
+            });
+        }
+        function abrirTicketPagoDesdeExp(numCuota, montoCobrado, fechaPago) {
+            mostrarTicketAvanta({
+                tipo: 'pago',
+                cliente: {{ (cliente.nombre or '') | tojson }},
+                cedula: {{ (cliente.identificacion or 'N/A') | tojson }},
+                telefono: {{ (cliente.telefono or 'N/A') | tojson }},
+                direccion: {{ (cliente.direccion or 'N/A') | tojson }},
+                referencia: {{ (cliente.referencia or '') | tojson }},
+                monto_cobrado: montoCobrado,
+                cuota_procesada: numCuota,
+                saldo_restante: '{{ "%.2f"|format(cred_activo.saldo_pendiente | float) }}',
+                fecha_pago: fechaPago,
+                titulo_estado: '¡Gracias por su puntualidad y pago!',
+                detalle_estado: 'Comprobante reemitido desde historial'
+            });
+        }
+        </script>
+        {% endif %}
 
         <!-- Ficha de Datos Personales y Acciones -->
         <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
