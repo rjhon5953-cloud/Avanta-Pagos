@@ -708,17 +708,17 @@ CONTENIDO_HTML = """
 
         <!-- HISTORIAL DE PAGOS (EXCLUSIVO DEL CRÉDITO ACTIVO ACTUAL) -->
         {% set cred_activo = creditos[0] if creditos else None %}
-        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
-            <div style="display:flex; align-items:center; justify-content:space-between; padding-bottom:8px; margin-bottom:8px; border-bottom:1.5px solid #f1f5f9;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                    <span style="font-size:12.5px; font-weight:800; color:#0f2b5c; text-transform:uppercase; letter-spacing:0.3px;">Historial de Pagos (Activo)</span>
-                </div>
+        <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left; width:100%; box-sizing:border-box;">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding-bottom:8px; margin-bottom:8px; border-bottom:1.5px solid #f1f5f9;">
+            <div style="display:flex; align-items:center; gap:7px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                <span style="font-size:12px; font-weight:800; color:#0f2b5c; text-transform:uppercase; letter-spacing:0.3px;">Historial de Pagos</span>
+            </div>
             {% if cred_activo %}
             <div style="display:flex; align-items:center; gap:6px;">
-                <span style="font-size:11px; font-weight:800; color:#0f2b5c; background:#eff6ff; padding:3px 8px; border-radius:6px;">Cuota: ${{ "%.2f"|format(cred_activo.valor_cuota) }}</span>
+                <span style="font-size:11px; font-weight:800; color:#0f2b5c; background:#eff6ff; padding:4px 8px; border-radius:6px;">Cuota: ${{ "%.2f"|format(cred_activo.valor_cuota) }}</span>
                 <button type="button" onclick="abrirTicketCreditoDesdeExp()"
-                    style="background:#0f2b5c; color:#ffffff; border:none; border-radius:6px; padding:4px 8px; font-size:10px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                    style="background:#0f2b5c; color:#ffffff; border:none; border-radius:6px; padding:5px 9px; font-size:10px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
                     Ticket Crédito
                 </button>
@@ -794,46 +794,64 @@ CONTENIDO_HTML = """
                 </div>
             {% endif %}
         </div>
-        {% if cred_activo %}
-        <script>
-        function abrirTicketCreditoDesdeExp() {
-            mostrarTicketAvanta({
-                tipo: 'credito',
-                cliente: {{ (cliente.nombre or '') | tojson }},
-                cedula: {{ (cliente.identificacion or 'N/A') | tojson }},
-                telefono: {{ (cliente.telefono or 'N/A') | tojson }},
-                direccion: {{ (cliente.direccion or 'N/A') | tojson }},
-                referencia: {{ (cliente.referencia or '') | tojson }},
-                codigo: '{{ "%06d"|format(cred_activo.id) }}',
-                frecuencia: {{ (cred_activo.frecuencia or 'Diaria') | tojson }},
-                fecha_inicio: {{ (cred_activo.fecha_inicio or '') | tojson }},
-                monto_capital: '{{ "%.2f"|format(cred_activo.monto | float) }}',
-                monto_total: '{{ "%.2f"|format(cred_activo.monto_total | float) }}',
-                valor_cuota: '{{ "%.2f"|format(cred_activo.valor_cuota | float) }}',
-                cuotas: '{{ cred_activo.cuotas }}',
-                saldo_restante: '{{ "%.2f"|format((cred_activo.saldo_actual if cred_activo.saldo_actual is defined else (cred_activo.saldo if cred_activo.saldo is defined else 0)) | float) }}',
-                fecha_vencimiento: '{{ cred_activo.detalle_pagos[-1].fecha if cred_activo.detalle_pagos else "" }}',
-                fecha_emision: {{ (cred_activo.fecha_inicio or '') | tojson }}
-            });
-        }
-        function abrirTicketPagoDesdeExp(numCuota, montoCobrado, fechaPago) {
-            mostrarTicketAvanta({
-                tipo: 'pago',
-                cliente: {{ (cliente.nombre or '') | tojson }},
-                cedula: {{ (cliente.identificacion or 'N/A') | tojson }},
-                telefono: {{ (cliente.telefono or 'N/A') | tojson }},
-                direccion: {{ (cliente.direccion or 'N/A') | tojson }},
-                referencia: {{ (cliente.referencia or '') | tojson }},
-                monto_cobrado: montoCobrado,
-                cuota_procesada: numCuota,
-                saldo_restante: '{{ "%.2f"|format((cred_activo.saldo_actual if cred_activo.saldo_actual is defined else (cred_activo.saldo if cred_activo.saldo is defined else 0)) | float) }}',
-                fecha_pago: fechaPago,
-                titulo_estado: '¡Gracias por su puntualidad y pago!',
-                detalle_estado: 'Comprobante reemitido desde historial'
-            });
-        }
-        </script>
-        {% endif %}
+{% if cred_activo %}
+<div id="datosTicketExpediente" style="display:none;"
+    data-cliente="{{ cliente.nombre or '' }}"
+    data-cedula="{{ cliente.identificacion or 'N/A' }}"
+    data-telefono="{{ cliente.telefono or 'N/A' }}"
+    data-direccion="{{ cliente.direccion or 'N/A' }}"
+    data-referencia="{{ cliente.referencia or '' }}"
+    data-codigo="{{ '%06d'|format(cred_activo.id) }}"
+    data-frecuencia="{{ cred_activo.frecuencia or 'Diaria' }}"
+    data-inicio="{{ cred_activo.fecha_inicio or '' }}"
+    data-capital="{{ '%.2f'|format(cred_activo.monto | float) }}"
+    data-total="{{ '%.2f'|format(cred_activo.monto_total | float) }}"
+    data-cuota="{{ '%.2f'|format(cred_activo.valor_cuota | float) }}"
+    data-cuotas="{{ cred_activo.cuotas }}"
+    data-saldo="{{ '%.2f'|format((cred_activo.saldo_actual if cred_activo.saldo_actual is defined else (cred_activo.saldo if cred_activo.saldo is defined else 0)) | float) }}"
+    data-vencimiento="{{ cred_activo.detalle_pagos[-1].fecha if cred_activo.detalle_pagos else '' }}">
+</div>
+<script>
+function abrirTicketCreditoDesdeExp() {
+    const d = document.getElementById('datosTicketExpediente').dataset;
+    mostrarTicketAvanta({
+        tipo: 'credito',
+        cliente: d.cliente,
+        cedula: d.cedula,
+        telefono: d.telefono,
+        direccion: d.direccion,
+        referencia: d.referencia,
+        codigo: d.codigo,
+        frecuencia: d.frecuencia,
+        fecha_inicio: d.inicio,
+        monto_capital: d.capital,
+        monto_total: d.total,
+        valor_cuota: d.cuota,
+        cuotas: d.cuotas,
+        saldo_restante: d.saldo,
+        fecha_vencimiento: d.vencimiento,
+        fecha_emision: d.inicio
+    });
+}
+function abrirTicketPagoDesdeExp(numCuota, montoCobrado, fechaPago) {
+    const d = document.getElementById('datosTicketExpediente').dataset;
+    mostrarTicketAvanta({
+        tipo: 'pago',
+        cliente: d.cliente,
+        cedula: d.cedula,
+        telefono: d.telefono,
+        direccion: d.direccion,
+        referencia: d.referencia,
+        monto_cobrado: montoCobrado,
+        cuota_procesada: numCuota,
+        saldo_restante: d.saldo,
+        fecha_pago: fechaPago,
+        titulo_estado: '¡Gracias por su puntualidad y pago!',
+        detalle_estado: 'Comprobante reemitido desde historial'
+    });
+}
+</script>
+{% endif %}
 
         <!-- Ficha de Datos Personales y Acciones -->
         <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
@@ -3112,7 +3130,9 @@ function mostrarTicketAvanta(tk) {
 function cerrarTicketAvantaYVolver() {
     const modal = document.getElementById('modalTicketAvanta');
     if (modal) modal.style.display = 'none';
-    window.location.href = '/';
+    if (!document.getElementById('datosTicketExpediente')) {
+        window.location.href = '/';
+    }
 }
 
 function enviarTicketWhatsappDirecto() {
