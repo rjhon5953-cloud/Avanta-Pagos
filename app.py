@@ -725,58 +725,57 @@ CONTENIDO_HTML = """
             </div>
             {% endif %}
 
-            {% if cred_activo and cred_activo.detalle_pagos %}
-            <div style="max-height:260px; overflow-y:auto; border:1px solid #f1f5f9; border-radius:10px;">
-                <table style="width:100%; border-collapse:collapse; font-size:11px;">
-                    <thead style="position:sticky; top:0; background:#f8fafc; z-index:1;">
-                        <tr style="border-bottom:1px solid #cbd5e1; color:#475569; text-align:left;">
-                            <th style="padding:6px 5px;">#</th>
-                            <th style="padding:6px 5px;">Fecha</th>
-                            <th style="padding:6px 5px;">Pagó el</th>
-                            <th style="padding:6px 5px; text-align:right;">Abono / Cuota</th>
-                            <th style="padding:6px 5px; text-align:right;">Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in cred_activo.detalle_pagos %}
-                        {% set v_cuota = p.valor|float %}
-                        {% set v_pagado = p.valor_pagado|float %}
-                        {% set es_completa = (p.pagado == 1 or v_pagado >= (v_cuota - 0.01)) %}
-                        {% set es_incompleta = (not es_completa and v_pagado > 0) %}
-                        {% set es_vencida = (not es_completa and not es_incompleta and p.fecha < hoy_str) %}
-                        <tr style="border-bottom:1px solid #f1f5f9; background:{{ '#f0fdf4' if es_completa else ('#fffbeb' if es_incompleta else ('#fef2f2' if es_vencida else '#ffffff')) }};">
-                            <td style="padding:6px 5px; font-weight:800; color:#0f172a;">{{ p.numero }}</td>
-                            <td style="padding:6px 5px; color:#475569;">{{ p.fecha }}</td>
-                            <td style="padding:6px 5px; color:#334155; font-weight:600;">{{ p.fecha_pago_real if p.fecha_pago_real else '-' }}</td>
-                            <td style="padding:6px 5px; text-align:right; font-weight:800; color:#0f172a;">
-                                {% if es_completa %}
-                                    ${{ "%.2f"|format(v_pagado if v_pagado > 0 else v_cuota) }}
-                                {% elif es_incompleta %}
-                                    <span style="color:#d97706;">${{ "%.2f"|format(v_pagado) }}</span> <span style="color:#64748b; font-weight:600;">/ ${{ "%.2f"|format(v_cuota) }}</span>
-                                {% else %}
-                                    <span style="color:#64748b; font-weight:600;">$0.00 / ${{ "%.2f"|format(v_cuota) }}</span>
-                                {% endif %}
-                            </td>
-                        <td style="padding:6px 5px; text-align:right; font-weight:900; color:{{ '#16a34a' if es_completa else ('#d97706' if es_incompleta else ('#dc2626' if es_vencida else '#64748b')) }};">
-                            {% if es_completa or es_incompleta %}
-                            <button type="button"
-                                onclick="abrirTicketPagoDesdeExp('{{ p.numero }}', '{{ '%.2f'|format(v_pagado if v_pagado > 0 else v_cuota) }}', '{{ p.fecha_pago_real or p.fecha }}')"
-                                style="background:#16a34a; color:#ffffff; border:none; border-radius:6px; padding:3px 7px; font-size:10px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                Ticket
-                            </button>
-                            {% else %}
-                            {{ 'Vencida' if es_vencida else 'Pendiente' }}
-                            {% endif %}
-                        </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div style="text-align:center; font-size:12px; color:#94a3b8; padding:14px 6px; font-weight:600;">Este cliente no tiene un crédito activo con cuotas pendientes.</div>
-            {% endif %}
+    {% if cred_activo and cred_activo.detalle_pagos %}
+    <div style="max-height:250px; overflow-y:auto; overflow-x:hidden; border:1px solid #e2e8f0; border-radius:10px; width:100%; box-sizing:border-box;">
+        <table style="width:100%; border-collapse:collapse; font-size:10.5px; table-layout:fixed;">
+            <thead style="position:sticky; top:0; background:#f8fafc; z-index:1;">
+                <tr style="border-bottom:1px solid #cbd5e1; color:#475569; text-align:left;">
+                    <th style="padding:6px 4px; width:24px;">#</th>
+                    <th style="padding:6px 4px; width:74px;">Fecha</th>
+                    <th style="padding:6px 4px;">Pagó el</th>
+                    <th style="padding:6px 4px; width:64px; text-align:right;">Abono</th>
+                    <th style="padding:6px 5px; width:66px; text-align:right;">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in cred_activo.detalle_pagos %}
+                {% set v_cuota = p.valor|float %}
+                {% set v_pagado = p.valor_pagado|float %}
+                {% set es_completa = (p.pagado == 1 or v_pagado >= (v_cuota - 0.01)) %}
+                {% set es_incompleta = (not es_completa and v_pagado > 0) %}
+                {% set es_vencida = (not es_completa and not es_incompleta and p.fecha < hoy_str) %}
+                <tr style="border-bottom:1px solid #f1f5f9; background:{{ '#f0fdf4' if es_completa else ('#fffbeb' if es_incompleta else ('#fef2f2' if es_vencida else '#ffffff')) }};">
+                    <td style="padding:6px 4px; font-weight:800; color:#0f172a;">{{ p.numero }}</td>
+                    <td style="padding:6px 4px; color:#334155; font-weight:600; white-space:nowrap;">{{ p.fecha }}</td>
+                    <td style="padding:6px 4px; color:#64748b; font-size:9.5px; line-height:1.2; word-break:break-word;">{{ p.fecha_pago_real or '-' }}</td>
+                    <td style="padding:6px 4px; text-align:right; font-weight:800; color:#0f172a;">
+                        {% if es_completa %}
+                        ${{ "%.2f"|format(v_cuota) }}
+                        {% else %}
+                        ${{ "%.2f"|format(v_pagado) }}<div style="font-size:9px; color:#64748b; font-weight:600;">/${{ "%.2f"|format(v_cuota) }}</div>
+                        {% endif %}
+                    </td>
+                    <td style="padding:6px 5px; text-align:right; font-weight:900; color:{{ '#16a34a' if es_completa else ('#d97706' if es_incompleta else ('#dc2626' if es_vencida else '#64748b')) }};">
+                        {% if es_completa or es_incompleta %}
+                        <button type="button"
+                            onclick="abrirTicketPagoDesdeExp('{{ p.numero }}', '{{ '%.2f'|format(v_pagado if v_pagado > 0 else v_cuota) }}', '{{ p.fecha_pago_real or p.fecha }}')"
+                            style="background:#16a34a; color:#ffffff; border:none; border-radius:6px; padding:4px 6px; font-size:9.5px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:2px;">
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            Ticket
+                        </button>
+                        {% else %}
+                        {{ 'Vencida' if es_vencida else 'Pendiente' }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align:center; font-size:12px; color:#94a3b8; padding:14px 6px; font-weight:600;">Este cliente no tiene un crédito activo con cuotas pendientes.</div>
+    {% endif %}
+
         </div>
 
         <!-- Geolocalización del Cliente -->
@@ -811,46 +810,6 @@ CONTENIDO_HTML = """
     data-saldo="{{ '%.2f'|format((cred_activo.saldo_actual if cred_activo.saldo_actual is defined else (cred_activo.saldo if cred_activo.saldo is defined else 0)) | float) }}"
     data-vencimiento="{{ cred_activo.detalle_pagos[-1].fecha if cred_activo.detalle_pagos else '' }}">
 </div>
-<script>
-function abrirTicketCreditoDesdeExp() {
-    const d = document.getElementById('datosTicketExpediente').dataset;
-    mostrarTicketAvanta({
-        tipo: 'credito',
-        cliente: d.cliente,
-        cedula: d.cedula,
-        telefono: d.telefono,
-        direccion: d.direccion,
-        referencia: d.referencia,
-        codigo: d.codigo,
-        frecuencia: d.frecuencia,
-        fecha_inicio: d.inicio,
-        monto_capital: d.capital,
-        monto_total: d.total,
-        valor_cuota: d.cuota,
-        cuotas: d.cuotas,
-        saldo_restante: d.saldo,
-        fecha_vencimiento: d.vencimiento,
-        fecha_emision: d.inicio
-    });
-}
-function abrirTicketPagoDesdeExp(numCuota, montoCobrado, fechaPago) {
-    const d = document.getElementById('datosTicketExpediente').dataset;
-    mostrarTicketAvanta({
-        tipo: 'pago',
-        cliente: d.cliente,
-        cedula: d.cedula,
-        telefono: d.telefono,
-        direccion: d.direccion,
-        referencia: d.referencia,
-        monto_cobrado: montoCobrado,
-        cuota_procesada: numCuota,
-        saldo_restante: d.saldo,
-        fecha_pago: fechaPago,
-        titulo_estado: '¡Gracias por su puntualidad y pago!',
-        detalle_estado: 'Comprobante reemitido desde historial'
-    });
-}
-</script>
 {% endif %}
 
         <!-- Ficha de Datos Personales y Acciones -->
@@ -3133,6 +3092,49 @@ function cerrarTicketAvantaYVolver() {
     if (!document.getElementById('datosTicketExpediente')) {
         window.location.href = '/';
     }
+}
+function abrirTicketCreditoDesdeExp() {
+    const el = document.getElementById('datosTicketExpediente');
+    if (!el) return;
+    const d = el.dataset;
+    mostrarTicketAvanta({
+        tipo: 'credito',
+        cliente: d.cliente,
+        cedula: d.cedula,
+        telefono: d.telefono,
+        direccion: d.direccion,
+        referencia: d.referencia,
+        codigo: d.codigo,
+        frecuencia: d.frecuencia,
+        fecha_inicio: d.inicio,
+        monto_capital: d.capital,
+        monto_total: d.total,
+        valor_cuota: d.cuota,
+        cuotas: d.cuotas,
+        saldo_restante: d.saldo,
+        fecha_vencimiento: d.vencimiento,
+        fecha_emision: d.inicio
+    });
+}
+
+function abrirTicketPagoDesdeExp(numCuota, montoCobrado, fechaPago) {
+    const el = document.getElementById('datosTicketExpediente');
+    if (!el) return;
+    const d = el.dataset;
+    mostrarTicketAvanta({
+        tipo: 'pago',
+        cliente: d.cliente,
+        cedula: d.cedula,
+        telefono: d.telefono,
+        direccion: d.direccion,
+        referencia: d.referencia,
+        monto_cobrado: montoCobrado,
+        cuota_procesada: numCuota,
+        saldo_restante: d.saldo,
+        fecha_pago: fechaPago,
+        titulo_estado: '¡Gracias por su puntualidad y pago!',
+        detalle_estado: 'Comprobante reemitido desde historial'
+    });
 }
 
 function enviarTicketWhatsappDirecto() {
