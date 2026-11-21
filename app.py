@@ -4716,6 +4716,7 @@ def dashboard_principal():
 
             document.getElementById('msgSinResultados').style.display = visibles === 0 ? 'block' : 'none';
         }
+        aplicarFiltrosDashboard();
     </script>
     """
     
@@ -6340,7 +6341,7 @@ def api_marcar_pago(cliente_id, num_cuota):
     return jsonify({"status": "ok", "recibo": recibo, "ticket_pago": ticket_pago})
 
 
-@app.route("/api/marcar_no_pago/<int:cliente_id>")
+@app.route("/api/marcar_no_pago/<int:cliente_id>", methods=["POST", "GET"])
 def api_marcar_no_pago(cliente_id):
     if not session.get("autenticado"):
         return jsonify({"status": "error", "message": "No autorizado"})
