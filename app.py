@@ -5332,10 +5332,11 @@ def guardar_nuevo_cliente():
     valor_cuota = round(monto_total / Decimal(str(cuotas)), 2)
     
     try:
-        fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frequency=frecuencia)
+        fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frecuencia)
     except Exception:
+        from datetime import timedelta as _td0
         salto_v0 = 7 if frecuencia == "Semanal" else 1
-        fecha_vencimiento_dt = fecha_inicio_dt + timedelta(days=(cuotas - 1) * salto_v0)
+        fecha_vencimiento_dt = fecha_inicio_dt + _td0(days=(cuotas - 1) * salto_v0)
 
     conn = get_db()
     try:
@@ -5402,7 +5403,7 @@ def guardar_nuevo_cliente():
             cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS foto_cedula_reverso TEXT")
 
             try:
-                fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frequency=frecuencia)
+                fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frecuencia)
             except Exception:
                 from datetime import timedelta as _td
                 salto_v = 7 if frecuencia == "Semanal" else 1
@@ -5464,7 +5465,7 @@ def guardar_nuevo_cliente():
                     acumulado += valor_cuota_real
                     
                     try:
-                        f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frequency=frecuencia)
+                        f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
                     except Exception:
                         from datetime import timedelta
                         f_cuota = fecha_inicio_dt + timedelta(days=(num - 1) * 7 if frecuencia == "Semanal" else (num - 1))
