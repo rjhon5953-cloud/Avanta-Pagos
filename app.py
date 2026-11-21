@@ -4111,7 +4111,7 @@ def dashboard_principal():
                         f_q = datetime.strptime(str(p["fecha"])[:10], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
                         if int(p["pagado"]) == 1:
                             total_pagadas += 1
-                        if f_q < hoy_dt:
+                        if f_q <= hoy_dt:
                             cuotas_exigibles_hoy += 1
                         if int(p["pagado"]) == 0 and f_q <= hoy_dt:
                             dias_mora += 1
@@ -6884,8 +6884,15 @@ def api_revertir_gestion(tipo, id_str):
                 
                 if cliente_afectado:
                     cursor.execute(
-                        "DELETE FROM balance_movimientos WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s AND concepto LIKE %s",
-                        (hoy_str, f"%(ID:{cliente_afectado})%")
+                        """
+                        DELETE FROM balance_movimientos
+                        WHERE id IN (
+                            SELECT id FROM balance_movimientos
+                            WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND concepto LIKE %s
+                            ORDER BY id DESC LIMIT 1
+                        )
+                        """,
+                        (f"%(ID:{cliente_afectado})%",)
                     )
 
             elif tipo == "salto":
