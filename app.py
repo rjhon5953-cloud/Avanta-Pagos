@@ -3090,17 +3090,23 @@ function enviarTicketWhatsappDirecto() {
             + `_Comprobante Digital • AVANTA PAGOS_`;
     }
 
-    const telLimpio = String(tk.telefono || '').replace(/[^0-9]/g, '');
+    let rawTel = String(tk.telefono || '').trim();
+    if (!rawTel || rawTel === 'N/A' || rawTel === '-') {
+        const elTel = document.getElementById('tkClienteTel');
+        if (elTel) rawTel = elTel.innerText.replace(/[^0-9]/g, '');
+    }
+    const telLimpio = rawTel.replace(/[^0-9]/g, '');
     const textoCod = encodeURIComponent(msg);
+
     if (telLimpio.length >= 9) {
-        const numWa = telLimpio.startsWith('593') ? telLimpio : '593' + telLimpio.replace(/^0/, '');
-        const urlWa = 'https://whatsapp.com' + '/send?phone=' + numWa + '&text=' + textoCod;
-        window.open(urlWa, '_blank');
+        const ultimos9 = telLimpio.slice(-9);
+        const numWa = '593' + ultimos9;
+        window.location.href = 'whatsapp://send?phone=' + numWa + '&text=' + textoCod;
     } else {
-        const urlWa = 'https://whatsapp.com' + '/send?text=' + textoCod;
-        window.open(urlWa, '_blank');
+        window.location.href = 'whatsapp://send?text=' + textoCod;
     }
 }
+
 
 async function compartirTicketAvanta() {
     if (!ultimoTicketAvantaData) return;
