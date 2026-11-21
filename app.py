@@ -2889,24 +2889,69 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             if (typeof manejarTipoSeguro === 'function') manejarTipoSeguro();
         }
+        
+async function comprimirImagenForm(file) {
+    if (!file || !file.type || !file.type.startsWith('image/')) return file;
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+                const maxDim = 1024;
+                let w = img.width, h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+                    else { w = Math.round(w * maxDim / h); h = maxDim; }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                canvas.toBlob((blob) => {
+                    if (blob) resolve(new File([blob], file.name || 'foto.jpg', { type: 'image/jpeg' }));
+                    else resolve(file);
+                }, 'image/jpeg', 0.78);
+            };
+            img.onerror = () => resolve(file);
+            img.src = ev.target.result;
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+    });
+}
 
-        async function enviarCreditoAsincrono(event) {
-            event.preventDefault();
-            const form = document.getElementById('formNuevoCredito');
-            const btn = document.getElementById('btnGuardarCredito');
-            const txtOriginal = btn ? btn.innerText : 'Guardar y Crear Crédito';
-            if (btn) {
-                btn.disabled = true;
-                btn.innerText = 'Guardando crédito...';
+async function enviarCreditoAsincrono(event) {
+    event.preventDefault();
+    const form = document.getElementById('formNuevoCredito');
+    const btn = document.getElementById('btnGuardarCredito');
+    const txtOriginal = btn ? btn.innerText : 'Guardar y Crear Crédito';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = 'Guardando crédito...';
+    }
+
+    try {
+        const fd = new FormData(form);
+        const inputsFile = form.querySelectorAll('input[type="file"]');
+        for (const inp of inputsFile) {
+            if (inp.files && inp.files.length > 0 && inp.name) {
+                const comprimida = await comprimirImagenForm(inp.files[0]);
+                fd.set(inp.name, comprimida);
             }
+        }
 
-            try {
-                const resp = await fetch(form.action, {
-                    method: 'POST',
-                    body: new FormData(form),
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
-                const res = await resp.json();
+        const resp = await fetch(form.action, {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const textoResp = await resp.text();
+        let res = {};
+        try {
+            res = JSON.parse(textoResp);
+        } catch (parseErr) {
+            throw new Error('Respuesta inesperada del servidor (' + resp.status + ')');
+        }
+
         if (resp.ok && (res.status === 'ok' || res.success)) {
             if (res.ticket && typeof mostrarTicketAvanta === 'function') {
                 mostrarTicketAvanta(res.ticket);
@@ -2926,7 +2971,7 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
     } catch (e) {
-        alert('Error de conexión al guardar el crédito.');
+        alert('Error al guardar el crédito: ' + (e.message || 'Verifica tu conexión.'));
         if (btn) {
             btn.disabled = false;
             btn.innerText = txtOriginal;
