@@ -2383,6 +2383,13 @@ function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 
         if (lastB && lastB.innerText.includes('$')) {
             saldoNum = parseFloat(lastB.innerText.replace(/[^0-9.]/g, '')) || saldoNum;
         }
+        if (prevTipo === 'pago') {
+            const pagoHoyEl = card.querySelector('[style*="color:#16a34a"]');
+            if (pagoHoyEl && pagoHoyEl.innerText.includes('$')) {
+                const montoPrevio = parseFloat(pagoHoyEl.innerText.replace(/[^0-9.]/g, '')) || 0;
+                saldoNum += montoPrevio;
+            }
+        }
     }
     const vCuota = parseFloat(valorCuota) || parseFloat(pendiente) || 0;
     const maxCuotas = vCuota > 0 ? Math.max(1, Math.ceil(saldoNum / vCuota)) : 1;
@@ -4622,11 +4629,15 @@ def dashboard_principal():
         try:
             cursor.execute("""
                 SELECT fecha_pago_real FROM pagos
-                WHERE cliente_id = %s AND COALESCE(fecha_pago_real, '') <> ''
+                WHERE cliente_id = %s AND fecha_pago_real IS NOT NULL AND TRIM(fecha_pago_real) <> ''
                 ORDER BY fecha_pago_real DESC LIMIT 1
-            """, (c_id,))
+            """, (int(c_id),))
             row_ult_p = cursor.fetchone()
-            ult_pago_str = str(row_ult_p["fecha_pago_real"] if isinstance(row_ult_p, dict) else row_ult_p).strip() if row_ult_p else "Sin pagos previos"
+            if row_ult_p:
+                val_up = row_ult_p["fecha_pago_real"] if isinstance(row_ult_p, dict) else row_ult_p
+                ult_pago_str = str(val_up).strip() if val_up else "Sin pagos previos"
+            else:
+                ult_pago_str = "Sin pagos previos"
         except Exception:
             ult_pago_str = "Sin pagos previos"
 
