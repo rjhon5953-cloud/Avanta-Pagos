@@ -3895,7 +3895,7 @@ def dashboard_principal():
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
                 WHERE c.ruta_id = %s
-                    AND p.pagado = 1
+                    AND COALESCE(p.valor_pagado, 0) > 0
                     AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
             """, (rid, f"{fecha_hoy_real}%", f"{turno_id[:10]}%"))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
@@ -4082,7 +4082,7 @@ def dashboard_principal():
                         d_cl["monto_pagado_hoy"] = info_hoy["monto"]
                         d_cl["pago_ids_hoy"] = ",".join(info_hoy["ids"])
                         cnt_pagos += 1
-                    elif f_gest and (f_gest == hoy_base or f_gest == hoy_str):
+                    elif f_gest and f_gest in (hoy_base, fecha_hoy_real, turno_id[:10]):
 
                         d_cl["estado_hoy"] = "no_pago"
                         d_cl["monto_pagado_hoy"] = Decimal("0.00")
@@ -4109,7 +4109,7 @@ def dashboard_principal():
                         f_q = datetime.strptime(p["fecha"], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
                         if int(p["pagado"]) == 1:
                             total_pagadas += 1
-                            if f_q >= hoy_dt:
+                            if f_q > hoy_dt:
                                 dias_adelanto += 1
                         elif int(p["pagado"]) == 0 and f_q <= hoy_dt:
                             dias_mora += 1
