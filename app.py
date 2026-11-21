@@ -2170,12 +2170,17 @@ HTML_TEMPLATE = """
 
         <div style="font-size:11px; font-weight:700; color:#94a3b8; margin-top:8px;">Comprobante Digital • AVANTA PAGOS</div>
 
-        <!-- Botón Compartir Ticket como Imagen o WhatsApp -->
-        <div style="width:100%; max-width:340px; margin-top:14px; display:flex; gap:10px;">
+        <!-- Botones WhatsApp Directo e Imagen -->
+        <div style="width:100%; max-width:340px; margin-top:14px; display:flex; flex-direction:column; gap:8px;">
+            <button type="button" onclick="enviarTicketWhatsappDirecto()"
+                style="width:100%; padding:13px 16px; background:linear-gradient(135deg, #16a34a, #15803d); color:#ffffff; border:none; border-radius:11px; font-size:14px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 6px 14px rgba(22,163,74,0.28);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                Enviar Comprobante
+            </button>
             <button type="button" onclick="compartirTicketAvanta()"
-                    style="flex:1; padding:13px 16px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:11px; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; box-shadow:0 4px 12px rgba(15,43,92,0.25);">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                Compartir Ticket
+                style="width:100%; padding:11px 16px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:11px; font-size:13px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                Compartir Ticket como Imagen
             </button>
         </div>
     </div>
@@ -3008,6 +3013,48 @@ function cerrarTicketAvantaYVolver() {
     const modal = document.getElementById('modalTicketAvanta');
     if (modal) modal.style.display = 'none';
     window.location.href = '/';
+}
+
+function enviarTicketWhatsappDirecto() {
+    if (!ultimoTicketAvantaData) return;
+    const tk = ultimoTicketAvantaData;
+    const esPago = (tk.tipo === 'pago');
+
+    let msg = '';
+    if (esPago) {
+        msg = `*AVANTA PAGOS - COMPROBANTE OFICIAL*\n`
+            + `--------------------------------\n`
+            + `*Cliente:* ${tk.cliente || '-'}\n`
+            + `*Fecha:* ${tk.fecha_pago || '-'}\n`
+            + `*Monto Cobrado:* $${tk.monto_cobrado || '0.00'}\n`
+            + `*Cuota Procesada:* #${tk.cuota_procesada || '1'}\n`
+            + `*Saldo Restante:* $${tk.saldo_restante || '0.00'}\n`
+            + `--------------------------------\n`
+            + `${tk.titulo_estado || '¡Gracias por su puntualidad y pago!'}\n`
+            + `_Comprobante Digital • AVANTA PAGOS_`;
+    } else {
+        msg = `*AVANTA PAGOS - COMPROBANTE DE CRÉDITO*\n`
+            + `--------------------------------\n`
+            + `*Cliente:* ${tk.cliente || '-'}\n`
+            + `*Cód. Crédito:* ${tk.codigo || '-'}\n`
+            + `*Capital Entregado:* $${tk.monto_capital || '0.00'}\n`
+            + `*Total a Pagar:* $${tk.monto_total || '0.00'}\n`
+            + `*Valor Cuota:* $${tk.valor_cuota || '0.00'} (${tk.cuotas || 0} ${tk.frecuencia || 'Diaria'})\n`
+            + `*Vence:* ${tk.fecha_vencimiento || '-'}\n`
+            + `--------------------------------\n`
+            + `_Comprobante Digital • AVANTA PAGOS_`;
+    }
+
+    const telLimpio = String(tk.telefono || '').replace(/[^0-9]/g, '');
+    const textoCod = encodeURIComponent(msg);
+    if (telLimpio.length >= 9) {
+        const numWa = telLimpio.startsWith('593') ? telLimpio : '593' + telLimpio.replace(/^0/, '');
+        const urlWa = 'https://whatsapp.com' + '/send?phone=' + numWa + '&text=' + textoCod;
+        window.open(urlWa, '_blank');
+    } else {
+        const urlWa = 'https://whatsapp.com' + '/send?text=' + textoCod;
+        window.open(urlWa, '_blank');
+    }
 }
 
 async function compartirTicketAvanta() {
@@ -4628,13 +4675,13 @@ def dashboard_principal():
 
         try:
             cursor.execute("""
-                SELECT fecha_pago_real FROM pagos
-                WHERE cliente_id = %s AND fecha_pago_real IS NOT NULL AND TRIM(fecha_pago_real) <> ''
-                ORDER BY fecha_pago_real DESC LIMIT 1
+                SELECT CAST(fecha_pago_real AS TEXT) AS fp FROM pagos
+                WHERE cliente_id = %s AND fecha_pago_real IS NOT NULL AND TRIM(CAST(fecha_pago_real AS TEXT)) <> ''
+                ORDER BY CAST(fecha_pago_real AS TEXT) DESC LIMIT 1
             """, (int(c_id),))
             row_ult_p = cursor.fetchone()
             if row_ult_p:
-                val_up = row_ult_p["fecha_pago_real"] if isinstance(row_ult_p, dict) else row_ult_p
+                val_up = row_ult_p["fp"] if isinstance(row_ult_p, dict) else row_ult_p
                 ult_pago_str = str(val_up).strip() if val_up else "Sin pagos previos"
             else:
                 ult_pago_str = "Sin pagos previos"
