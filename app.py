@@ -2889,7 +2889,7 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             if (typeof manejarTipoSeguro === 'function') manejarTipoSeguro();
         }
-        
+
 async function comprimirImagenForm(file) {
     if (!file || !file.type || !file.type.startsWith('image/')) return file;
     return new Promise((resolve) => {
@@ -5331,7 +5331,11 @@ def guardar_nuevo_cliente():
     monto_total = monto + monto_interes
     valor_cuota = round(monto_total / Decimal(str(cuotas)), 2)
     
-    fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frecuencia)
+    try:
+        fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frequency=frecuencia)
+    except Exception:
+        salto_v0 = 7 if frecuencia == "Semanal" else 1
+        fecha_vencimiento_dt = fecha_inicio_dt + timedelta(days=(cuotas - 1) * salto_v0)
 
     conn = get_db()
     try:
