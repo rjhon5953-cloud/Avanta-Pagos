@@ -2231,29 +2231,17 @@ function toggleDrawer() {
     document.getElementById('drawer').classList.toggle('active');
     document.getElementById('drawerOverlay').classList.toggle('active');
 }
-    const _avantaCache = {};
-    function navegarRuta(url, forzar) {
-        if (document.getElementById('drawerOverlay').classList.contains('active')) toggleDrawer();
-        const mc = document.getElementById('mainContent');
-        if (!mc) { window.location.href = url; return; }
-        mc.style.opacity = '0.55';
-        mc.style.transition = 'opacity 0.12s ease';
-        if (!forzar && _avantaCache[url] && (Date.now() - _avantaCache[url].ts < 12000)) {
-            mc.innerHTML = _avantaCache[url].html;
-            mc.style.opacity = '1';
+function navegarRuta(url) {
+    if (document.getElementById('drawerOverlay').classList.contains('active')) toggleDrawer();
+    const mc = document.getElementById('mainContent');
+    if (!mc) { window.location.href = url; return; }
+    fetch(url)
+        .then(res => res.text())
+        .then(html => {
+            mc.innerHTML = html;
             if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
-            return;
-        }
-        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(res => res.text())
-            .then(html => {
-                _avantaCache[url] = { html: html, ts: Date.now() };
-                mc.innerHTML = html;
-                mc.style.opacity = '1';
-                if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
-            })
-            .catch(() => { mc.style.opacity = '1'; });
-    }
+        });
+}
 
 function activarGpsNativo() {
     if (navigator.geolocation) {
@@ -4791,8 +4779,10 @@ def dashboard_principal():
                 html_botones_derechos = '<span style="font-size:18px; color:#10b981; font-weight:bold; padding-right:10px;">✔</span>'
 
         raw_ult_p = str(c.get("ultimo_pago_str") or "").strip()
-        ult_pago_str = raw_ult_p[:19] if raw_ult_p and raw_ult_p != "Sin pagos previos" else "Sin pagos previos"
-
+        if not raw_ult_p or raw_ult_p == "Sin pagos previos":
+            lista_pg_c = [str(pg.get("fecha_pago_real") or "").strip() for pg in (c.get("pagos") or []) if float(pg.get("valor_pagado") or 0) > 0 and pg.get("fecha_pago_real")]
+            raw_ult_p = sorted(lista_pg_c)[-1] if lista_pg_c else ""
+        ult_pago_str = raw_ult_p[:19] if raw_ult_p else "Sin pagos previos"
 
         # Inyección limpia en las tarjetas premium
         contexto_dash += f"""
@@ -7335,29 +7325,6 @@ def api_gps_reportar():
 @app.route("/ping")
 def ping_keep_alive():
     return jsonify({"status": "ok"}), 200
-
-import gzip
-from flask import request as _req_gz
-
-@app.after_request
-def comprimir_respuesta_gzip(response):
-    if (
-        response.status_code < 200
-        or response.status_code >= 300
-        or "Content-Encoding" in response.headers
-        or "gzip" not in (_req_gz.headers.get("Accept-Encoding", "").lower())
-        or response.direct_passthrough
-    ):
-        return response
-    data = response.get_data()
-    if len(data) < 600:
-        return response
-    gz_data = gzip.compress(data, compresslevel=5)
-    response.set_data(gz_data)
-    response.headers["Content-Encoding"] = "gzip"
-    response.headers["Content-Length"] = str(len(gz_data))
-    response.headers["Vary"] = "Accept-Encoding"
-    return response
 
 if __name__ == "__main__":
     app.run(debug=True)
