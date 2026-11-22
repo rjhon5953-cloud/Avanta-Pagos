@@ -2231,15 +2231,30 @@ function toggleDrawer() {
     document.getElementById('drawer').classList.toggle('active');
     document.getElementById('drawerOverlay').classList.toggle('active');
 }
-function navegarRuta(url) {
-    if (document.getElementById('drawerOverlay').classList.contains('active')) toggleDrawer();
-    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-        .then(res => res.text())
-        .then(html => {
-            document.getElementById('mainContent').innerHTML = html;
-                    if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
-        });
-}
+    const _avantaCache = {};
+    function navegarRuta(url, forzar) {
+        if (document.getElementById('drawerOverlay').classList.contains('active')) toggleDrawer();
+        const mc = document.getElementById('mainContent');
+        if (!mc) { window.location.href = url; return; }
+        mc.style.opacity = '0.55';
+        mc.style.transition = 'opacity 0.12s ease';
+        if (!forzar && _avantaCache[url] && (Date.now() - _avantaCache[url].ts < 12000)) {
+            mc.innerHTML = _avantaCache[url].html;
+            mc.style.opacity = '1';
+            if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
+            return;
+        }
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(res => res.text())
+            .then(html => {
+                _avantaCache[url] = { html: html, ts: Date.now() };
+                mc.innerHTML = html;
+                mc.style.opacity = '1';
+                if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
+            })
+            .catch(() => { mc.style.opacity = '1'; });
+    }
+
 function activarGpsNativo() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
@@ -4225,26 +4240,30 @@ def dashboard_principal():
                     d_cl["pagos"] = pagos_mep.get(d_cl["id"], [])
 
                     # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
-                    # Calcular fecha del último pago real (completo o parcial)
-                    fechas_p = [str(p["fecha_pago_real"]).strip() for p in d_cl["pagos"] if (int(p["pagado"]) == 1 or float(p.get("valor_pagado") or 0) > 0) and p.get("fecha_pago_real")]
-                    d_cl["ultimo_pago_str"] = sorted(fechas_p)[-1] if fechas_p else "Sin pagos previos"
-
-                    # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
-                    f_gest = str(d_cl["fecha_gestion"]).strip()[:10] if d_cl.get("fecha_gestion") else ""
+                    f_gest_full = str(d_cl["fecha_gestion"]).strip() if d_cl.get("fecha_gestion") else ""
+                    f_gest = f_gest_full[:10]
                     hoy_base = str(hoy_str).strip()[:10]
+                    ult_pago_ts = str(d_cl.get("ultimo_pago_str") or "")[:19]
+                    es_np_hoy = bool(f_gest and (f_gest in (hoy_base, fecha_hoy_real, turno_id[:10]) or f_gest_full >= inicio_turno_ts))
+                    np_despues_de_pago = bool(es_np_hoy and len(f_gest_full) >= 19 and f_gest_full > ult_pago_ts)
 
-                    if info_hoy and info_hoy["monto"] > 0:
+                    if np_despues_de_pago:
+                        d_cl["estado_hoy"] = "no_pago"
+                        d_cl["monto_pagado_hoy"] = info_hoy["monto"] if info_hoy else Decimal("0.00")
+                        d_cl["pago_ids_hoy"] = ",".join(info_hoy["ids"]) if info_hoy else ""
+                        cnt_no_pagos += 1
+                    elif info_hoy and info_hoy["monto"] > 0:
                         d_cl["estado_hoy"] = "pago"
                         d_cl["monto_pagado_hoy"] = info_hoy["monto"]
                         d_cl["pago_ids_hoy"] = ",".join(info_hoy["ids"])
                         cnt_pagos += 1
-                    elif f_gest and f_gest in (hoy_base, fecha_hoy_real, turno_id[:10]):
-
+                    elif es_np_hoy:
                         d_cl["estado_hoy"] = "no_pago"
                         d_cl["monto_pagado_hoy"] = Decimal("0.00")
                         d_cl["pago_ids_hoy"] = ""
                         cnt_no_pagos += 1
                     else:
+
                         d_cl["estado_hoy"] = "pendiente"
                         d_cl["monto_pagado_hoy"] = Decimal("0.00")
                         d_cl["pago_ids_hoy"] = ""
@@ -6474,13 +6493,13 @@ def api_marcar_no_pago(cliente_id):
         return jsonify({"status": "error", "message": "No autorizado"}), 401
 
     rid = int(session.get("ruta_id") or 1)
-    hoy_str = date.today().isoformat()
+    ahora_ec_np = (datetime.utcnow() - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M:%S")
     conn = get_db()
     try:
         with conn.cursor() as cursor:
             cursor.execute(
                 "UPDATE clientes SET saltado_hoy = COALESCE(saltado_hoy, 0) + 1, fecha_gestion = %s WHERE id = %s AND ruta_id = %s",
-                (hoy_str, cliente_id, rid)
+                (ahora_ec_np, cliente_id, rid)
             )
         conn.commit()
     except Exception as e:
@@ -7316,6 +7335,29 @@ def api_gps_reportar():
 @app.route("/ping")
 def ping_keep_alive():
     return jsonify({"status": "ok"}), 200
+
+import gzip
+from flask import request as _req_gz
+
+@app.after_request
+def comprimir_respuesta_gzip(response):
+    if (
+        response.status_code < 200
+        or response.status_code >= 300
+        or "Content-Encoding" in response.headers
+        or "gzip" not in (_req_gz.headers.get("Accept-Encoding", "").lower())
+        or response.direct_passthrough
+    ):
+        return response
+    data = response.get_data()
+    if len(data) < 600:
+        return response
+    gz_data = gzip.compress(data, compresslevel=5)
+    response.set_data(gz_data)
+    response.headers["Content-Encoding"] = "gzip"
+    response.headers["Content-Length"] = str(len(gz_data))
+    response.headers["Vary"] = "Accept-Encoding"
+    return response
 
 if __name__ == "__main__":
     app.run(debug=True)
