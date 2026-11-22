@@ -4017,9 +4017,10 @@ def dashboard_principal():
             val_j = row_j["valor"] if isinstance(row_j, dict) else row_j[0]
             turno_id_real = str(val_j).strip()
 
-    fecha_hoy_real = date.today().isoformat()
-    turno_id = fecha_hoy_real
+    fecha_hoy_real = turno_id_real[:10] if turno_id_real else date.today().isoformat()
+    turno_id = turno_id_real or fecha_hoy_real
     hoy_str = fecha_hoy_real
+
 
     # FECHA EN TIEMPO REAL: Formateo en español para el badge superior
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
@@ -5216,7 +5217,7 @@ def seccion_balance_maestro():
             movimientos = cursor.fetchall()
 
             # 4. Sumamos en tiempo real los abonos reales cobrados en esta ruta hoy (idéntico a Recaudo Hoy)
-            fecha_hoy_bal = date.today().isoformat()
+            fecha_hoy_bal = str(hoy_str)[:10]
             cursor.execute("""
                 SELECT COALESCE(SUM(COALESCE(p.valor_pagado, 0)), 0) AS total
                 FROM pagos p
