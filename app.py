@@ -2233,13 +2233,21 @@ function toggleDrawer() {
 }
 function navegarRuta(url) {
     if (document.getElementById('drawerOverlay').classList.contains('active')) toggleDrawer();
+    const mc = document.getElementById('mainContent');
+    if (!mc) { window.location.href = url; return; }
+    mc.style.opacity = '0.55';
+    mc.style.transition = 'opacity 0.1s ease';
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(res => res.text())
         .then(html => {
-            document.getElementById('mainContent').innerHTML = html;
-                    if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
-        });
+            mc.innerHTML = html;
+            mc.style.opacity = '1';
+            window.scrollTo({ top: 0, behavior: 'instant' });
+            if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
+        })
+        .catch(() => { mc.style.opacity = '1'; window.location.href = url; });
 }
+
 function activarGpsNativo() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
@@ -4230,16 +4238,24 @@ def dashboard_principal():
                     d_cl["ultimo_pago_str"] = sorted(fechas_p)[-1] if fechas_p else "Sin pagos previos"
 
                     # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
-                    f_gest = str(d_cl["fecha_gestion"]).strip()[:10] if d_cl.get("fecha_gestion") else ""
+                    f_gest_full = str(d_cl["fecha_gestion"]).strip() if d_cl.get("fecha_gestion") else ""
+                    f_gest = f_gest_full[:10]
                     hoy_base = str(hoy_str).strip()[:10]
+                    ult_pago_ts = str(d_cl.get("ultimo_pago_str") or "")[:19]
+                    es_np_hoy = bool(f_gest and (f_gest in (hoy_base, fecha_hoy_real, turno_id[:10]) or f_gest_full >= inicio_turno_ts))
+                    np_despues_de_pago = bool(es_np_hoy and len(f_gest_full) >= 19 and f_gest_full > ult_pago_ts)
 
-                    if info_hoy and info_hoy["monto"] > 0:
+                    if np_despues_de_pago:
+                        d_cl["estado_hoy"] = "no_pago"
+                        d_cl["monto_pagado_hoy"] = info_hoy["monto"] if info_hoy else Decimal("0.00")
+                        d_cl["pago_ids_hoy"] = ",".join(info_hoy["ids"]) if info_hoy else ""
+                        cnt_no_pagos += 1
+                    elif info_hoy and info_hoy["monto"] > 0:
                         d_cl["estado_hoy"] = "pago"
                         d_cl["monto_pagado_hoy"] = info_hoy["monto"]
                         d_cl["pago_ids_hoy"] = ",".join(info_hoy["ids"])
                         cnt_pagos += 1
-                    elif f_gest and f_gest in (hoy_base, fecha_hoy_real, turno_id[:10]):
-
+                    elif es_np_hoy:
                         d_cl["estado_hoy"] = "no_pago"
                         d_cl["monto_pagado_hoy"] = Decimal("0.00")
                         d_cl["pago_ids_hoy"] = ""
@@ -4772,8 +4788,10 @@ def dashboard_principal():
                 html_botones_derechos = '<span style="font-size:18px; color:#10b981; font-weight:bold; padding-right:10px;">✔</span>'
 
         raw_ult_p = str(c.get("ultimo_pago_str") or "").strip()
-        ult_pago_str = raw_ult_p[:19] if raw_ult_p and raw_ult_p != "Sin pagos previos" else "Sin pagos previos"
-
+        if not raw_ult_p or raw_ult_p == "Sin pagos previos":
+            lista_pg_c = [str(pg.get("fecha_pago_real") or "").strip() for pg in (c.get("pagos") or []) if float(pg.get("valor_pagado") or 0) > 0 and pg.get("fecha_pago_real")]
+            raw_ult_p = sorted(lista_pg_c)[-1] if lista_pg_c else ""
+        ult_pago_str = raw_ult_p[:19] if raw_ult_p else "Sin pagos previos"
 
         # Inyección limpia en las tarjetas premium
         contexto_dash += f"""
@@ -6474,13 +6492,13 @@ def api_marcar_no_pago(cliente_id):
         return jsonify({"status": "error", "message": "No autorizado"}), 401
 
     rid = int(session.get("ruta_id") or 1)
-    hoy_str = date.today().isoformat()
+    ahora_ec_np = (datetime.utcnow() - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M:%S")
     conn = get_db()
     try:
         with conn.cursor() as cursor:
             cursor.execute(
                 "UPDATE clientes SET saltado_hoy = COALESCE(saltado_hoy, 0) + 1, fecha_gestion = %s WHERE id = %s AND ruta_id = %s",
-                (hoy_str, cliente_id, rid)
+                (ahora_ec_np, cliente_id, rid)
             )
         conn.commit()
     except Exception as e:
