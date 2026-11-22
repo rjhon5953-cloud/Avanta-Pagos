@@ -4240,7 +4240,7 @@ def dashboard_principal():
                         cnt_semanal += 1
 
                     # CÁLCULO EXACTO DE MORA Y ADELANTO (0 AL DÍA + 1 DÍA INMEDIATO AL MARCAR NO PAGO)
-                    hoy_clean = str(hoy_str).replace("[", "").replace("]", "").replace("'", "").replace('"', "").split(",").split("_").strip()[:10]
+                    hoy_clean = str(hoy_str).strip()[:10]
                     hoy_dt = date.fromisoformat(hoy_clean) if len(hoy_clean) == 10 else date.today()
                     dias_mora = 0
                     dias_adelanto = 0
@@ -5218,7 +5218,8 @@ def seccion_balance_maestro():
             cursor.execute("""
                 SELECT COALESCE(SUM(COALESCE(p.valor_pagado, 0)), 0) AS total
                 FROM pagos p
-                JOIN clientes c ON p.cliente_id = c.id
+                JOIN creditos cr ON p.credito_id = cr.id
+                JOIN clientes c ON cr.cliente_id = c.id
                 WHERE c.ruta_id = %s
                   AND COALESCE(p.valor_pagado, 0) > 0
                   AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
