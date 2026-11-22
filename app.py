@@ -2233,16 +2233,13 @@ function toggleDrawer() {
 }
 function navegarRuta(url) {
     if (document.getElementById('drawerOverlay').classList.contains('active')) toggleDrawer();
-    const mc = document.getElementById('mainContent');
-    if (!mc) { window.location.href = url; return; }
-    fetch(url)
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(res => res.text())
         .then(html => {
-            mc.innerHTML = html;
-            if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
+            document.getElementById('mainContent').innerHTML = html;
+                    if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
         });
 }
-
 function activarGpsNativo() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
@@ -4228,30 +4225,26 @@ def dashboard_principal():
                     d_cl["pagos"] = pagos_mep.get(d_cl["id"], [])
 
                     # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
-                    f_gest_full = str(d_cl["fecha_gestion"]).strip() if d_cl.get("fecha_gestion") else ""
-                    f_gest = f_gest_full[:10]
-                    hoy_base = str(hoy_str).strip()[:10]
-                    ult_pago_ts = str(d_cl.get("ultimo_pago_str") or "")[:19]
-                    es_np_hoy = bool(f_gest and (f_gest in (hoy_base, fecha_hoy_real, turno_id[:10]) or f_gest_full >= inicio_turno_ts))
-                    np_despues_de_pago = bool(es_np_hoy and len(f_gest_full) >= 19 and f_gest_full > ult_pago_ts)
+                    # Calcular fecha del último pago real (completo o parcial)
+                    fechas_p = [str(p["fecha_pago_real"]).strip() for p in d_cl["pagos"] if (int(p["pagado"]) == 1 or float(p.get("valor_pagado") or 0) > 0) and p.get("fecha_pago_real")]
+                    d_cl["ultimo_pago_str"] = sorted(fechas_p)[-1] if fechas_p else "Sin pagos previos"
 
-                    if np_despues_de_pago:
-                        d_cl["estado_hoy"] = "no_pago"
-                        d_cl["monto_pagado_hoy"] = info_hoy["monto"] if info_hoy else Decimal("0.00")
-                        d_cl["pago_ids_hoy"] = ",".join(info_hoy["ids"]) if info_hoy else ""
-                        cnt_no_pagos += 1
-                    elif info_hoy and info_hoy["monto"] > 0:
+                    # Determinar estado de gestión del día: 'pago', 'no_pago' o 'pendiente'
+                    f_gest = str(d_cl["fecha_gestion"]).strip()[:10] if d_cl.get("fecha_gestion") else ""
+                    hoy_base = str(hoy_str).strip()[:10]
+
+                    if info_hoy and info_hoy["monto"] > 0:
                         d_cl["estado_hoy"] = "pago"
                         d_cl["monto_pagado_hoy"] = info_hoy["monto"]
                         d_cl["pago_ids_hoy"] = ",".join(info_hoy["ids"])
                         cnt_pagos += 1
-                    elif es_np_hoy:
+                    elif f_gest and f_gest in (hoy_base, fecha_hoy_real, turno_id[:10]):
+
                         d_cl["estado_hoy"] = "no_pago"
                         d_cl["monto_pagado_hoy"] = Decimal("0.00")
                         d_cl["pago_ids_hoy"] = ""
                         cnt_no_pagos += 1
                     else:
-
                         d_cl["estado_hoy"] = "pendiente"
                         d_cl["monto_pagado_hoy"] = Decimal("0.00")
                         d_cl["pago_ids_hoy"] = ""
@@ -4779,10 +4772,8 @@ def dashboard_principal():
                 html_botones_derechos = '<span style="font-size:18px; color:#10b981; font-weight:bold; padding-right:10px;">✔</span>'
 
         raw_ult_p = str(c.get("ultimo_pago_str") or "").strip()
-        if not raw_ult_p or raw_ult_p == "Sin pagos previos":
-            lista_pg_c = [str(pg.get("fecha_pago_real") or "").strip() for pg in (c.get("pagos") or []) if float(pg.get("valor_pagado") or 0) > 0 and pg.get("fecha_pago_real")]
-            raw_ult_p = sorted(lista_pg_c)[-1] if lista_pg_c else ""
-        ult_pago_str = raw_ult_p[:19] if raw_ult_p else "Sin pagos previos"
+        ult_pago_str = raw_ult_p[:19] if raw_ult_p and raw_ult_p != "Sin pagos previos" else "Sin pagos previos"
+
 
         # Inyección limpia en las tarjetas premium
         contexto_dash += f"""
@@ -6483,13 +6474,13 @@ def api_marcar_no_pago(cliente_id):
         return jsonify({"status": "error", "message": "No autorizado"}), 401
 
     rid = int(session.get("ruta_id") or 1)
-    ahora_ec_np = (datetime.utcnow() - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M:%S")
+    hoy_str = date.today().isoformat()
     conn = get_db()
     try:
         with conn.cursor() as cursor:
             cursor.execute(
                 "UPDATE clientes SET saltado_hoy = COALESCE(saltado_hoy, 0) + 1, fecha_gestion = %s WHERE id = %s AND ruta_id = %s",
-                (ahora_ec_np, cliente_id, rid)
+                (hoy_str, cliente_id, rid)
             )
         conn.commit()
     except Exception as e:
