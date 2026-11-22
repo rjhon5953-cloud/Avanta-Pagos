@@ -4034,7 +4034,7 @@ def dashboard_principal():
     fecha_hoy_real = turno_id_real[:10] if turno_id_real else date.today().isoformat()
     turno_id = turno_id_real or fecha_hoy_real
     hoy_str = fecha_hoy_real
-
+    inicio_turno_ts = f"{turno_id_real[:10]} {turno_id_real[11:13]}:{turno_id_real[13:15]}:{turno_id_real[15:17]}" if len(str(turno_id_real)) >= 17 and "_" in str(turno_id_real) else f"{fecha_hoy_real} 00:00:00"
 
     # FECHA EN TIEMPO REAL: Formateo en español para el badge superior
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
@@ -4156,7 +4156,8 @@ def dashboard_principal():
                           SELECT 1 FROM pagos p_hoy
                           WHERE p_hoy.cliente_id = c.id
                             AND p_hoy.pagado = 1
-                            AND (CAST(p_hoy.fecha_pago_real AS TEXT) LIKE %s OR CAST(p_hoy.fecha_pago_real AS TEXT) LIKE %s)
+                            AND (CAST(p_hoy.fecha_pago_real AS TEXT) LIKE %s OR LEFT(COALESCE(p_hoy.fecha_pago_real::text, ''), 19) >= %s)
+
                       )
                       OR (
                           COALESCE(NULLIF(TRIM(c.fecha_inicio::text), '')::date, CURRENT_DATE) <= CAST(%s AS DATE)
@@ -4174,7 +4175,7 @@ def dashboard_principal():
                       )
                   )
                 ORDER BY c.orden ASC, c.id DESC
-            """, (rid, f"{fecha_hoy_real}%", f"{turno_id_real[:10]}%", hoy_str, hoy_str, f"{fecha_hoy_real}%"))
+            """, (rid, f"{fecha_hoy_real}%", inicio_turno_ts, hoy_str, hoy_str, f"{fecha_hoy_real}%"))
             clientes_crudos = cursor.fetchall()
 
             # Consultamos los abonos reales asentados hoy o en el turno activo (incluye parciales)
@@ -4183,9 +4184,9 @@ def dashboard_principal():
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
                 WHERE c.ruta_id = %s
-                    AND COALESCE(p.valor_pagado, 0) > 0
-                    AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
-            """, (rid, f"{fecha_hoy_real}%", f"{turno_id[:10]}%"))
+                AND COALESCE(p.valor_pagado, 0) > 0
+                AND LEFT(COALESCE(p.fecha_pago_real::text, ''), 19) >= %s
+            """, (rid, inicio_turno_ts))
             abonos_turno_rows = cursor.fetchall()
 
             mapa_pagos_hoy = defaultdict(lambda: {"monto": Decimal("0.00"), "ids": []})
