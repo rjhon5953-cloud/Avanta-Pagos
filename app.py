@@ -5192,10 +5192,10 @@ def seccion_balance_maestro():
             else:
                 caja_inicial_sistema = Decimal("100.00") if rid == 1 else Decimal("0.00")
 
-            # Movimientos anteriores a hoy (igual que Avanta Dueño = Base $321.00)
+            # Movimientos anteriores a hoy (excluyendo Microseguro igual que Avanta Dueño = Base $321.00)
             cursor.execute("""
                 SELECT
-                    COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('ingreso', 'entrada', 'inyeccion', 'base', 'abono') THEN monto ELSE 0 END), 0) -
+                    COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('ingreso', 'entrada', 'inyeccion', 'base', 'abono') AND UPPER(COALESCE(concepto, '')) NOT LIKE '%%MICROSEGURO%%' THEN monto ELSE 0 END), 0) -
                     COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('egreso', 'gasto', 'retiro', 'salida', 'credito') THEN monto ELSE 0 END), 0)
                 FROM balance_movimientos
                 WHERE ruta_id = %s AND fecha != %s
@@ -5212,39 +5212,19 @@ def seccion_balance_maestro():
             res_cierre = cursor.fetchone()
             estado_cierre = res_cierre["valor"] if res_cierre else "Abierta"
 
-            # 3. Movimientos manuales de hoy
+            # 3. Movimientos de hoy de esta ruta (misma fuente única que Avanta Dueño)
             cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND fecha = %s ORDER BY id DESC", (rid, hoy_str))
             movimientos = cursor.fetchall()
 
-            # 4. Abonos reales cobrados hoy en ruta
-            fecha_hoy_bal = str(hoy_str)[:10]
-            cursor.execute("""
-                SELECT COALESCE(SUM(COALESCE(p.valor_pagado, 0)), 0) AS total
-                FROM pagos p
-                JOIN clientes c ON p.cliente_id = c.id
-                WHERE c.ruta_id = %s
-                  AND COALESCE(p.valor_pagado, 0) > 0
-                  AND LEFT(COALESCE(p.fecha_pago_real::text, ''), 10) = %s
-            """, (rid, fecha_hoy_bal))
-            row_tot_ab = cursor.fetchone()
-            raw_tot_ab = (row_tot_ab["total"] if isinstance(row_tot_ab, dict) else row_tot_ab[0]) if row_tot_ab else 0
-            try:
-                total_abonos_hoy = Decimal(str(raw_tot_ab if raw_tot_ab not in (None, "") else "0.00"))
-            except Exception:
-                total_abonos_hoy = Decimal("0.00")
-
-            # 5. Microseguros y Créditos Nuevos hoy
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Entrada' AND concepto LIKE '%%MICROSEGURO%%' AND fecha = %s", (rid, hoy_str))
-            total_seguros_hoy = Decimal(str(cursor.fetchone()["total"] or "0.00"))
-
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s", (rid, hoy_str))
-            total_prestado_hoy = Decimal(str(cursor.fetchone()["total"] or "0.00"))
+            total_abonos_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "abono") and str(m.get("categoria") or "").strip().lower() == "cobranza")
+            total_seguros_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso") and "MICROSEGURO" in str(m.get("concepto") or "").upper())
+            total_prestado_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("salida", "egreso", "credito") and ("CRÉDITO NUEVO" in str(m.get("concepto") or "").upper() or "CREDITO NUEVO" in str(m.get("concepto") or "").upper()))
     except Exception as e:
         print(f"Error en balance: {e}")
         caja_base = caja_inicial_sistema + saldo_acumulado_ayer
 
     entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "inyeccion", "base", "abono") and str(m.get("categoria") or "").strip().lower() != "cobranza" and "MICROSEGURO" not in str(m.get("concepto") or "").upper())
-    salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("salida", "egreso", "gasto", "retiro", "credito") and "CRÉDITO NUEVO" not in str(m.get("concepto") or "").upper())
+    salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("salida", "egreso", "gasto", "retiro", "credito") and "CRÉDITO NUEVO" not in str(m.get("concepto") or "").upper() and "CREDITO NUEVO" not in str(m.get("concepto") or "").upper())
 
     entradas_totales = total_abonos_hoy + total_seguros_hoy + entradas_manuales
     salidas_totales = salidas_manuales + total_prestado_hoy
@@ -5394,15 +5374,10 @@ def guardar_nuevo_cliente():
                     microseguro_valor = round(Decimal(raw_val if raw_val != "" else "0"), 2)
                     
             rid = int(session.get("ruta_id") or 1)
-            turno_balance_cred = date.today().isoformat()
-            cursor.execute("UPDATE configuracion SET valor = %s WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (turno_balance_cred, rid))
-            cursor.execute("""
-                UPDATE balance_movimientos
-                SET fecha = %s
-                WHERE ruta_id = %s
-                  AND (concepto ILIKE '%%Matusalén Jiménez%%' OR concepto ILIKE '%%Paola Herrera%%')
-                  AND CAST(fecha AS TEXT) LIKE '2026-11-18%%'
-            """, (turno_balance_cred, rid))
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
+            row_fja = cursor.fetchone()
+            val_fja = (row_fja["valor"] if isinstance(row_fja, dict) else row_fja) if row_fja else None
+            turno_balance_cred = str(val_fja).strip()[:10] if val_fja else date.today().isoformat()
 
             # 🛡️ 1. Inserción limpia del microseguro en el turno activo
             if microseguro_valor > 0:
