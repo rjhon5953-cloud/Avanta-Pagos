@@ -13,6 +13,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "avanta_secret_key_1.3_2026")
+app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
+app.config["MAX_FORM_MEMORY_SIZE"] = 50 * 1024 * 1024
 
 # 🛡️ SISTEMA SEGURO: Lee la credencial desde el contenedor secreto de Render sin exponerla en código
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -1426,11 +1428,19 @@ CONTENIDO_HTML = """
                        style="width:100%; padding:11px 12px; border:1.5px solid #cbd5e1; border-radius:10px; font-size:15px; font-weight:800; color:#0f172a; margin-bottom:12px; box-sizing:border-box;">
 
                 <label style="font-size:11.5px; font-weight:700; color:#334155; display:block; margin-bottom:6px;">Foto Factura / Comprobante (Opcional)</label>
-                <label style="display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border:1.5px dashed #94a3b8; border-radius:10px; background:#f8fafc; color:#334155; font-size:12.5px; font-weight:700; cursor:pointer; margin-bottom:14px;">
-                    <input type="file" id="foto_mov" accept="image/*" capture="environment" style="display:none;" onchange="document.getElementById('lblFotoBalTxt').innerText = (this.files && this.files[0]) ? 'Comprobante adjuntado: ' + this.files[0].name : 'Tomar o subir foto de comprobante'; procesarImagenEnCaliente();">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                    <span id="lblFotoBalTxt">Tomar o subir foto de comprobante</span>
-                </label>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+                    <label style="display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; border:1.5px dashed #0f2b5c; border-radius:10px; background:#eff6ff; color:#0f2b5c; font-size:12px; font-weight:800; cursor:pointer;">
+                        <input type="file" id="foto_mov_cam" accept="image/*" capture="environment" style="display:none;" onchange="document.getElementById('foto_mov').files = this.files; document.getElementById('lblFotoBalTxt').innerText = (this.files && this.files[0]) ? 'Foto cámara: ' + this.files[0].name : 'Sin archivo seleccionado'; if(typeof procesarImagenEnCaliente==='function') procesarImagenEnCaliente();">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                        Cámara
+                    </label>
+                    <label style="display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; border:1.5px dashed #64748b; border-radius:10px; background:#f8fafc; color:#334155; font-size:12px; font-weight:800; cursor:pointer;">
+                        <input type="file" id="foto_mov" accept="image/*,.pdf" style="display:none;" onchange="document.getElementById('lblFotoBalTxt').innerText = (this.files && this.files[0]) ? 'Archivo: ' + this.files[0].name : 'Sin archivo seleccionado'; if(typeof procesarImagenEnCaliente==='function') procesarImagenEnCaliente();">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        Subir Archivo
+                    </label>
+                </div>
+                <div id="lblFotoBalTxt" style="font-size:11px; color:#64748b; font-weight:600; text-align:center; margin-bottom:12px;">Sin archivo seleccionado</div>
                 <input type="hidden" id="foto_comprimida_b64" name="foto_comprimida_b64">
 
                 <button type="submit" style="width:100%; padding:13px; background:linear-gradient(135deg, #16a34a, #15803d); color:#ffffff; border:none; border-radius:10px; font-size:14px; font-weight:800; cursor:pointer; box-shadow:0 4px 12px rgba(22,163,74,0.25);">
@@ -4229,29 +4239,25 @@ def dashboard_principal():
                     else:
                         cnt_semanal += 1
 
-                    # CÁLCULO EXACTO DE MORA Y ADELANTO (POR CUOTAS EXIGIBLES A HOY)
-                    hoy_clean = str(hoy_str).replace("[", "").replace("]", "").replace("'", "").replace('"', "").split(",")[0].split("_")[0].strip()[:10]
+                    # CÁLCULO EXACTO DE MORA Y ADELANTO (0 AL DÍA + 1 DÍA INMEDIATO AL MARCAR NO PAGO)
+                    hoy_clean = str(hoy_str).replace("[", "").replace("]", "").replace("'", "").replace('"', "").split(",").split("_").strip()[:10]
                     hoy_dt = date.fromisoformat(hoy_clean) if len(hoy_clean) == 10 else date.today()
                     dias_mora = 0
-                    total_pagadas = 0
-                    cuotas_exigibles_hoy = 0
-                    f_inicio_c = datetime.strptime(str(d_cl["fecha_inicio"])[:10], "%Y-%m-%d").date() if d_cl.get("fecha_inicio") else hoy_dt
+                    dias_adelanto = 0
 
                     for p in d_cl["pagos"]:
                         f_q = datetime.strptime(str(p["fecha"])[:10], "%Y-%m-%d").date() if isinstance(p["fecha"], str) else p["fecha"]
-                        if int(p["pagado"]) == 1:
-                            total_pagadas += 1
-                        if f_q <= hoy_dt:
-                            cuotas_exigibles_hoy += 1
-                        if int(p["pagado"]) == 0 and f_q <= hoy_dt:
+                        if int(p["pagado"]) == 0 and f_q < hoy_dt:
                             dias_mora += 1
+                        elif int(p["pagado"]) == 1 and f_q > hoy_dt:
+                            dias_adelanto += 1
 
-                    # Si inició ayer y hoy es su primer día de cobro, cuotas_exigibles_hoy = 0; si pagó 1 ayer, lleva 1 día de adelanto
-                    dias_adelanto = max(0, total_pagadas - cuotas_exigibles_hoy) if dias_mora == 0 else 0
-
-                    # Si hoy se le marcó No Pago, consume 1 día de adelanto (bajando de 1 azul a 0 verde al día)
-                    if d_cl["estado_hoy"] == "no_pago" and dias_adelanto > 0:
-                        dias_adelanto -= 1
+                    # Si hoy se presionó No Pago, suma 1 día de atraso inmediato (si estaba en 0 pasa a 1)
+                    if d_cl["estado_hoy"] == "no_pago":
+                        if dias_adelanto > 0:
+                            dias_adelanto -= 1
+                        else:
+                            dias_mora += 1
 
                     d_cl["dias_mora"] = dias_mora
                     d_cl["dias_adelanto"] = dias_adelanto
@@ -5207,9 +5213,19 @@ def seccion_balance_maestro():
             cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND fecha = %s ORDER BY id DESC", (rid, hoy_str))
             movimientos = cursor.fetchall()
 
-            # 4. Sumamos en tiempo real los abonos en efectivo cobrados en esta ruta hoy
-            cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Entrada' AND categoria = 'Cobranza' AND fecha = %s", (rid, hoy_str))
-            total_abonos_hoy = Decimal(str(cursor.fetchone()["total"]))
+            # 4. Sumamos en tiempo real los abonos reales cobrados en esta ruta hoy (idéntico a Recaudo Hoy)
+            fecha_hoy_bal = date.today().isoformat()
+            cursor.execute("""
+                SELECT COALESCE(SUM(COALESCE(p.valor_pagado, 0)), 0) AS total
+                FROM pagos p
+                JOIN clientes c ON p.cliente_id = c.id
+                WHERE c.ruta_id = %s
+                  AND COALESCE(p.valor_pagado, 0) > 0
+                  AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
+            """, (rid, f"{hoy_str}%", f"{fecha_hoy_bal}%"))
+            row_tot_ab = cursor.fetchone()
+            val_tot_ab = row_tot_ab["total"] if isinstance(row_tot_ab, dict) else row_tot_ab
+            total_abonos_hoy = Decimal(str(val_tot_ab or "0.00"))
 
             # Sumatoria de los microseguros cobrados hoy en esta ruta
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Entrada' AND concepto LIKE '%%MICROSEGURO%%' AND fecha = %s", (rid, hoy_str))
