@@ -430,7 +430,7 @@ CONTENIDO_HTML = """
                         {{ 'D' if c.frecuencia == 'Diaria' else 'S' }}
                     </div>
                     <div class="info-bloque-texto">
-                        <div class="id-alias">{{ c.id }} {{ c.referencia or 'Comercio' }}</div>
+                        <div class="id-alias">#{{ loop.index }} {{ c.referencia or 'Comercio' }}</div>
                         <div class="nombre-real">{{ c.nombre }}</div>
                         
                         <div class="grid-metricas-premium">
@@ -902,7 +902,7 @@ CONTENIDO_HTML = """
                     
                     <div class="info-bloque-texto" style="width:100%;">
                         <!-- 🛡️ FIJADO: Muestra la Modalidad si no hay una referencia para evitar que todo sea 'Comercio' -->
-                        <div class="id-alias">{{ c.id }} — {{ c.referencia or c.nombre }}</div>
+                        <div class="id-alias">#{{ loop.index }} - {{ c.referencia or c.nombre }}</div>
                         <div class="nombre-real">{{ c.nombre }}</div>
                         
                         <div class="grid-metricas-premium">
@@ -4589,7 +4589,7 @@ def dashboard_principal():
     """
     
         # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO (DISEÑO LIMPIO EN DASHBOARD)
-    for c in clientes_ruta:
+    for idx_ruta, c in enumerate(clientes_ruta, start=1):
         pagado_acumulado = sum(Decimal(str(p["valor_pagado"])) for p in c["pagos"])
         saldo_restante = max(Decimal("0.00"), Decimal(str(c["monto_total"])) - pagado_acumulado)
     
@@ -4781,7 +4781,7 @@ def dashboard_principal():
                 </div>
                 <div class="info-bloque-texto" style="width:100%; min-width:0; text-align:left;">
                     <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
-                        <span style="font-size:10.5px; font-weight:800; color:#0f2b5c; background:#eff6ff; border:1px solid #dbeafe; padding:1px 6px; border-radius:6px; flex-shrink:0;">#{c_id}</span>
+                        <span style="font-size:10.5px; font-weight:800; color:#0f2b5c; background:#eff6ff; border:1px solid #dbeafe; padding:1px 6px; border-radius:6px; flex-shrink:0;">#{idx_ruta}</span>
                         <span style="font-size:11px; font-weight:700; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c_referencia}</span>
                     </div>
                     <div style="font-size:14.5px; font-weight:900; color:#0f172a; letter-spacing:-0.2px; margin-bottom:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c_nombre}</div>
@@ -5401,7 +5401,7 @@ def guardar_nuevo_cliente():
             )
             
             # 📊 3. Calcular posición secuencial de enrutamiento (Blindado contra DictRow)
-            cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes")
+            cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes WHERE ruta_id = %s", (rid,))
             res_orden = cursor.fetchone()
             
             if res_orden is None:
