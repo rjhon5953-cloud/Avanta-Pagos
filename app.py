@@ -5218,12 +5218,11 @@ def seccion_balance_maestro():
             cursor.execute("""
                 SELECT COALESCE(SUM(COALESCE(p.valor_pagado, 0)), 0) AS total
                 FROM pagos p
-                JOIN creditos cr ON p.credito_id = cr.id
-                JOIN clientes c ON cr.cliente_id = c.id
+                JOIN clientes c ON p.cliente_id = c.id
                 WHERE c.ruta_id = %s
                   AND COALESCE(p.valor_pagado, 0) > 0
-                  AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
-            """, (rid, f"{hoy_str}%", f"{fecha_hoy_bal}%"))
+                  AND (LEFT(COALESCE(p.fecha_pago_real::text, ''), 10) = %s OR LEFT(COALESCE(p.fecha_pago_real::text, ''), 10) = %s)
+            """, (rid, str(hoy_str)[:10], fecha_hoy_bal))
             row_tot_ab = cursor.fetchone()
             val_tot_ab = row_tot_ab["total"] if isinstance(row_tot_ab, dict) else row_tot_ab
             total_abonos_hoy = Decimal(str(val_tot_ab or "0.00"))
