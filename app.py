@@ -4773,13 +4773,13 @@ def dashboard_principal():
 
         try:
             cursor.execute("""
-                SELECT CAST(fecha_pago_real AS TEXT) AS fp FROM pagos
-                WHERE cliente_id = %s AND fecha_pago_real IS NOT NULL AND TRIM(CAST(fecha_pago_real AS TEXT)) <> ''
+                SELECT LEFT(CAST(fecha_pago_real AS TEXT), 19) AS fp FROM pagos
+                WHERE cliente_id = %s AND COALESCE(valor_pagado, 0) > 0 AND fecha_pago_real IS NOT NULL AND TRIM(CAST(fecha_pago_real AS TEXT)) <> ''
                 ORDER BY CAST(fecha_pago_real AS TEXT) DESC LIMIT 1
             """, (int(c_id),))
             row_ult_p = cursor.fetchone()
             if row_ult_p:
-                val_up = row_ult_p["fp"] if isinstance(row_ult_p, dict) else row_ult_p
+                val_up = dict(row_ult_p).get("fp", "")
                 ult_pago_str = str(val_up).strip() if val_up else "Sin pagos previos"
             else:
                 ult_pago_str = "Sin pagos previos"
