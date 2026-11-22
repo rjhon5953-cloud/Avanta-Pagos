@@ -3934,7 +3934,8 @@ def login_route():
                     else:
                         cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_autorizada' AND ruta_id = %s", (rid,))
                         row_aut = cursor.fetchone()
-                        val_aut = str(row_aut["valor"] if isinstance(row_aut, dict) else (row_aut if row_aut else "0")).strip()
+                        raw_aut = (dict(row_aut).get("valor", "0") if row_aut else "0")
+                        val_aut = str(raw_aut).strip()
                         if val_aut != "1":
                             error_msg = f"La caja de {r_dict['nombre']} está cerrada. Solicita apertura al Administrador."
                         else:
