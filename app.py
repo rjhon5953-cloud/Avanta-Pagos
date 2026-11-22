@@ -5154,9 +5154,18 @@ def seccion_creditos_activos():
 def seccion_balance_maestro():
     if not session.get("autenticado"):
         return "Sesión expirada"
-        
+
     rid = int(session.get("ruta_id") or 1)
     conn = get_db()
+    saldo_acumulado_ayer = Decimal("0.00")
+    caja_inicial_sistema = Decimal("0.00")
+    total_abonos_hoy = Decimal("0.00")
+    total_seguros_hoy = Decimal("0.00")
+    total_prestado_hoy = Decimal("0.00")
+    movimientos = []
+    estado_cierre = "Abierta"
+    hoy_str = date.today().isoformat()
+
     try:
         with conn.cursor() as cursor:
             # Recuperamos la jornada activa de esta ruta
@@ -5168,33 +5177,11 @@ def seccion_balance_maestro():
                 hoy_str = date.today().isoformat()
                 cursor.execute("DELETE FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
                 cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES ('fecha_jornada_activa', %s, %s)", (hoy_str, rid))
-            conn.commit()
+                conn.commit()
 
-            ## 1. CÁLCULO DINÁMICO DE CAJA BASE - ARRASTRE REAL DE CARTERA NEON POR RUTA
-            cursor.execute(
-                """
-                SELECT
-                    COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('ingreso', 'entrada', 'inyeccion', 'base', 'abono') THEN monto ELSE 0 END), 0) -
-                    COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('egreso', 'gasto', 'retiro', 'salida', 'credito') THEN monto ELSE 0 END), 0)
-                FROM balance_movimientos
-                WHERE ruta_id = %s AND fecha != %s
-                """,
-                (rid, hoy_str)
-            )
-            res_saldo_historico = cursor.fetchone()
-
-            if res_saldo_historico:
-                if isinstance(res_saldo_historico, dict):
-                    valores_lista = list(res_saldo_historico.values())
-                    saldo_acumulado_ayer = Decimal(str(valores_lista[0])) if valores_lista and valores_lista[0] is not None else Decimal("0.00")
-                else:
-                    saldo_acumulado_ayer = Decimal(str(res_saldo_historico[0])) if res_saldo_historico and res_saldo_historico[0] is not None else Decimal("0.00")
-            else:
-                saldo_acumulado_ayer = Decimal("0.00")
-
+            # 1. Cálculo contable espejo con Avanta Dueño
             cursor.execute("SELECT valor FROM configuracion WHERE LOWER(llave) LIKE '%%base%%' AND ruta_id = %s LIMIT 1", (rid,))
             res_caja = cursor.fetchone()
-
             if res_caja:
                 raw_caja = res_caja.get("valor", "0.00") if isinstance(res_caja, dict) else res_caja[0]
                 val_caja_str = str(raw_caja).strip() if raw_caja is not None else ""
@@ -5205,18 +5192,31 @@ def seccion_balance_maestro():
             else:
                 caja_inicial_sistema = Decimal("100.00") if rid == 1 else Decimal("0.00")
 
+            # Movimientos anteriores a hoy (excluyendo Cobranza duplicada)
+            cursor.execute("""
+                SELECT
+                    COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('ingreso', 'entrada', 'inyeccion', 'base', 'abono') AND LOWER(TRIM(COALESCE(categoria, ''))) <> 'cobranza' THEN monto ELSE 0 END), 0) -
+                    COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('egreso', 'gasto', 'retiro', 'salida', 'credito') THEN monto ELSE 0 END), 0)
+                FROM balance_movimientos
+                WHERE ruta_id = %s AND fecha != %s
+            """, (rid, hoy_str))
+            res_saldo_historico = cursor.fetchone()
+            if res_saldo_historico:
+                valores_lista = list(res_saldo_historico.values()) if isinstance(res_saldo_historico, dict) else list(res_saldo_historico)
+                saldo_acumulado_ayer = Decimal(str(valores_lista[0])) if valores_lista and valores_lista[0] is not None else Decimal("0.00")
+
             caja_base = caja_inicial_sistema + saldo_acumulado_ayer
 
-            # 2. Consultamos si la jornada ya fue sellada hoy en esta ruta
+            # 2. Estado de cierre hoy
             cursor.execute("SELECT valor FROM configuracion WHERE llave = %s AND ruta_id = %s", (f"cierre_caja_{hoy_str}", rid))
             res_cierre = cursor.fetchone()
             estado_cierre = res_cierre["valor"] if res_cierre else "Abierta"
 
-            # 3. Traemos los movimientos manuales de esta ruta
+            # 3. Movimientos manuales de hoy
             cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND fecha = %s ORDER BY id DESC", (rid, hoy_str))
             movimientos = cursor.fetchall()
 
-            # 4. Sumamos en tiempo real los abonos reales cobrados en esta ruta hoy (idéntico a Recaudo Hoy)
+            # 4. Abonos reales cobrados hoy en ruta
             fecha_hoy_bal = str(hoy_str)[:10]
             cursor.execute("""
                 SELECT COALESCE(SUM(COALESCE(p.valor_pagado, 0)), 0) AS total
@@ -5224,8 +5224,8 @@ def seccion_balance_maestro():
                 JOIN clientes c ON p.cliente_id = c.id
                 WHERE c.ruta_id = %s
                   AND COALESCE(p.valor_pagado, 0) > 0
-                  AND (LEFT(COALESCE(p.fecha_pago_real::text, ''), 10) = %s OR LEFT(COALESCE(p.fecha_pago_real::text, ''), 10) = %s)
-            """, (rid, str(hoy_str)[:10], fecha_hoy_bal))
+                  AND LEFT(COALESCE(p.fecha_pago_real::text, ''), 10) = %s
+            """, (rid, fecha_hoy_bal))
             row_tot_ab = cursor.fetchone()
             raw_tot_ab = (row_tot_ab["total"] if isinstance(row_tot_ab, dict) else row_tot_ab[0]) if row_tot_ab else 0
             try:
@@ -5233,31 +5233,23 @@ def seccion_balance_maestro():
             except Exception:
                 total_abonos_hoy = Decimal("0.00")
 
-            # Sumatoria de los microseguros cobrados hoy en esta ruta
+            # 5. Microseguros y Créditos Nuevos hoy
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Entrada' AND concepto LIKE '%%MICROSEGURO%%' AND fecha = %s", (rid, hoy_str))
-            total_seguros_hoy = Decimal(str(cursor.fetchone()["total"]))
+            total_seguros_hoy = Decimal(str(cursor.fetchone()["total"] or "0.00"))
 
-            # 5. Calculamos el dinero prestado real en esta ruta hoy
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Salida' AND concepto LIKE '%%CRÉDITO NUEVO%%' AND fecha = %s", (rid, hoy_str))
-            total_prestado_hoy = Decimal(str(cursor.fetchone()["total"]))
-
+            total_prestado_hoy = Decimal(str(cursor.fetchone()["total"] or "0.00"))
     except Exception as e:
         print(f"Error en balance: {e}")
-        caja_base = total_abonos_hoy = total_seguros_hoy = total_prestado_hoy = Decimal("0.00")
-        movimientos = []
-        estado_cierre = "Abierta"
-    finally:
-        pass
-        
-    # #️⃣ Agrupamos los flujos de la tabla de movimientos manuales con precisión Decimal
-    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "inyeccion", "base", "abono") and str(m.get("categoria") or "").strip().lower() != "cobranza" and "MICROSEGURO" not in str(m.get("concepto") or "").upper())
-    salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("salida", "egreso", "gasto", "retiro", "credito") and "CRÉDITO NUEVO" not in m["concepto"].upper())
+        caja_base = caja_inicial_sistema + saldo_acumulado_ayer
 
-    # 📊 FÓRMULA CONTABLE UNIVERSAL MOSTRANDO VALORES NETOS REALES
+    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "inyeccion", "base", "abono") and str(m.get("categoria") or "").strip().lower() != "cobranza" and "MICROSEGURO" not in str(m.get("concepto") or "").upper())
+    salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("salida", "egreso", "gasto", "retiro", "credito") and "CRÉDITO NUEVO" not in str(m.get("concepto") or "").upper())
+
     entradas_totales = total_abonos_hoy + total_seguros_hoy + entradas_manuales
     salidas_totales = salidas_manuales + total_prestado_hoy
     efectivo_neto = caja_base + entradas_totales - salidas_totales
-    
+
     # 🧼 Clean y purificación de imágenes Base64 de los comprobantes
     movimientos_limpios = []
     for m in movimientos:
