@@ -4044,15 +4044,15 @@ def dashboard_principal():
 
     try:
         with conn_val.cursor() as cursor:
-            # 1. Suma real en dólares del recaudo asentado hoy o en el turno activo
+            # 1. Suma real en dólares del recaudo asentado en el turno activo
             cursor.execute("""
                 SELECT COALESCE(SUM(p.valor_pagado), 0) AS total
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
                 WHERE c.ruta_id = %s
-                    AND COALESCE(p.valor_pagado, 0) > 0
-                    AND (CAST(p.fecha_pago_real AS TEXT) LIKE %s OR CAST(p.fecha_pago_real AS TEXT) LIKE %s)
-            """, (rid, f"{fecha_hoy_real}%", f"{turno_id[:10]}%"))
+                  AND COALESCE(p.valor_pagado, 0) > 0
+                  AND LEFT(COALESCE(p.fecha_pago_real::text, ''), 19) >= %s
+            """, (rid, inicio_turno_ts))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
 
             # 2. Conteo y detalle completo de créditos entregados hoy en esta ruta
