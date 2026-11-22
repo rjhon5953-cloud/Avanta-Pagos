@@ -23,10 +23,14 @@ if not DATABASE_URL:
 
 # 🔌 FIJADO: Pool de conexiones para evitar caídas de base de datos en Render/Neon
 db_pool = SimpleConnectionPool(
-    minconn=1,
-    maxconn=5,
+    minconn=2,
+    maxconn=20,
     dsn=DATABASE_URL,
-    cursor_factory=DictCursor
+    cursor_factory=DictCursor,
+    keepalives=1,
+    keepalives_idle=30,
+    keepalives_interval=10,
+    keepalives_count=5
 )
 
 def get_db():
@@ -3903,9 +3907,12 @@ def login_route():
 
             with conn.cursor() as cursor:
                 cursor.execute("""
-                    SELECT id, nombre, usuario_cobrador, clave_cobrador, estado, gps_habilitado
-                    FROM rutas
-                    WHERE LOWER(usuario_cobrador) = LOWER(%s)
+                    SELECT r.id, r.nombre, r.usuario_cobrador, r.clave_cobrador, r.estado, r.gps_habilitado,
+                        COALESCE(r.empresa_id, 1) AS empresa_id,
+                        COALESCE(e.estado, 'Activa') AS empresa_estado
+                    FROM rutas r
+                    LEFT JOIN empresas e ON COALESCE(r.empresa_id, 1) = e.id
+                    WHERE LOWER(r.usuario_cobrador) = LOWER(%s)
                     LIMIT 1
                 """, (usuario_ingresado,))
                 ruta_row = cursor.fetchone()
@@ -3913,26 +3920,32 @@ def login_route():
                 if ruta_row:
                     r_dict = dict(ruta_row)
                     rid = int(r_dict["id"])
+                    emp_id = int(r_dict.get("empresa_id") or 1)
+                    emp_est = str(r_dict.get("empresa_estado") or "Activa").strip().lower()
                     clv_ruta = str(r_dict.get("clave_cobrador") or "").strip()
                     estado_ruta = str(r_dict.get("estado") or "Activa").strip()
 
-                    if estado_ruta != "Activa":
+                    if emp_est != "activa":
+                        error_msg = "El servicio de esta empresa está suspendido. Contacta al Administrador."
+                    elif estado_ruta != "Activa":
                         error_msg = "Esta ruta se encuentra suspendida por el Administrador."
                     elif clave_ingresada != clv_ruta:
                         error_msg = "Contraseña incorrecta para esta ruta."
                     else:
                         cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_autorizada' AND ruta_id = %s", (rid,))
                         row_aut = cursor.fetchone()
-                        val_aut = str(row_aut["valor"] if isinstance(row_aut, dict) else (row_aut[0] if row_aut else "0")).strip()
+                        val_aut = str(row_aut["valor"] if isinstance(row_aut, dict) else (row_aut if row_aut else "0")).strip()
                         if val_aut != "1":
                             error_msg = f"La caja de {r_dict['nombre']} está cerrada. Solicita apertura al Administrador."
                         else:
                             session["autenticado"] = True
                             session["usuario"] = usuario_ingresado
                             session["ruta_id"] = rid
+                            session["empresa_id"] = emp_id
                             session["nombre_ruta"] = r_dict["nombre"]
                             session["gps_habilitado"] = int(r_dict.get("gps_habilitado") or 1)
                             return redirect("/")
+
                 else:
                     # Respaldo legado para configuracion de Ruta 1
                     cursor.execute("SELECT llave, valor FROM configuracion WHERE llave IN ('usuario', 'clave', 'caja_autorizada') AND ruta_id = 1")
