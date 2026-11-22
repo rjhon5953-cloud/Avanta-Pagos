@@ -5195,10 +5195,12 @@ def seccion_balance_maestro():
             res_caja = cursor.fetchone()
 
             if res_caja:
-                if isinstance(res_caja, dict):
-                    caja_inicial_sistema = Decimal(str(res_caja.get("valor", "0.00") or "0.00"))
-                else:
-                    caja_inicial_sistema = Decimal(str(res_caja[0] or "0.00"))
+                raw_caja = res_caja.get("valor", "0.00") if isinstance(res_caja, dict) else res_caja[0]
+                val_caja_str = str(raw_caja).strip() if raw_caja is not None else ""
+                try:
+                    caja_inicial_sistema = Decimal(val_caja_str) if val_caja_str else Decimal("0.00")
+                except Exception:
+                    caja_inicial_sistema = Decimal("0.00")
             else:
                 caja_inicial_sistema = Decimal("100.00") if rid == 1 else Decimal("0.00")
 
@@ -5224,8 +5226,11 @@ def seccion_balance_maestro():
                   AND (LEFT(COALESCE(p.fecha_pago_real::text, ''), 10) = %s OR LEFT(COALESCE(p.fecha_pago_real::text, ''), 10) = %s)
             """, (rid, str(hoy_str)[:10], fecha_hoy_bal))
             row_tot_ab = cursor.fetchone()
-            val_tot_ab = row_tot_ab["total"] if isinstance(row_tot_ab, dict) else row_tot_ab
-            total_abonos_hoy = Decimal(str(val_tot_ab or "0.00"))
+            raw_tot_ab = (row_tot_ab["total"] if isinstance(row_tot_ab, dict) else row_tot_ab[0]) if row_tot_ab else 0
+            try:
+                total_abonos_hoy = Decimal(str(raw_tot_ab if raw_tot_ab not in (None, "") else "0.00"))
+            except Exception:
+                total_abonos_hoy = Decimal("0.00")
 
             # Sumatoria de los microseguros cobrados hoy en esta ruta
             cursor.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM balance_movimientos WHERE ruta_id = %s AND tipo = 'Entrada' AND concepto LIKE '%%MICROSEGURO%%' AND fecha = %s", (rid, hoy_str))
