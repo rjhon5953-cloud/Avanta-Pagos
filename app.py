@@ -5250,7 +5250,7 @@ def seccion_balance_maestro():
         pass
         
     # #️⃣ Agrupamos los flujos de la tabla de movimientos manuales con precisión Decimal
-    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "inyeccion", "base", "abono") and "MICROSEGURO" not in m["concepto"].upper() and m["categoria"] != "Cobranza")
+    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "inyeccion", "base", "abono") and str(m.get("categoria") or "").strip().lower() != "cobranza" and "MICROSEGURO" not in str(m.get("concepto") or "").upper())
     salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("salida", "egreso", "gasto", "retiro", "credito") and "CRÉDITO NUEVO" not in m["concepto"].upper())
 
     # 📊 FÓRMULA CONTABLE UNIVERSAL MOSTRANDO VALORES NETOS REALES
