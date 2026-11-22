@@ -5192,10 +5192,10 @@ def seccion_balance_maestro():
             else:
                 caja_inicial_sistema = Decimal("100.00") if rid == 1 else Decimal("0.00")
 
-            # Movimientos anteriores a hoy (excluyendo Cobranza duplicada)
+            # Movimientos anteriores a hoy (igual que Avanta Dueño = Base $321.00)
             cursor.execute("""
                 SELECT
-                    COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('ingreso', 'entrada', 'inyeccion', 'base', 'abono') AND LOWER(TRIM(COALESCE(categoria, ''))) <> 'cobranza' THEN monto ELSE 0 END), 0) -
+                    COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('ingreso', 'entrada', 'inyeccion', 'base', 'abono') THEN monto ELSE 0 END), 0) -
                     COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('egreso', 'gasto', 'retiro', 'salida', 'credito') THEN monto ELSE 0 END), 0)
                 FROM balance_movimientos
                 WHERE ruta_id = %s AND fecha != %s
