@@ -3410,6 +3410,11 @@ function abrirTicketPagoDesdeExp(numCuota, montoCobrado, fechaPago) {
     const el = document.getElementById('datosTicketExpediente');
     if (!el) return;
     const d = el.dataset;
+    let vencidasExp = 0;
+    document.querySelectorAll('table tbody tr').forEach(tr => {
+        if ((tr.textContent || '').includes('Vencida')) vencidasExp++;
+    });
+    const tieneMoraExp = vencidasExp > 0 && parseFloat(d.saldo || '0') > 0;
     mostrarTicketAvanta({
         tipo: 'pago',
         cliente: d.cliente,
@@ -3421,8 +3426,10 @@ function abrirTicketPagoDesdeExp(numCuota, montoCobrado, fechaPago) {
         cuota_procesada: numCuota,
         saldo_restante: d.saldo,
         fecha_pago: fechaPago,
-        titulo_estado: '¡Gracias por su puntualidad y pago!',
-        detalle_estado: 'Comprobante reemitido desde historial'
+        tipo_alerta: tieneMoraExp ? 'mora' : 'ok',
+        titulo_estado: tieneMoraExp ? ('Días de Atraso: ' + vencidasExp + ' días en mora') : '¡Gracias por su puntualidad y pago!',
+        subacknowledged: '',
+        subtitulo_estado: tieneMoraExp ? 'Le solicitamos ponerse al día para evitar recargos o suspensión de su cupo.' : 'Comprobante reemitido desde historial'
     });
 }
 
@@ -4352,7 +4359,7 @@ def dashboard_principal():
                 FROM balance_movimientos
                 WHERE ruta_id = %s
                   AND tipo = 'Salida'
-                  AND concepto LIKE '%%CRÉDITO NUEVO%%'
+                  AND (concepto ILIKE '%%CRÉDITO%%' OR concepto ILIKE '%%CREDITO%%' OR concepto ILIKE '%%PRÉSTAMO%%' OR concepto ILIKE '%%RENOVACIÓN%%')
                   AND (fecha = %s OR CAST(fecha AS TEXT) LIKE %s OR CAST(fecha AS TEXT) LIKE %s)
                 ORDER BY id DESC
             """, (rid, turno_id_real, f"{fecha_hoy_real}%", f"{turno_id_real[:10]}%"))
