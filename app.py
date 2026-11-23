@@ -1,5 +1,6 @@
 import base64
 import os
+import hmac
 import urllib.parse
 from decimal import Decimal
 from datetime import date, datetime, timedelta
@@ -10,9 +11,20 @@ import psycopg2
 from psycopg2.extras import DictCursor
 from psycopg2.pool import SimpleConnectionPool
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "avanta_secret_key_1.3_2026")
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY or len(SECRET_KEY) < 32:
+    raise RuntimeError("Configura SECRET_KEY (mínimo 32 caracteres aleatorios) en las variables de entorno.")
+app.secret_key = SECRET_KEY
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "true").lower() in ("1", "true", "yes", "on"),
+    SESSION_COOKIE_SAMESITE="Lax",
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+)
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
 app.config["MAX_FORM_MEMORY_SIZE"] = 50 * 1024 * 1024
 
@@ -60,17 +72,232 @@ def release_db(conn):
 
 @app.teardown_appcontext
 def shutdown_session(error_context=None):
-    """🛡️ FIJADO AUTOMÁTICO: Limpia cualquier transacción pendiente y libera la conexión al pool"""
+    """Limpia el contexto RLS y devuelve una conexión sin tenant al pool."""
     conn = g.pop('db_conn', None)
-    if conn is not None:
+    if conn is None:
+        return
+    close_conn = bool(error_context or conn.closed)
+    try:
+        if conn.closed:
+            db_pool.putconn(conn, close=True)
+            return
+        # Primero deshacemos cualquier transacción pendiente; después limpiamos
+        # los GUC de sesión y HACEMOS COMMIT para que el borrado no sea revertido.
+        conn.rollback()
+        if not close_conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT set_config('avanta.tenant_id', '', false)")
+                cur.execute("SELECT set_config('avanta.route_id', '', false)")
+                cur.execute("SELECT set_config('avanta.migration_bypass', '', false)")
+            conn.commit()
+        db_pool.putconn(conn, close=close_conn)
+    except Exception:
         try:
             conn.rollback()
-            db_pool.putconn(conn, close=bool(error_context))
+        except Exception:
+            pass
+        try:
+            db_pool.putconn(conn, close=True)
         except Exception:
             try:
                 conn.close()
             except Exception:
                 pass
+
+
+# -----------------------------------------------------------------------------
+# SEGURIDAD MULTIEMPRESA: contexto de tenant, contraseñas y Row Level Security
+# -----------------------------------------------------------------------------
+def _password_is_hashed(value):
+    value = str(value or "")
+    return value.startswith(("scrypt:", "pbkdf2:sha256:"))
+
+
+def _verify_password(stored_value, supplied_value):
+    """Verifica hashes Werkzeug y conserva compatibilidad temporal con claves antiguas."""
+    stored_value = str(stored_value or "")
+    supplied_value = str(supplied_value or "")
+    if not stored_value or not supplied_value:
+        return False
+    if _password_is_hashed(stored_value):
+        try:
+            return check_password_hash(stored_value, supplied_value)
+        except Exception:
+            return False
+    return hmac.compare_digest(stored_value, supplied_value)
+
+
+def _set_tenant_context(conn, empresa_id, ruta_id=None):
+    """Contexto PostgreSQL de la petición; las políticas RLS lo usan en cada consulta."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT set_config('avanta.tenant_id', %s, false)", (str(int(empresa_id)),))
+        cur.execute("SELECT set_config('avanta.route_id', %s, false)", ("" if ruta_id is None else str(int(ruta_id)),))
+        cur.execute("SELECT set_config('avanta.migration_bypass', '', false)")
+
+
+def _install_tenant_rls(conn):
+    """Migra columnas, repara asignaciones desde rutas y fuerza aislamiento en tablas operativas.
+
+    Se ejecuta con bypass de migración solo en esta conexión. Las peticiones normales
+    requieren tenant_id y, en Avanta Pagos, también route_id.
+    """
+    tablas = ("clientes", "pagos", "balance_movimientos", "configuracion")
+    with conn.cursor() as cur:
+        cur.execute("SELECT set_config('avanta.migration_bypass', 'on', false)")
+        for tabla in tablas:
+            cur.execute(f"ALTER TABLE {tabla} ADD COLUMN IF NOT EXISTS ruta_id INTEGER DEFAULT 1")
+            cur.execute(f"ALTER TABLE {tabla} ADD COLUMN IF NOT EXISTS empresa_id INTEGER DEFAULT 1")
+
+        # La ruta es la fuente de verdad de la empresa. Los pagos heredan ambos datos del cliente.
+        cur.execute("""
+            UPDATE clientes c
+               SET empresa_id = COALESCE(r.empresa_id, 1)
+              FROM rutas r
+             WHERE r.id = c.ruta_id
+               AND COALESCE(c.empresa_id, 1) <> COALESCE(r.empresa_id, 1)
+        """)
+        cur.execute("""
+            UPDATE pagos p
+               SET ruta_id = c.ruta_id,
+                   empresa_id = COALESCE(c.empresa_id, 1)
+              FROM clientes c
+             WHERE c.id = p.cliente_id
+               AND (p.ruta_id IS DISTINCT FROM c.ruta_id
+                    OR COALESCE(p.empresa_id, 1) <> COALESCE(c.empresa_id, 1))
+        """)
+        for tabla in ("balance_movimientos", "configuracion"):
+            cur.execute(f"""
+                UPDATE {tabla} t
+                   SET empresa_id = COALESCE(r.empresa_id, 1)
+                  FROM rutas r
+                 WHERE r.id = t.ruta_id
+                   AND COALESCE(t.empresa_id, 1) <> COALESCE(r.empresa_id, 1)
+            """)
+        cur.execute("UPDATE clientes SET empresa_id = 1 WHERE empresa_id IS NULL")
+        cur.execute("UPDATE pagos SET empresa_id = 1 WHERE empresa_id IS NULL")
+        cur.execute("UPDATE balance_movimientos SET empresa_id = 1 WHERE empresa_id IS NULL")
+        cur.execute("UPDATE configuracion SET empresa_id = 1 WHERE empresa_id IS NULL")
+
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_avanta_clientes_tenant_route ON clientes(empresa_id, ruta_id, id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_avanta_pagos_tenant_route_cliente ON pagos(empresa_id, ruta_id, cliente_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_avanta_balance_tenant_route_fecha ON balance_movimientos(empresa_id, ruta_id, fecha)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_avanta_config_tenant_route_key ON configuracion(empresa_id, ruta_id, llave)")
+
+        # Al insertar/modificar, la empresa y ruta se derivan de la ruta o cliente padre.
+        cur.execute(r"""
+            CREATE OR REPLACE FUNCTION avanta_set_tenant_from_parent()
+            RETURNS trigger AS $$
+            DECLARE v_empresa INTEGER; v_ruta INTEGER;
+            BEGIN
+                IF TG_TABLE_NAME = 'clientes' THEN
+                    v_ruta := COALESCE(NEW.ruta_id, 1);
+                    SELECT COALESCE(empresa_id, 1) INTO v_empresa FROM rutas WHERE id = v_ruta;
+                ELSIF TG_TABLE_NAME = 'pagos' THEN
+                    SELECT COALESCE(empresa_id, 1), ruta_id
+                      INTO v_empresa, v_ruta
+                      FROM clientes WHERE id = NEW.cliente_id;
+                    IF v_ruta IS NOT NULL THEN NEW.ruta_id := v_ruta; END IF;
+                ELSE
+                    v_ruta := COALESCE(NEW.ruta_id, 1);
+                    SELECT COALESCE(empresa_id, 1) INTO v_empresa FROM rutas WHERE id = v_ruta;
+                END IF;
+                IF v_empresa IS NULL THEN
+                    RAISE EXCEPTION 'No se pudo determinar empresa/ruta para %', TG_TABLE_NAME;
+                END IF;
+                NEW.empresa_id := v_empresa;
+                IF NEW.ruta_id IS NULL THEN NEW.ruta_id := v_ruta; END IF;
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        """)
+        for tabla in tablas:
+            cur.execute(f"DROP TRIGGER IF EXISTS trg_avanta_tenant_{tabla} ON {tabla}")
+            cur.execute(f"CREATE TRIGGER trg_avanta_tenant_{tabla} BEFORE INSERT OR UPDATE ON {tabla} FOR EACH ROW EXECUTE FUNCTION avanta_set_tenant_from_parent()")
+            cur.execute(f"ALTER TABLE {tabla} ENABLE ROW LEVEL SECURITY")
+            cur.execute(f"ALTER TABLE {tabla} FORCE ROW LEVEL SECURITY")
+            cur.execute(f"DROP POLICY IF EXISTS avanta_tenant_isolation ON {tabla}")
+            cur.execute(f"""
+                CREATE POLICY avanta_tenant_isolation ON {tabla}
+                USING (
+                    current_setting('avanta.migration_bypass', true) = 'on'
+                    OR (
+                        NULLIF(current_setting('avanta.tenant_id', true), '') IS NOT NULL
+                        AND empresa_id = NULLIF(current_setting('avanta.tenant_id', true), '')::INTEGER
+                        AND (
+                            NULLIF(current_setting('avanta.route_id', true), '') IS NULL
+                            OR ruta_id = NULLIF(current_setting('avanta.route_id', true), '')::INTEGER
+                        )
+                    )
+                )
+                WITH CHECK (
+                    current_setting('avanta.migration_bypass', true) = 'on'
+                    OR (
+                        NULLIF(current_setting('avanta.tenant_id', true), '') IS NOT NULL
+                        AND empresa_id = NULLIF(current_setting('avanta.tenant_id', true), '')::INTEGER
+                        AND (
+                            NULLIF(current_setting('avanta.route_id', true), '') IS NULL
+                            OR ruta_id = NULLIF(current_setting('avanta.route_id', true), '')::INTEGER
+                        )
+                    )
+                )
+            """)
+        cur.execute("SELECT set_config('avanta.migration_bypass', '', false)")
+        cur.execute("SELECT set_config('avanta.tenant_id', '', false)")
+        cur.execute("SELECT set_config('avanta.route_id', '', false)")
+
+
+def _same_origin_request():
+    """Defensa CSRF compatible con los formularios actuales: exige Origin/Referer del mismo host."""
+    if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
+        return True
+    source = request.headers.get("Origin") or request.headers.get("Referer")
+    if not source:
+        return False
+    try:
+        from urllib.parse import urlsplit
+        return urlsplit(source).netloc.lower() == request.host.lower()
+    except Exception:
+        return False
+
+
+@app.after_request
+def avanta_security_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)")
+    if request.is_secure:
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
+
+
+@app.before_request
+def avanta_cobrador_request_context():
+    if not _same_origin_request():
+        return jsonify({"status": "error", "message": "Solicitud rechazada: origen no válido."}), 403
+    if session.get("autenticado"):
+        try:
+            rid = int(session.get("ruta_id") or 0)
+            emp_id = int(session.get("empresa_id") or 0)
+        except (TypeError, ValueError):
+            rid, emp_id = 0, 0
+        if rid <= 0 or emp_id <= 0:
+            session.clear()
+            return redirect("/login")
+        conn = get_db()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT r.id, r.estado, COALESCE(e.estado, 'Suspendida') AS empresa_estado
+                  FROM rutas r LEFT JOIN empresas e ON e.id = COALESCE(r.empresa_id, 1)
+                 WHERE r.id = %s AND COALESCE(r.empresa_id, 1) = %s
+            """, (rid, emp_id))
+            row = cur.fetchone()
+            if not row or str(row["estado"] or "").lower() != "activa" or str(row["empresa_estado"] or "").lower() != "activa":
+                session.clear()
+                return redirect("/login")
+            _set_tenant_context(conn, emp_id, rid)
+    return None
+
 
 def init_db():
     conn = get_db()
@@ -150,30 +377,60 @@ def init_db_contable():
                 """
             )
             
+            # Columnas requeridas por la arquitectura compartida y por las políticas de aislamiento.
+            cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ruta_id INTEGER DEFAULT 1")
+            cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS empresa_id INTEGER DEFAULT 1")
+            cursor.execute("ALTER TABLE pagos ADD COLUMN IF NOT EXISTS ruta_id INTEGER DEFAULT 1")
+            cursor.execute("ALTER TABLE pagos ADD COLUMN IF NOT EXISTS empresa_id INTEGER DEFAULT 1")
+            cursor.execute("ALTER TABLE balance_movimientos ADD COLUMN IF NOT EXISTS ruta_id INTEGER DEFAULT 1")
+            cursor.execute("ALTER TABLE balance_movimientos ADD COLUMN IF NOT EXISTS empresa_id INTEGER DEFAULT 1")
+            cursor.execute("ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS ruta_id INTEGER DEFAULT 1")
+            cursor.execute("ALTER TABLE configuracion ADD COLUMN IF NOT EXISTS empresa_id INTEGER DEFAULT 1")
+
             cursor.execute("SELECT COUNT(*) AS total FROM configuracion")
             res_cfg = cursor.fetchone()
             cnt_cfg = res_cfg["total"] if isinstance(res_cfg, dict) else res_cfg[0]
             if int(cnt_cfg or 0) == 0:
-                password_encriptada = generate_password_hash("1234")
-                for k_def, v_def in [
-                    ("usuario", "admin"),
-                    ("clave", password_encriptada),
+                valores_iniciales = [
                     ("empresa_nombre", "AVANTA PAGOS"),
                     ("empresa_telefono", "593991234567"),
                     ("ticket_encabezado", "¡BIENVENIDO A AVANTA PAGOS!"),
                     ("caja_base", "100.00"),
                     ("balance_estado", "Sin cerrar"),
                     ("caja_autorizada", "0")
-                ]:
+                ]
+                usuario_inicial = (os.environ.get("COBRADOR_INITIAL_USER") or "admin").strip()
+                clave_inicial = os.environ.get("COBRADOR_INITIAL_PASSWORD") or ""
+                if len(clave_inicial) >= 12:
+                    valores_iniciales.extend([
+                        ("usuario", usuario_inicial),
+                        ("clave", generate_password_hash(clave_inicial))
+                    ])
+                for k_def, v_def in valores_iniciales:
                     cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES (%s, %s, 1)", (k_def, v_def))
         conn.commit()
     finally:
         release_db(conn)
 
 
+def init_tenant_security():
+    conn = get_db()
+    try:
+        _install_tenant_rls(conn)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+
 with app.app_context():
+    _conn_boot = get_db()
+    with _conn_boot.cursor() as _cur_boot:
+        _cur_boot.execute("SELECT set_config('avanta.migration_bypass', 'on', false)")
+    _conn_boot.commit()
     init_db()
     init_db_contable()
+    init_tenant_security()
 def obtener_clientes_ruta_hoy():
     hoy_str = date.today().isoformat()
     hoy_date = date.today()
@@ -925,15 +1182,15 @@ CONTENIDO_HTML = """
                             
                             <!-- ⚡ BOTÓN DE REACTIVAR: Exclusivo para regresar Bloqueados a la ruta con su saldo pendiente -->
                             {% if c.estado == 'Lista Negra' %}
-                                <button type="button" class="btn-accion" onclick="if(confirm('¿Desea reactivar a este cliente y regresarlo a la ruta con su saldo restante?')) window.location.href='/api/clientes/reactivar/{{ c.id }}'" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px;">
+                                <button type="button" class="btn-accion" onclick="postAccionAvanta('/api/clientes/reactivar/{{ c.id }}', '/menu/creditos?filter=Inactivo', '¿Desea reactivar a este cliente y regresarlo a la ruta con su saldo restante?')" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px;">
                                     <i class="fa-solid fa-bolt"></i> Reactivar
                                 </button>
                             {% endif %}
                             
                             {% if c.estado == 'Activo' %}
-                                <button type="button" class="btn-accion" onclick="if(confirm('¿Mover a Lista Negra?')) window.location.href='/api/clientes/lista_negra/{{ c.id }}'" style="background:#475569; padding: 6px 12px; font-size: 11px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
+                                <button type="button" class="btn-accion" onclick="postAccionAvanta('/api/clientes/lista_negra/{{ c.id }}', '/menu/clientes', '¿Mover a Lista Negra?')" style="background:#475569; padding: 6px 12px; font-size: 11px;"><i class="fa-solid fa-ban"></i> Bloquear</button>
                             {% endif %}
-                            <a href="/api/eliminar_cliente/{{ c.id }}" onclick="return confirm('¿Eliminar de forma permanente?')" class="btn-accion btn-nopagar" style="text-decoration:none; padding: 6px 12px; background:#dc2626; font-size: 11px;"><i class="fa-solid fa-trash-can"></i> Borrar</a>
+                            <button type="button" onclick="postAccionAvanta('/api/eliminar_cliente/{{ c.id }}', '/menu/clientes', '¿Eliminar de forma permanente?')" class="btn-accion btn-nopagar" style="padding: 6px 12px; background:#dc2626; font-size: 11px;"><i class="fa-solid fa-trash-can"></i> Borrar</button>
                             
                             <div class="badge-saldo-premium" style="margin-left: auto;">Saldo <b>${{ "%.2f"|format(saldo_restante) }}</b></div>
                         </div>
@@ -1016,7 +1273,7 @@ CONTENIDO_HTML = """
     <script>
     function revertirGestionDia(tipo, idStr) {
         if (confirm('¿Está seguro de que desea deshacer esta gestión y regresar al cliente a la Ruta del Día?')) {
-            fetch('/api/revertir_gestion/' + tipo + '/' + idStr)
+            fetch('/api/revertir_gestion/' + tipo + '/' + idStr, { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'ok') {
@@ -1491,10 +1748,10 @@ CONTENIDO_HTML = """
                         {% endif %}
 
                         {% if "MICROSEGURO" not in g.concepto and "RECAUDACIÓN DE CUOTAS" not in g.concepto and g.id != 0 %}
-                            <a href="/api/eliminar_gasto/{{ g.id }}" onclick="return confirm('¿Eliminar este registro del balance?')" title="Eliminar"
-                               style="width:28px; height:28px; border-radius:7px; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; display:flex; align-items:center; justify-content:center; text-decoration:none;">
+                            <button type="button" onclick="postAccionAvanta('/api/eliminar_gasto/{{ g.id }}', '/menu/balance', '¿Eliminar este registro del balance?')" title="Eliminar"
+                               style="width:28px; height:28px; border-radius:7px; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; display:flex; align-items:center; justify-content:center;">
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                            </a>
+                            </button>
                         {% endif %}
                     </div>
                 </div>
@@ -2231,6 +2488,21 @@ function toggleDrawer() {
     document.getElementById('drawer').classList.toggle('active');
     document.getElementById('drawerOverlay').classList.toggle('active');
 }
+function postAccionAvanta(url, destino, mensaje) {
+    if (mensaje && !confirm(mensaje)) return false;
+    fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(async (res) => {
+            if (!res.ok) {
+                let msg = 'No se pudo completar la operación.';
+                try { const d = await res.json(); msg = d.message || msg; } catch(e) {}
+                throw new Error(msg);
+            }
+            if (destino) navegarRuta(destino); else window.location.reload();
+        })
+        .catch(err => alert(err.message || 'Error de conexión.'));
+    return false;
+}
+
 function navegarRuta(url) {
     if (document.getElementById('drawerOverlay').classList.contains('active')) toggleDrawer();
     const mc = document.getElementById('mainContent');
@@ -2584,9 +2856,9 @@ async function confirmarAbono() {
     if (monto > 0) {
         cerrarGestorPantallas();
         if (gestionPreviaTipo === 'pago' && gestionPreviaIds) {
-            await fetch('/api/revertir_gestion/pago/' + gestionPreviaIds);
+            await fetch('/api/revertir_gestion/pago/' + gestionPreviaIds, { method: 'POST' });
         } else if (gestionPreviaTipo === 'no_pago') {
-            await fetch('/api/revertir_gestion/salto/' + clienteId);
+            await fetch('/api/revertir_gestion/salto/' + clienteId, { method: 'POST' });
         }
         gestionPreviaTipo = '';
         gestionPreviaIds = '';
@@ -2616,7 +2888,11 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
     const horaLocalFormateada = `${dia}/${mes}/${anio} ${horas}:${minutes}`;
 
     // ⚡ FIJADO: Ahora sí le pasamos de forma real la variable 'diasMoraGlobalTemporal' a la ruta de Python
-    fetch('/api/marcar_pago/' + clienteId + '/' + numCuota + '?monto=' + monto + '&hora_local=' + encodeURIComponent(horaLocalFormateada) + '&zona_usuario=' + encodeURIComponent(zonaUsuario) + '&dias_mora=' + diasMoraGlobalTemporal)
+    fetch('/api/marcar_pago/' + clienteId + '/' + numCuota, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ monto: monto, hora_local: horaLocalFormateada, zona_usuario: zonaUsuario, dias_mora: diasMoraGlobalTemporal })
+    })
         .then(res => res.json())
                 .then(data => {
             if (data.status === 'ok') {
@@ -2819,7 +3095,7 @@ function cargarYVerFoto(gastoId) {
 
 function revertirGestionDia(tipo, id) {
     if (confirm('¿Está seguro de que desea deshacer esta gestión y regresar al cliente a la Ruta del Día?')) {
-        fetch('/api/revertir_gestion/' + tipo + '/' + id)
+        fetch('/api/revertir_gestion/' + tipo + '/' + id, { method: 'POST' })
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'ok') {
@@ -2842,16 +3118,11 @@ function actualizarPerfilCompleto(e) {
     const usr = document.getElementById('perfilUsuario').value;
     const clv = document.getElementById('perfilClave').value;
     
-    const params = new URLSearchParams({
-        nombre: nom,
-        cedula: ced,
-        celular: cel,
-        correo: cor,
-        usuario: usr,
-        clave: clv
-    });
-
-    fetch('/api/perfil/guardar?' + params.toString())
+    fetch('/api/perfil/guardar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: nom, cedula: ced, celular: cel, correo: cor, usuario: usr, clave: clv })
+    })
         .then(res => res.json())
         .then(data => {
             const exito = (data.status === 'ok');
@@ -3921,9 +4192,10 @@ def login_route():
                     FROM rutas r
                     LEFT JOIN empresas e ON COALESCE(r.empresa_id, 1) = e.id
                     WHERE LOWER(r.usuario_cobrador) = LOWER(%s)
-                    LIMIT 1
+                    ORDER BY r.id ASC
                 """, (usuario_ingresado,))
-                ruta_row = cursor.fetchone()
+                rutas_candidatas = cursor.fetchall()
+                ruta_row = next((r for r in rutas_candidatas if _verify_password(r.get("clave_cobrador"), clave_ingresada)), None)
 
                 if ruta_row:
                     r_dict = dict(ruta_row)
@@ -3937,9 +4209,14 @@ def login_route():
                         error_msg = "El servicio de esta empresa está suspendido. Contacta al Administrador."
                     elif estado_ruta != "Activa":
                         error_msg = "Esta ruta se encuentra suspendida por el Administrador."
-                    elif clave_ingresada != clv_ruta:
+                    elif not _verify_password(clv_ruta, clave_ingresada):
                         error_msg = "Contraseña incorrecta para esta ruta."
                     else:
+                        # Migración transparente de credenciales antiguas en texto plano.
+                        if not _password_is_hashed(clv_ruta):
+                            cursor.execute("UPDATE rutas SET clave_cobrador = %s WHERE id = %s AND COALESCE(empresa_id, 1) = %s", (generate_password_hash(clave_ingresada), rid, emp_id))
+                            conn.commit()
+                        _set_tenant_context(conn, emp_id, rid)
                         cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_autorizada' AND ruta_id = %s", (rid,))
                         row_aut = cursor.fetchone()
                         raw_aut = (dict(row_aut).get("valor", "0") if row_aut else "0")
@@ -3947,6 +4224,8 @@ def login_route():
                         if val_aut != "1":
                             error_msg = f"La caja de {r_dict['nombre']} está cerrada. Solicita apertura al Administrador."
                         else:
+                            session.clear()
+                            session.permanent = True
                             session["autenticado"] = True
                             session["usuario"] = usuario_ingresado
                             session["ruta_id"] = rid
@@ -3956,7 +4235,8 @@ def login_route():
                             return redirect("/")
 
                 else:
-                    # Respaldo legado para configuracion de Ruta 1
+                    # Respaldo legado para configuracion de Ruta 1, limitado a la empresa matriz.
+                    _set_tenant_context(conn, 1, 1)
                     cursor.execute("SELECT llave, valor FROM configuracion WHERE llave IN ('usuario', 'clave', 'caja_autorizada') AND ruta_id = 1")
                     cfg = {r["llave"]: r["valor"] for r in cursor.fetchall()}
                     usr_db = cfg.get("usuario", "")
@@ -3965,9 +4245,12 @@ def login_route():
                         if str(cfg.get("caja_autorizada") or "0").strip() != "1":
                             error_msg = "Tu caja se encuentra cerrada. Solicita apertura al Administrador."
                         else:
+                            session.clear()
+                            session.permanent = True
                             session["autenticado"] = True
                             session["usuario"] = usuario_ingresado
                             session["ruta_id"] = 1
+                            session["empresa_id"] = 1
                             session["nombre_ruta"] = "RUTA - 01"
                             return redirect("/")
                     else:
@@ -5581,7 +5864,7 @@ def balance_guardar_movimiento():
 
     return redirect("/menu/balance")
 
-@app.route("/api/eliminar_gasto/<int:gasto_id>")
+@app.route("/api/eliminar_gasto/<int:gasto_id>", methods=["POST"])
 def eliminar_gasto(gasto_id):
     if not session.get("autenticado"): 
         return "No autorizado"
@@ -5590,7 +5873,7 @@ def eliminar_gasto(gasto_id):
     try:
         with conn.cursor() as cursor:
             # 🛡️ FIJADO: Estructura segura con liberación obligatoria del canal en el pool
-            cursor.execute("DELETE FROM balance_movimientos WHERE id = %s", (gasto_id,))
+            cursor.execute("DELETE FROM balance_movimientos WHERE id = %s AND ruta_id = %s", (gasto_id, int(session.get("ruta_id") or 0)))
         conn.commit()
     except Exception as e:
         print(f"Error al eliminar gasto contable: {e}")
@@ -5599,7 +5882,7 @@ def eliminar_gasto(gasto_id):
         
     return redirect("/menu/balance")
 
-@app.route("/api/eliminar_cliente/<int:id>")
+@app.route("/api/eliminar_cliente/<int:id>", methods=["POST"])
 def api_eliminar_cliente(id):
     if not session.get("autenticado"): 
         return "No autorizado"
@@ -5608,7 +5891,7 @@ def api_eliminar_cliente(id):
     try:
         with conn.cursor() as cursor:
             # 1. Primero obtenemos el nombre del cliente antes de borrarlo para poder limpiar sus flujos
-            cursor.execute("SELECT nombre FROM clientes WHERE id = %s;", (id,))
+            cursor.execute("SELECT nombre FROM clientes WHERE id = %s AND ruta_id = %s;", (id, int(session.get("ruta_id") or 0)))
             cliente_data = cursor.fetchone()
             
             if cliente_data:
@@ -5623,10 +5906,10 @@ def api_eliminar_cliente(id):
                 )
 
             # 🔢 3. Limpiamos las tablas de amortización de cuotas
-            cursor.execute("DELETE FROM pagos WHERE cliente_id = %s;", (id,))
+            cursor.execute("DELETE FROM pagos WHERE cliente_id = %s AND ruta_id = %s;", (id, int(session.get("ruta_id") or 0)))
             
             # 👤 4. Eliminamos definitivamente la ficha del cliente
-            cursor.execute("DELETE FROM clientes WHERE id = %s;", (id,))
+            cursor.execute("DELETE FROM clientes WHERE id = %s AND ruta_id = %s;", (id, int(session.get("ruta_id") or 0)))
             
         conn.commit()
     except Exception as e:
@@ -5636,7 +5919,7 @@ def api_eliminar_cliente(id):
         
     return redirect("/menu/clientes")
 
-@app.route("/mover/<int:cliente_id>/<string:direccion>")
+@app.route("/mover/<int:cliente_id>/<string:direccion>", methods=["POST"])
 def mover(cliente_id, direccion):
     if not session.get("autenticado"): 
         return "No autorizado"
@@ -5657,15 +5940,15 @@ def mover(cliente_id, direccion):
                 if direccion == "subir" and index > 0:
                     actual = clientes[index]
                     anterior = clientes[index - 1]
-                    cursor.execute("UPDATE clientes SET orden = %s WHERE id = %s", (anterior["orden"], actual["id"]))
-                    cursor.execute("UPDATE clientes SET orden = %s WHERE id = %s", (actual["orden"], anterior["id"]))
+                    cursor.execute("UPDATE clientes SET orden = %s WHERE id = %s AND ruta_id = %s", (anterior["orden"], actual["id"], rid))
+                    cursor.execute("UPDATE clientes SET orden = %s WHERE id = %s AND ruta_id = %s", (actual["orden"], anterior["id"], rid))
                     
                 # 🛡️ FIJADO: Comparación limpia de dirección para BAJAR en la ruta
                 elif direccion == "bajar" and index < len(clientes) - 1:
                     actual = clientes[index]
                     siguiente = clientes[index + 1]
-                    cursor.execute("UPDATE clientes SET orden = %s WHERE id = %s", (siguiente["orden"], actual["id"]))
-                    cursor.execute("UPDATE clientes SET orden = %s WHERE id = %s", (actual["orden"], siguiente["id"]))
+                    cursor.execute("UPDATE clientes SET orden = %s WHERE id = %s AND ruta_id = %s", (siguiente["orden"], actual["id"], rid))
+                    cursor.execute("UPDATE clientes SET orden = %s WHERE id = %s AND ruta_id = %s", (actual["orden"], siguiente["id"], rid))
                     
         conn.commit()
     except Exception as e:
@@ -5738,16 +6021,16 @@ def seccion_reordenar_ruta():
             '<span style="width:36px; height:36px; border-radius:10px; background:#f8fafc; color:#cbd5e1; border:1px solid #f1f5f9; display:flex; align-items:center; justify-content:center; cursor:default;">'
             '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></span>'
             if es_primero else
-            f'<a href="/mover/{cl["id"]}/subir" title="Subir posición" style="text-decoration:none; width:36px; height:36px; border-radius:10px; background:#eff6ff; color:#0f2b5c; border:1px solid #dbeafe; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent;">'
-            '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></a>'
+            f'<button type="button" onclick="postAccionAvanta(\'/mover/{cl["id"]}/subir\', \'/menu/ruta_orden\')" title="Subir posición" style="width:36px; height:36px; border-radius:10px; background:#eff6ff; color:#0f2b5c; border:1px solid #dbeafe; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent;">'
+            '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></button>'
         )
 
         btn_bajar_html = (
             '<span style="width:36px; height:36px; border-radius:10px; background:#f8fafc; color:#cbd5e1; border:1px solid #f1f5f9; display:flex; align-items:center; justify-content:center; cursor:default;">'
             '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>'
             if es_ultimo else
-            f'<a href="/mover/{cl["id"]}/bajar" title="Bajar posición" style="text-decoration:none; width:36px; height:36px; border-radius:10px; background:#eff6ff; color:#0f2b5c; border:1px solid #dbeafe; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent;">'
-            '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></a>'
+            f'<button type="button" onclick="postAccionAvanta(\'/mover/{cl["id"]}/bajar\', \'/menu/ruta_orden\')" title="Bajar posición" style="width:36px; height:36px; border-radius:10px; background:#eff6ff; color:#0f2b5c; border:1px solid #dbeafe; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent;">'
+            '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>'
         )
 
         html_orden += f"""
@@ -6101,7 +6384,7 @@ def api_clientes_forzar_enrutado():
     try:
         with conn.cursor() as cursor:
             # 🛡️ FIJADO: Actualización con liberación segura de recursos en el pool de Neon
-            cursor.execute("UPDATE clientes SET enrutado_forzado = 1 WHERE id = %s", (c_id,))
+            cursor.execute("UPDATE clientes SET enrutado_forzado = 1 WHERE id = %s AND ruta_id = %s", (c_id, int(session.get("ruta_id") or 0)))
         conn.commit()
     except Exception as e:
         print(f"Error crítico al forzar enrutamiento anticipado: {e}")
@@ -6305,13 +6588,21 @@ def api_cliente_info(id):
     
     return jsonify({"status": "ok", "data": c_dict})
 
-@app.route("/api/marcar_pago/<int:cliente_id>/<int:num_cuota>")
+@app.route("/api/marcar_pago/<int:cliente_id>/<int:num_cuota>", methods=["POST"])
 def api_marcar_pago(cliente_id, num_cuota):
     if not session.get("autenticado"):
         return jsonify({"status": "error", "message": "No autorizado"})
         
-    monto_recaudado = Decimal(str(request.args.get("monto", 0)))
-    hora_local_cliente = request.args.get("hora_local", "")
+    data_pago = request.get_json(silent=True) or request.form
+    try:
+        monto_recaudado = Decimal(str(data_pago.get("monto", "0")))
+    except Exception:
+        return jsonify({"status": "error", "message": "Monto de pago inválido."}), 400
+    if not monto_recaudado.is_finite() or monto_recaudado <= 0:
+        return jsonify({"status": "error", "message": "El monto debe ser mayor que cero."}), 400
+    if monto_recaudado != monto_recaudado.quantize(Decimal("0.01")):
+        return jsonify({"status": "error", "message": "El monto debe tener máximo dos decimales."}), 400
+    hora_local_cliente = str(data_pago.get("hora_local", "") or "")
     if not hora_local_cliente:
         hora_local_cliente = datetime.now().strftime("%d/%m/%Y %H:%M")
             
@@ -6328,9 +6619,25 @@ def api_marcar_pago(cliente_id, num_cuota):
     fecha_hora_pago = (datetime.utcnow() - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M")
     try:
         with conn.cursor() as cursor:
+            # Bloqueo transaccional del cliente y validación de pertenencia a la ruta.
+            cursor.execute("SELECT id, nombre, telefono, monto_total FROM clientes WHERE id = %s AND ruta_id = %s FOR UPDATE", (cliente_id, rid))
+            c = cursor.fetchone()
+            if not c:
+                conn.rollback()
+                return jsonify({"status": "error", "message": "Cliente no encontrado en tu ruta."}), 404
             # 1. Aplicamos el dinero recibido a las cuotas pendientes cronológicamente
-            cursor.execute("SELECT id, numero, fecha, valor, valor_pagado, pagado FROM pagos WHERE cliente_id = %s AND pagado = 0 ORDER BY numero ASC", (cliente_id,))
+            cursor.execute("SELECT id, numero, fecha, valor, valor_pagado, pagado FROM pagos WHERE cliente_id = %s AND ruta_id = %s AND pagado = 0 ORDER BY numero ASC FOR UPDATE", (cliente_id, rid))
             pagos_pendientes = cursor.fetchall()
+            saldo_pendiente_plan = sum(
+                (Decimal(str(row["valor"])) - Decimal(str(row["valor_pagado"] or 0)))
+                for row in pagos_pendientes
+            )
+            if monto_recaudado > saldo_pendiente_plan:
+                conn.rollback()
+                return jsonify({
+                    "status": "error",
+                    "message": f"El monto supera el saldo pendiente de esta ruta (${saldo_pendiente_plan:.2f}). Verifica el valor recibido."
+                }), 400
 
             for p in pagos_pendientes:
                 if monto_restante <= 0:
@@ -6342,20 +6649,20 @@ def api_marcar_pago(cliente_id, num_cuota):
                     monto_restante = round(monto_restante - pendiente_cuota, 2)
                     monto_efectivamente_aplicado += pendiente_cuota
                     cursor.execute(
-                        "UPDATE pagos SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
-                        (p["valor"], fecha_hora_pago, p["id"])
+                        "UPDATE pagos SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s WHERE id = %s AND ruta_id = %s",
+                        (p["valor"], fecha_hora_pago, p["id"], rid)
                     )
                 else:
                     nuevo_pago_parcial = round(Decimal(str(p["valor_pagado"])) + monto_restante, 2)
                     monto_efectivamente_aplicado += monto_restante
                     monto_restante = Decimal("0.00")
                     cursor.execute(
-                        "UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s WHERE id = %s",
-                        (nuevo_pago_parcial, fecha_hora_pago, p["id"])
+                        "UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s WHERE id = %s AND ruta_id = %s",
+                        (nuevo_pago_parcial, fecha_hora_pago, p["id"], rid)
                     )
 
             # 2. Evaluamos el estado REAL de la cuenta DESPUÉS de aplicar el pago
-            cursor.execute("SELECT fecha, pagado FROM pagos WHERE cliente_id = %s ORDER BY numero ASC", (cliente_id,))
+            cursor.execute("SELECT fecha, pagado FROM pagos WHERE cliente_id = %s AND ruta_id = %s ORDER BY numero ASC", (cliente_id, rid))
             estado_final_cuotas = cursor.fetchall()
 
             dias_mora_real = 0
@@ -6374,17 +6681,14 @@ def api_marcar_pago(cliente_id, num_cuota):
                 dias_adelanto_real = 0
 
             # 3. Recalcular saldo total real del cliente
-            cursor.execute("SELECT nombre, telefono, monto_total FROM clientes WHERE id = %s", (cliente_id,))
-            c = cursor.fetchone()
-            
-            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE cliente_id = %s", (cliente_id,))
+            cursor.execute("SELECT COALESCE(SUM(valor_pagado), 0) AS total FROM pagos WHERE cliente_id = %s AND ruta_id = %s", (cliente_id, rid))
             total_pagado = Decimal(str(cursor.fetchone()["total"]))
             saldo_restante = max(Decimal("0.00"), Decimal(str(c["monto_total"])) - total_pagado)
             
             if saldo_restante <= 0:
-                cursor.execute("UPDATE clientes SET estado = 'Inactivo', fecha_gestion = NULL, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
+                cursor.execute("UPDATE clientes SET estado = 'Inactivo', fecha_gestion = NULL, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s AND ruta_id = %s", (cliente_id, rid))
             else:
-                cursor.execute("UPDATE clientes SET fecha_gestion = NULL, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s", (cliente_id,))
+                cursor.execute("UPDATE clientes SET fecha_gestion = NULL, enrutado_forzado = 0, saltado_hoy = 0 WHERE id = %s AND ruta_id = %s", (cliente_id, rid))
 
             # 4. Asentar únicamente el dinero neto cobrado hoy en el turno activo del balance
             if monto_efectivamente_aplicado > 0:
@@ -6486,7 +6790,7 @@ def api_marcar_pago(cliente_id, num_cuota):
     }
     return jsonify({"status": "ok", "recibo": recibo, "ticket_pago": ticket_pago})
 
-@app.route("/api/marcar_no_pago/<int:cliente_id>", methods=["POST", "GET"])
+@app.route("/api/marcar_no_pago/<int:cliente_id>", methods=["POST"])
 def api_marcar_no_pago(cliente_id):
     if not session.get("autenticado"):
         return jsonify({"status": "error", "message": "No autorizado"}), 401
@@ -6753,10 +7057,12 @@ def api_guardar_configuracion_maestra():
                     cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES (%s, %s, %s)", (llave, valor, rid))
 
             if nueva_clave:
+                if len(nueva_clave) < 12:
+                    return redirect("/menu/configuracion")
                 hash_clave = generate_password_hash(nueva_clave)
                 cursor.execute("DELETE FROM configuracion WHERE llave = 'clave' AND ruta_id = %s", (rid,))
                 cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES ('clave', %s, %s)", (hash_clave, rid))
-                cursor.execute("UPDATE rutas SET clave_cobrador = %s WHERE id = %s", (nueva_clave, rid))
+                cursor.execute("UPDATE rutas SET clave_cobrador = %s WHERE id = %s AND COALESCE(empresa_id, 1) = %s", (hash_clave, rid, int(session.get("empresa_id") or 0)))
 
             conn.commit()
     except Exception as e:
@@ -6793,7 +7099,7 @@ def api_reset_saltos_hoy():
     return redirect("/")
 
 
-@app.route("/api/clientes/lista_negra/<int:id>")
+@app.route("/api/clientes/lista_negra/<int:id>", methods=["POST"])
 def api_lista_negra(id):
     if not session.get("autenticado"): 
         return "No autorizado"
@@ -6802,7 +7108,7 @@ def api_lista_negra(id):
     try:
         with conn.cursor() as cursor:
             # 🛡️ FIJADO: Sintaxis SQL limpia y directa
-            cursor.execute("UPDATE clientes SET estado = 'Lista Negra' WHERE id = %s", (id,))
+            cursor.execute("UPDATE clientes SET estado = 'Lista Negra' WHERE id = %s AND ruta_id = %s", (id, int(session.get("ruta_id") or 0)))
         conn.commit()
     except Exception as e:
         print(f"Error al enviar a lista negra: {e}")
@@ -6841,7 +7147,6 @@ def api_gasto_foto(gasto_id):
                 comprobante_puro = comprobante_puro.split("base64,")[-1]
                 
             respuesta = jsonify({"status": "ok", "comprobante": comprobante_puro})
-            respuesta.headers.add("Access-Control-Allow-Origin", "*")
             respuesta.headers.add("Content-Type", "application/json")
             return respuesta
             
@@ -6879,17 +7184,18 @@ def seccion_perfil():
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
 
-@app.route("/api/perfil/guardar")
+@app.route("/api/perfil/guardar", methods=["POST"])
 def api_guardar_perfil():
     if not session.get("autenticado"): 
         return jsonify({"status": "error"})
         
-    nuevo_usuario = request.args.get("usuario")
-    nueva_clave = request.args.get("clave")
-    nom = request.args.get("nombre")
-    ced = request.args.get("cedula")
-    cel = request.args.get("celular")
-    cor = request.args.get("correo")
+    perfil_data = request.get_json(silent=True) or request.form
+    nuevo_usuario = perfil_data.get("usuario")
+    nueva_clave = perfil_data.get("clave")
+    nom = perfil_data.get("nombre")
+    ced = perfil_data.get("cedula")
+    cel = perfil_data.get("celular")
+    cor = perfil_data.get("correo")
     
     rid = int(session.get("ruta_id") or 1)
     conn = get_db()
@@ -6905,10 +7211,12 @@ def api_guardar_perfil():
             cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES (%s, %s, %s)", (llave_conf, valor_conf, rid))
 
         if nueva_clave and nueva_clave.strip() != "":
-            clave_encriptada = generate_password_hash(nueva_clave)
+            if len(nueva_clave.strip()) < 12:
+                return jsonify({"status": "error", "message": "La nueva contraseña debe tener al menos 12 caracteres."}), 400
+            clave_encriptada = generate_password_hash(nueva_clave.strip())
             cursor.execute("DELETE FROM configuracion WHERE llave = 'clave' AND ruta_id = %s", (rid,))
             cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES ('clave', %s, %s)", (clave_encriptada, rid))
-            cursor.execute("UPDATE rutas SET clave_cobrador = %s WHERE id = %s", (nueva_clave.strip(), rid))
+            cursor.execute("UPDATE rutas SET clave_cobrador = %s WHERE id = %s AND COALESCE(empresa_id, 1) = %s", (clave_encriptada, rid, int(session.get("empresa_id") or 0)))
     conn.commit()
     
     session["usuario"] = nuevo_usuario
@@ -7005,7 +7313,7 @@ def seccion_pagos_hoy():
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
 
-@app.route("/api/revertir_gestion/<string:tipo>/<string:id_str>")
+@app.route("/api/revertir_gestion/<string:tipo>/<string:id_str>", methods=["POST"])
 def api_revertir_gestion(tipo, id_str):
     if not session.get("autenticado"):
         return jsonify({"status": "error", "message": "No autorizado"})
@@ -7019,13 +7327,13 @@ def api_revertir_gestion(tipo, id_str):
                 cliente_afectado = None
                 for p_id in pago_ids:
                     cursor.execute(
-                        "UPDATE pagos SET pagado = 0, valor_pagado = 0.00, fecha_pago_real = '' WHERE id = %s RETURNING cliente_id",
-                        (p_id,)
+                        "UPDATE pagos SET pagado = 0, valor_pagado = 0.00, fecha_pago_real = '' WHERE id = %s AND ruta_id = %s RETURNING cliente_id",
+                        (p_id, int(session.get("ruta_id") or 0))
                     )
                     res = cursor.fetchone()
                     if res:
                         cliente_afectado = res["cliente_id"] if isinstance(res, dict) else res[0]
-                        cursor.execute("UPDATE clientes SET estado = 'Activo', fecha_gestion = '' WHERE id = %s", (cliente_afectado,))
+                        cursor.execute("UPDATE clientes SET estado = 'Activo', fecha_gestion = '' WHERE id = %s AND ruta_id = %s", (cliente_afectado, int(session.get("ruta_id") or 0)))
                 
                 if cliente_afectado:
                     cursor.execute(
@@ -7043,8 +7351,8 @@ def api_revertir_gestion(tipo, id_str):
             elif tipo == "salto":
                 cliente_id = int(id_str)
                 cursor.execute(
-                    "UPDATE clientes SET saltado_hoy = GREATEST(0, saltado_hoy - 1), fecha_gestion = '' WHERE id = %s",
-                    (cliente_id,)
+                    "UPDATE clientes SET saltado_hoy = GREATEST(0, saltado_hoy - 1), fecha_gestion = '' WHERE id = %s AND ruta_id = %s",
+                    (cliente_id, int(session.get("ruta_id") or 0))
                 )
         conn.commit()
     except Exception as e:
@@ -7054,7 +7362,7 @@ def api_revertir_gestion(tipo, id_str):
         
     return jsonify({"status": "ok"})
 
-@app.route("/api/clientes/reactivar/<int:cliente_id>")
+@app.route("/api/clientes/reactivar/<int:cliente_id>", methods=["POST"])
 def api_reactivar_cliente(cliente_id):
     if not session.get("autenticado"): 
         return jsonify({"status": "error", "message": "No autorizado"})
@@ -7064,7 +7372,7 @@ def api_reactivar_cliente(cliente_id):
     try:
         with conn.cursor() as cursor:
             # 🛡️ FIJADO: Cambia el estado a Activo, limpia marcas viejas y lo reinserta al final de la ruta del día
-            cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes WHERE estado = 'Activo'")
+            cursor.execute("SELECT COALESCE(MAX(orden), 0) FROM clientes WHERE estado = 'Activo' AND ruta_id = %s", (int(session.get("ruta_id") or 0),))
             max_orden = int(cursor.fetchone()[0])
             
             cursor.execute(
@@ -7075,8 +7383,8 @@ def api_reactivar_cliente(cliente_id):
                     saltado_hoy = 0, 
                     enrutado_forzado = 1,
                     orden = %s 
-                WHERE id = %s
-                """, (max_orden + 1, cliente_id)
+                WHERE id = %s AND ruta_id = %s
+                """, (max_orden + 1, cliente_id, int(session.get("ruta_id") or 0))
             )
         conn.commit()
     except Exception as e:
@@ -7336,7 +7644,5 @@ def ping_keep_alive():
     return jsonify({"status": "ok"}), 200
 
 if __name__ == "__main__":
-    app.run(debug=True)
-    # Servidor local configurado para ejecutarse en el puerto estricto 8080
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
