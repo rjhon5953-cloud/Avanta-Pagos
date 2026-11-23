@@ -265,7 +265,7 @@ def avanta_security_headers(response):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)")
+    response.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(), geolocation=(self)")
     if request.is_secure:
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
@@ -5787,7 +5787,6 @@ def guardar_nuevo_cliente():
                     try:
                         f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
                     except Exception:
-                        from datetime import timedelta
                         f_cuota = fecha_inicio_dt + timedelta(days=(num - 1) * 7 if frecuencia == "Semanal" else (num - 1))
                         
                     cursor.execute(
@@ -6671,7 +6670,7 @@ def api_marcar_pago(cliente_id, num_cuota):
 
             for q in estado_final_cuotas:
                 f_q = datetime.strptime(str(q["fecha"])[:10], "%Y-%m-%d").date() if isinstance(q["fecha"], str) else q["fecha"]
-                if int(q["pagado"]) == 0 and f_q <= hoy_date:
+                if int(q["pagado"]) == 0 and f_q < hoy_date:
                     tiene_mora = True
                     dias_mora_real += 1
                 elif int(q["pagado"]) == 1 and f_q > hoy_date:
@@ -6800,8 +6799,30 @@ def api_marcar_no_pago(cliente_id):
     conn = get_db()
     try:
         with conn.cursor() as cursor:
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
+            row_f = cursor.fetchone()
+            turno_act = str(dict(row_f).get("valor") if row_f else date.today().isoformat()).strip()
+            inicio_ts = f"{turno_act[:10]} {turno_act[11:13]}:{turno_act[13:15]}:{turno_act[15:17]}" if len(turno_act) >= 17 and "_" in turno_act else f"{turno_act[:10]} 00:00:00"
+
+            cursor.execute("""
+                SELECT id FROM pagos
+                WHERE cliente_id = %s AND ruta_id = %s
+                  AND COALESCE(valor_pagado, 0) > 0
+                  AND LEFT(COALESCE(fecha_pago_real::text, ''), 19) >= %s
+            """, (cliente_id, rid, inicio_ts))
+            pagos_turno = cursor.fetchall()
+
+            if pagos_turno:
+                for pt in pagos_turno:
+                    cursor.execute("UPDATE pagos SET pagado = 0, valor_pagado = 0.00, fecha_pago_real = '' WHERE id = %s AND ruta_id = %s", (dict(pt)["id"], rid))
+                cursor.execute("""
+                    DELETE FROM balance_movimientos
+                    WHERE ruta_id = %s AND tipo = 'Entrada' AND categoria = 'Cobranza'
+                      AND fecha = %s AND concepto LIKE %s
+                """, (rid, turno_act, f"%(ID:{cliente_id})%"))
+
             cursor.execute(
-                "UPDATE clientes SET saltado_hoy = COALESCE(saltado_hoy, 0) + 1, fecha_gestion = %s WHERE id = %s AND ruta_id = %s",
+                "UPDATE clientes SET estado = 'Activo', saltado_hoy = COALESCE(saltado_hoy, 0) + 1, fecha_gestion = %s WHERE id = %s AND ruta_id = %s",
                 (ahora_ec_np, cliente_id, rid)
             )
         conn.commit()
