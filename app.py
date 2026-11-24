@@ -5502,41 +5502,36 @@ def seccion_balance_maestro():
                 except Exception:
                     caja_inicial_sistema = Decimal("0.00")
             else:
-                caja_inicial_sistema = Decimal("100.00") if rid == 1 else Decimal("0.00")
+                caja_inicial_sistema = Decimal("0.00")
 
-            # Movimientos anteriores a hoy (excluyendo Microseguro igual que Avanta Dueño = Base $321.00)
-            cursor.execute("""
-                SELECT
-                    COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('ingreso', 'entrada', 'inyeccion', 'base', 'abono') AND UPPER(COALESCE(concepto, '')) NOT LIKE '%%MICROSEGURO%%' THEN monto ELSE 0 END), 0) -
-                    COALESCE(SUM(CASE WHEN LOWER(TRIM(tipo)) IN ('egreso', 'gasto', 'retiro', 'salida', 'credito') THEN monto ELSE 0 END), 0)
-                FROM balance_movimientos
-                WHERE ruta_id = %s AND fecha != %s
-            """, (rid, hoy_str))
-            res_saldo_historico = cursor.fetchone()
-            if res_saldo_historico:
-                valores_lista = list(res_saldo_historico.values()) if isinstance(res_saldo_historico, dict) else list(res_saldo_historico)
-                saldo_acumulado_ayer = Decimal(str(valores_lista[0])) if valores_lista and valores_lista[0] is not None else Decimal("0.00")
+            # Base limpia de la jornada activa (idéntica a Avanta Dueño)
+            caja_base = caja_inicial_sistema
 
-            caja_base = caja_inicial_sistema + saldo_acumulado_ayer
+            # 2. Turno activo y estado de cierre hoy
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
+            res_turno = cursor.fetchone()
+            turno_act_b = str(dict(res_turno).get("valor") if res_turno else "").strip()
 
-            # 2. Estado de cierre hoy
             cursor.execute("SELECT valor FROM configuracion WHERE llave = %s AND ruta_id = %s", (f"cierre_caja_{hoy_str}", rid))
             res_cierre = cursor.fetchone()
-            estado_cierre = res_cierre["valor"] if res_cierre else "Abierta"
+            estado_cierre = dict(res_cierre).get("valor", "Abierta") if res_cierre else "Abierta"
 
-            # 3. Movimientos de hoy de esta ruta (misma fuente única que Avanta Dueño)
-            cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND fecha = %s ORDER BY id DESC", (rid, hoy_str))
+            # 3. Movimientos de la jornada activa (misma fuente única que Avanta Dueño)
+            if turno_act_b:
+                cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND fecha = %s ORDER BY id DESC", (rid, turno_act_b))
+            else:
+                cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND LEFT(COALESCE(fecha::text, ''), 10) = %s ORDER BY id DESC", (rid, hoy_str))
             movimientos = cursor.fetchall()
 
-            total_abonos_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "abono") and str(m.get("categoria") or "").strip().lower() == "cobranza")
-            total_seguros_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso") and "MICROSEGURO" in str(m.get("concepto") or "").upper())
-            total_prestado_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("salida", "egreso", "credito") and ("CRÉDITO NUEVO" in str(m.get("concepto") or "").upper() or "CREDITO NUEVO" in str(m.get("concepto") or "").upper()))
+        total_abonos_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "abono") and str(m.get("categoria") or "").strip().lower() == "cobranza")
+        total_seguros_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso") and "microseguro" in str(m.get("concepto") or "").lower())
+        total_prestado_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("salida", "egreso", "credito") and any(k in str(m.get("concepto") or "").lower() for k in ("crédito", "credito", "préstamo", "renovación")))
     except Exception as e:
         print(f"Error en balance: {e}")
-        caja_base = caja_inicial_sistema + saldo_acumulado_ayer
+        caja_base = caja_inicial_sistema
 
-    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "inyeccion", "base", "abono") and str(m.get("categoria") or "").strip().lower() != "cobranza" and "MICROSEGURO" not in str(m.get("concepto") or "").upper())
-    salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("salida", "egreso", "gasto", "retiro", "credito") and "CRÉDITO NUEVO" not in str(m.get("concepto") or "").upper() and "CREDITO NUEVO" not in str(m.get("concepto") or "").upper())
+    entradas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "inyeccion", "base", "abono") and str(m.get("categoria") or "").strip().lower() != "cobranza" and "microseguro" not in str(m.get("concepto") or "").lower())
+    salidas_manuales = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("salida", "egreso", "gasto", "retiro", "credito") and not any(k in str(m.get("concepto") or "").lower() for k in ("crédito", "credito", "préstamo", "renovación")))
 
     entradas_totales = total_abonos_hoy + total_seguros_hoy + entradas_manuales
     salidas_totales = salidas_manuales + total_prestado_hoy
@@ -5688,8 +5683,7 @@ def guardar_nuevo_cliente():
             rid = int(session.get("ruta_id") or 1)
             cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
             row_fja = cursor.fetchone()
-            val_fja = (row_fja["valor"] if isinstance(row_fja, dict) else row_fja) if row_fja else None
-            turno_balance_cred = str(val_fja).strip()[:10] if val_fja else date.today().isoformat()
+            turno_balance_cred = str(dict(row_fja).get("valor") if row_fja else date.today().isoformat()).strip()
 
             # 🛡️ 1. Inserción limpia del microseguro en el turno activo
             if microseguro_valor > 0:
