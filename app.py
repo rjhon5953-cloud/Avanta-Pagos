@@ -7559,15 +7559,21 @@ def api_editar_credito_hoy():
         monto_total = (monto + (monto * (interes / Decimal("100")))).quantize(Decimal("0.01"))
         valor_cuota = (monto_total / Decimal(str(cuotas))).quantize(Decimal("0.01"))
 
+        nombre_limpio = nombre
+        for pref in ("CRÉDITO NUEVO - ", "CREDITO NUEVO - ", "CRÉDITO NUEVO - CLIENTE: ", "CREDITO NUEVO - CLIENTE: "):
+            if nombre_limpio.upper().startswith(pref):
+                nombre_limpio = nombre_limpio[len(pref):].strip()
+                break
+
         rid_edit = int(session.get("ruta_id") or 1)
         conn = get_db()
         with conn.cursor() as cursor:
-            if cli_id <= 0 and nombre:
+            if cli_id <= 0 and nombre_limpio:
                 cursor.execute("""
                     SELECT id FROM clientes
                     WHERE ruta_id = %s AND LOWER(TRIM(nombre)) = LOWER(TRIM(%s))
                     ORDER BY id DESC LIMIT 1
-                """, (rid_edit, nombre))
+                """, (rid_edit, nombre_limpio))
                 row_find = cursor.fetchone()
                 if row_find:
                     cli_id = int(dict(row_find).get("id") or 0)
@@ -7578,28 +7584,25 @@ def api_editar_credito_hoy():
             row_c = cursor.fetchone()
             if row_c:
                 d_c = dict(row_c)
-                nombre_anterior = str(d_c.get("nombre") or nombre).strip()
+                nombre_anterior = str(d_c.get("nombre") or nombre_limpio).strip()
                 val_ini = d_c.get("fecha_inicio")
                 fecha_ini_dt = val_ini if isinstance(val_ini, date) else date.fromisoformat(str(val_ini)[:10])
             else:
-                nombre_anterior = nombre
+                nombre_anterior = nombre_limpio
                 fecha_ini_dt = date.today()
 
-            cursor.execute(
-                """
+            cursor.execute("""
                 UPDATE clientes
                 SET nombre = COALESCE(NULLIF(%s, ''), nombre),
-                    identificacion = %s,
-                    telefono = %s,
-                    direccion = %s,
+                    identificacion = COALESCE(NULLIF(%s, ''), identificacion),
+                    telefono = COALESCE(NULLIF(%s, ''), telefono),
+                    direccion = COALESCE(NULLIF(%s, ''), direccion),
                     monto = %s, interes_porcentaje = %s, monto_total = %s,
                     cuotas = %s, frecuencia = %s, valor_cuota = %s,
                     foto_cedula_frente = CASE WHEN %s <> '' THEN %s ELSE foto_cedula_frente END,
                     foto_cedula_reverso = CASE WHEN %s <> '' THEN %s ELSE foto_cedula_reverso END
                 WHERE id = %s
-                """,
-                (nombre, identificacion, telefono, direccion, monto, interes, monto_total, cuotas, frecuencia, valor_cuota, foto_frente, foto_frente, foto_reverso, foto_reverso, cli_id)
-            )
+            """, (nombre_limpio, identificacion, telefono, direccion, monto, interes, monto_total, cuotas, frecuencia, valor_cuota, foto_frente, foto_frente, foto_reverso, foto_reverso, cli_id))
 
             cursor.execute("DELETE FROM pagos WHERE cliente_id = %s", (cli_id,))
             acumulado = Decimal("0.00")
@@ -7623,7 +7626,7 @@ def api_editar_credito_hoy():
                     (cli_id, num, f_cuota.isoformat(), valor_cuota_real)
                 )
 
-            nombre_final = nombre if nombre else nombre_anterior
+            nombre_final = nombre_limpio if nombre_limpio else nombre_anterior
             if mov_id > 0:
                 cursor.execute(
                     "UPDATE balance_movimientos SET monto = %s, concepto = %s WHERE id = %s",
