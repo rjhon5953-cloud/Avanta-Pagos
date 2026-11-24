@@ -5236,6 +5236,10 @@ def perfil_cliente_detalle(cliente_id):
         rid = int(session.get("ruta_id") or 1)
         hoy_str = date.today().isoformat()
         with conn.cursor() as cursor:
+            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
+            row_ja = cursor.fetchone()
+            if row_ja and dict(row_ja).get("valor"):
+                hoy_str = str(dict(row_ja)["valor"]).strip()[:10]
             cursor.execute("SELECT * FROM clientes WHERE id = %s", (cliente_id,))
             cliente = dict(cursor.fetchone())
             cedula_cli = str(cliente.get("identificacion") or "").strip()
