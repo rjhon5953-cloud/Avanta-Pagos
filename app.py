@@ -1927,10 +1927,42 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
-    <div class="navbar">
-        <button class="btn-menu btn-nav-icon" onclick="toggleDrawer()"><i class="fa-solid fa-bars"></i> Menú</button>
-        <div class="nav-title">🌐 AVANTA PAGOS</div>
-        <a href="javascript:void(0)" onclick="navegarRuta('/nuevo')" class="btn-nav-icon" style="background:#00a8cc;"><i class="fa-solid fa-plus"></i> Nuevo</a>
+    {% set p_act = request.path %}
+    {% set mapa_titulos = {
+        '/menu/clientes': {'titulo': 'DIRECTORIO DE CLIENTES', 'volver': '/'},
+        '/menu/enrutar': {'titulo': 'SECUENCIA DE RUTA', 'volver': '/'},
+        '/menu/historial': {'titulo': 'AUDITORÍA POR FECHA', 'volver': '/'},
+        '/menu/balance': {'titulo': 'BALANCE CONTABLE', 'volver': '/'},
+        '/menu/perfil': {'titulo': 'PERFIL DEL COBRADOR', 'volver': '/'},
+        '/menu/semanales': {'titulo': 'ENRUTAMIENTO ANTICIPADO', 'volver': '/'},
+        '/menu/backup': {'titulo': 'RESPALDO EN LA NUBE', 'volver': '/'},
+        '/menu/impresora': {'titulo': 'IMPRESORA TÉRMICA', 'volver': '/'},
+        '/menu/config': {'titulo': 'CONFIGURACIÓN OPERATIVA', 'volver': '/'},
+        '/nuevo': {'titulo': 'NUEVO CRÉDITO', 'volver': '/'}
+    } %}
+    {% set es_expediente = p_act.startswith('/menu/cliente/') %}
+    {% set info_nav = {'titulo': 'EXPEDIENTE CLIENTE', 'volver': '/menu/clientes'} if es_expediente else mapa_titulos.get(p_act, {'titulo': 'AVANTA PAGOS', 'volver': '/'}) %}
+    <div class="navbar" style="gap:8px;">
+        <button class="btn-menu btn-nav-icon" style="flex-shrink:0;" onclick="toggleDrawer()"><i class="fa-solid fa-bars"></i> Menú</button>
+        <div class="nav-title" style="flex:1; display:flex; align-items:center; justify-content:center; gap:7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13.5px; letter-spacing:0.4px;">
+            {% if p_act == '/' %}
+                <span style="width:24px; height:24px; border-radius:7px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.22); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <svg width="15" height="15" viewBox="0 0 48 48" fill="none">
+                        <path d="M12 37L24 10L36 37" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M9 38C18 32 27 25 36 16" stroke="#fbbf24" stroke-width="4.2" stroke-linecap="round"/>
+                        <path d="M27 16L37 15L36 25" stroke="#fbbf24" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <span>AVANTA PAGOS</span>
+            {% else %}
+                <span>{{ info_nav.titulo }}</span>
+            {% endif %}
+        </div>
+        {% if p_act == '/' %}
+            <a href="javascript:void(0)" onclick="navegarRuta('/nuevo')" class="btn-nav-icon" style="flex-shrink:0; background:#00a8cc;"><i class="fa-solid fa-plus"></i> Nuevo</a>
+        {% else %}
+            <a href="javascript:void(0)" onclick="navegarRuta('{{ info_nav.volver }}')" class="btn-nav-icon" style="flex-shrink:0; background:rgba(255,255,255,0.16); border:1px solid rgba(255,255,255,0.22);"><i class="fa-solid fa-arrow-left"></i> Volver</a>
+        {% endif %}
     </div>
 
     <div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer()"></div>
