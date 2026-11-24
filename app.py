@@ -4355,14 +4355,12 @@ def dashboard_principal():
 
             # 2. Conteo y detalle completo de créditos entregados hoy en esta ruta
             cursor.execute("""
-                SELECT id, concepto, monto
-                FROM balance_movimientos
+                SELECT id, nombre AS concepto, capital_prestado AS monto
+                FROM clientes
                 WHERE ruta_id = %s
-                  AND tipo = 'Salida'
-                  AND (concepto ILIKE '%%CRÉDITO%%' OR concepto ILIKE '%%CREDITO%%' OR concepto ILIKE '%%PRÉSTAMO%%' OR concepto ILIKE '%%RENOVACIÓN%%')
-                  AND (fecha = %s OR CAST(fecha AS TEXT) LIKE %s OR CAST(fecha AS TEXT) LIKE %s)
+                  AND LEFT(COALESCE(fecha_credito::text, ''), 10) IN (%s, %s)
                 ORDER BY id DESC
-            """, (rid, turno_id_real, f"{fecha_hoy_real}%", f"{turno_id_real[:10]}%"))
+            """, (rid, fecha_hoy_real, turno_id_real[:10]))
             rows_creditos_turno = cursor.fetchall()
             creditos_hoy = len(rows_creditos_turno)
 
@@ -5491,41 +5489,54 @@ def seccion_balance_maestro():
                 cursor.execute("INSERT INTO configuracion (llave, valor, ruta_id) VALUES ('fecha_jornada_activa', %s, %s)", (hoy_str, rid))
                 conn.commit()
 
-            # 1. Cálculo contable espejo con Avanta Dueño
-            cursor.execute("SELECT valor FROM configuracion WHERE LOWER(llave) LIKE '%%base%%' AND ruta_id = %s LIMIT 1", (rid,))
-            res_caja = cursor.fetchone()
-            if res_caja:
-                raw_caja = res_caja.get("valor", "0.00") if isinstance(res_caja, dict) else res_caja[0]
-                val_caja_str = str(raw_caja).strip() if raw_caja is not None else ""
-                try:
-                    caja_inicial_sistema = Decimal(val_caja_str) if val_caja_str else Decimal("0.00")
-                except Exception:
-                    caja_inicial_sistema = Decimal("0.00")
-            else:
-                caja_inicial_sistema = Decimal("0.00")
+        # 1. Base real de la jornada activa (prioriza último cierre entregado si existe)
+        cursor.execute("SELECT valor FROM configuracion WHERE LOWER(llave) LIKE '%%base%%' AND ruta_id = %s LIMIT 1", (rid,))
+        res_caja = cursor.fetchone()
+        caja_inicial_sistema = Decimal(str(dict(res_caja).get("valor") or "0.00")) if res_caja else Decimal("0.00")
+        try:
+            cursor.execute("SELECT efectivo_entregado FROM historial_cierres WHERE ruta_id = %s ORDER BY id DESC LIMIT 1", (rid,))
+            row_uc = cursor.fetchone()
+            if row_uc and dict(row_uc).get("efectivo_entregado") is not None:
+                caja_inicial_sistema = Decimal(str(dict(row_uc)["efectivo_entregado"]))
+        except Exception:
+            pass
+        caja_base = caja_inicial_sistema
 
-            # Base limpia de la jornada activa (idéntica a Avanta Dueño)
-            caja_base = caja_inicial_sistema
+        # 2. Turno activo y estado de cierre hoy
+        cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
+        res_turno = cursor.fetchone()
+        turno_act_b = str(dict(res_turno).get("valor") if res_turno else "").strip()
+        f_ecuador_hoy = (datetime.utcnow() - timedelta(hours=5)).strftime("%Y-%m-%d")
 
-            # 2. Turno activo y estado de cierre hoy
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
-            res_turno = cursor.fetchone()
-            turno_act_b = str(dict(res_turno).get("valor") if res_turno else "").strip()
+        # Reparar registros de créditos nuevos de hoy que quedaron con fecha='RealDictRo'
+        if turno_act_b:
+            cursor.execute("UPDATE balance_movimientos SET fecha = %s WHERE ruta_id = %s AND fecha = 'RealDictRo'", (turno_act_b, rid))
+            conn.commit()
 
-            cursor.execute("SELECT valor FROM configuracion WHERE llave = %s AND ruta_id = %s", (f"cierre_caja_{hoy_str}", rid))
-            res_cierre = cursor.fetchone()
-            estado_cierre = dict(res_cierre).get("valor", "Abierta") if res_cierre else "Abierta"
+        cursor.execute("SELECT valor FROM configuracion WHERE llave = %s AND ruta_id = %s", (f"cierre_caja_{hoy_str}", rid))
+        res_cierre = cursor.fetchone()
+        estado_cierre = dict(res_cierre).get("valor", "Abierta") if res_cierre else "Abierta"
 
-            # 3. Movimientos de la jornada activa (misma fuente única que Avanta Dueño)
-            if turno_act_b:
-                cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND fecha = %s ORDER BY id DESC", (rid, turno_act_b))
-            else:
-                cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND LEFT(COALESCE(fecha::text, ''), 10) = %s ORDER BY id DESC", (rid, hoy_str))
-            movimientos = cursor.fetchall()
+        # 3. Movimientos de la jornada activa (misma fuente única que Avanta Dueño)
+        if turno_act_b:
+            cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND fecha = %s ORDER BY id DESC", (rid, turno_act_b))
+        else:
+            cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND LEFT(COALESCE(fecha::text, ''), 10) = %s ORDER BY id DESC", (rid, f_ecuador_hoy))
+        movimientos = [dict(r) for r in cursor.fetchall()]
 
         total_abonos_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "abono") and str(m.get("categoria") or "").strip().lower() == "cobranza")
         total_seguros_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso") and "microseguro" in str(m.get("concepto") or "").lower())
         total_prestado_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("salida", "egreso", "credito") and any(k in str(m.get("concepto") or "").lower() for k in ("crédito", "credito", "préstamo", "renovación")))
+
+        # Respaldo directo desde clientes creados hoy si no tuvieran asiento en balance_movimientos
+        if total_prestado_hoy == Decimal("0.00"):
+            cursor.execute("SELECT id, nombre, capital_prestado FROM clientes WHERE ruta_id = %s AND LEFT(COALESCE(fecha_credito::text, ''), 10) = %s", (rid, f_ecuador_hoy))
+            for cr_h in cursor.fetchall():
+                d_cr = dict(cr_h)
+                m_cr = Decimal(str(d_cr.get("capital_prestado") or "0.00"))
+                if m_cr > 0:
+                    total_prestado_hoy += m_cr
+                    movimientos.append({"id": 0, "tipo": "Salida", "categoria": "Crédito", "concepto": f"CRÉDITO NUEVO - {d_cr.get('nombre')}", "monto": m_cr, "fecha": turno_act_b or f_ecuador_hoy, "comprobante": ""})
     except Exception as e:
         print(f"Error en balance: {e}")
         caja_base = caja_inicial_sistema
