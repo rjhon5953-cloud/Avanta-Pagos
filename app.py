@@ -5532,30 +5532,17 @@ def seccion_balance_maestro():
             cursor.execute("SELECT valor FROM configuracion WHERE LOWER(llave) LIKE '%%base%%' AND ruta_id = %s LIMIT 1", (rid,))
             res_caja = cursor.fetchone()
             caja_inicial_sistema = Decimal(str(dict(res_caja).get("valor") or "0.00")) if res_caja else Decimal("0.00")
-        try:
-            import json as _jbp, re as _rbp
-            cursor.execute("""
-                SELECT valor FROM configuracion
-                WHERE ruta_id = %s AND LOWER(llave) LIKE '%%cierre_caja_%%'
-                ORDER BY llave DESC LIMIT 5
-            """, (rid,))
-            for r_uc in cursor.fetchall():
-                raw_uc = str(dict(r_uc).get("valor") or "").strip()
-                if not raw_uc or raw_uc.lower() in ("abierta", "cerrada"):
-                    continue
-                val_ent = None
-                if raw_uc.startswith("{"):
-                    d_uc = _jbp.loads(raw_uc)
-                    val_ent = d_uc.get("entregado") if d_uc.get("entregado") is not None else d_uc.get("efectivo_entregado")
-                else:
-                    m_uc = _rbp.search(r'(-?\d+(?:\.\d+)?)', raw_uc)
-                    if m_uc:
-                        val_ent = m_uc.group(1)
-                if val_ent is not None:
-                    caja_inicial_sistema = Decimal(str(val_ent))
-                    break
-        except Exception:
-            conn.rollback()
+            try:
+                cursor.execute("SELECT * FROM historial_cierres WHERE ruta_id = %s ORDER BY id DESC LIMIT 1", (rid,))
+                row_uc = cursor.fetchone()
+                if row_uc:
+                    d_uc = dict(row_uc)
+                    val_uc = d_uc.get("entregado") or d_uc.get("efectivo_entregado") or d_uc.get("monto_entregado")
+                    if val_uc is not None:
+                        caja_inicial_sistema = Decimal(str(val_uc))
+            except Exception:
+                conn.rollback()
+            caja_base = caja_inicial_sistema
 
             # 3. Reparar registros que quedaron con fecha='RealDictRo'
             cursor.execute("UPDATE balance_movimientos SET fecha = %s WHERE ruta_id = %s AND fecha = 'RealDictRo'", (hoy_str, rid))
@@ -5639,11 +5626,9 @@ def seccion_balance_maestro():
                     comprobante_puro = comprobante_puro.split("base64,")[-1]
             except Exception:
                 comprobante_puro = ""
-            m_dict["comprobante"] = comprobante_puro
-            m_dict["monto"] = float(m_dict["monto"])
-            if str(m_dict.get("tipo") or "").strip().lower() in ("entrada", "ingreso", "inyeccion", "base", "abono"):
-                m_dict["tipo"] = "Entrada"
-            movimientos_limpios.append(m_dict)
+        m_dict["comprobante"] = comprobante_puro
+        m_dict["monto"] = float(m_dict["monto"])
+        movimientos_limpios.append(m_dict)
 
     # Añadimos al desglose visual un registro informativo de lo recaudado en la calle
     if total_abonos_hoy > 0:
