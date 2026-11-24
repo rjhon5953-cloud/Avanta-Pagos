@@ -5248,7 +5248,7 @@ def perfil_cliente_detalle(cliente_id):
                         COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
                         COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id), 0) AS total_cuotas_real,
                         COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
-                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha <= %s), 0) AS cuotas_vencidas
+                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
                     FROM clientes c
                     WHERE c.ruta_id = %s AND TRIM(c.identificacion) = %s
                     ORDER BY c.id DESC
@@ -5259,7 +5259,7 @@ def perfil_cliente_detalle(cliente_id):
                         COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
                         COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id), 0) AS total_cuotas_real,
                         COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
-                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha <= %s), 0) AS cuotas_vencidas
+                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
                     FROM clientes c
                     WHERE c.id = %s
                     ORDER BY c.id DESC
