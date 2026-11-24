@@ -4355,13 +4355,21 @@ def dashboard_principal():
 
             # 2. Conteo y detalle completo de créditos entregados hoy en esta ruta
             cursor.execute("""
-                SELECT id, nombre AS concepto, capital_prestado AS monto
+                SELECT *
                 FROM clientes
                 WHERE ruta_id = %s
                   AND LEFT(COALESCE(fecha_credito::text, ''), 10) IN (%s, %s)
                 ORDER BY id DESC
             """, (rid, fecha_hoy_real, turno_id_real[:10]))
-            rows_creditos_turno = cursor.fetchall()
+            rows_creditos_turno = []
+            for r_ct in cursor.fetchall():
+                d_ct = dict(r_ct)
+                tot_ct = Decimal(str(d_ct.get("monto_total") or "0"))
+                int_ct = Decimal(str(d_ct.get("interes_porcentaje") or d_ct.get("interes") or "20"))
+                cap_ct = Decimal(str(d_ct.get("monto_credito") or d_ct.get("capital") or "0"))
+                if cap_ct <= 0 and tot_ct > 0:
+                    cap_ct = (tot_ct / (Decimal("1") + (int_ct / Decimal("100")))).quantize(Decimal("0.01"))
+                rows_creditos_turno.append({"id": d_ct.get("id"), "concepto": d_ct.get("nombre") or "Cliente", "monto": cap_ct})
             creditos_hoy = len(rows_creditos_turno)
 
             ids_creditos_hoy = set()
@@ -5494,12 +5502,15 @@ def seccion_balance_maestro():
         res_caja = cursor.fetchone()
         caja_inicial_sistema = Decimal(str(dict(res_caja).get("valor") or "0.00")) if res_caja else Decimal("0.00")
         try:
-            cursor.execute("SELECT efectivo_entregado FROM historial_cierres WHERE ruta_id = %s ORDER BY id DESC LIMIT 1", (rid,))
+            cursor.execute("SELECT * FROM historial_cierres WHERE ruta_id = %s ORDER BY id DESC LIMIT 1", (rid,))
             row_uc = cursor.fetchone()
-            if row_uc and dict(row_uc).get("efectivo_entregado") is not None:
-                caja_inicial_sistema = Decimal(str(dict(row_uc)["efectivo_entregado"]))
+            if row_uc:
+                d_uc = dict(row_uc)
+                val_uc = d_uc.get("entregado") or d_uc.get("efectivo_entregado") or d_uc.get("monto_entregado")
+                if val_uc is not None:
+                    caja_inicial_sistema = Decimal(str(val_uc))
         except Exception:
-            pass
+            conn.rollback()
         caja_base = caja_inicial_sistema
 
         # 2. Turno activo y estado de cierre hoy
@@ -5530,13 +5541,18 @@ def seccion_balance_maestro():
 
         # Respaldo directo desde clientes creados hoy si no tuvieran asiento en balance_movimientos
         if total_prestado_hoy == Decimal("0.00"):
-            cursor.execute("SELECT id, nombre, capital_prestado FROM clientes WHERE ruta_id = %s AND LEFT(COALESCE(fecha_credito::text, ''), 10) = %s", (rid, f_ecuador_hoy))
+            cursor.execute("SELECT * FROM clientes WHERE ruta_id = %s AND LEFT(COALESCE(fecha_credito::text, ''), 10) = %s", (rid, f_ecuador_hoy))
             for cr_h in cursor.fetchall():
                 d_cr = dict(cr_h)
-                m_cr = Decimal(str(d_cr.get("capital_prestado") or "0.00"))
+                tot_cr = Decimal(str(d_cr.get("monto_total") or "0.00"))
+                int_cr = Decimal(str(d_cr.get("interes_porcentaje") or d_cr.get("interes") or "20"))
+                m_cr = Decimal(str(d_cr.get("monto_credito") or d_cr.get("capital") or "0.00"))
+                if m_cr <= 0 and tot_cr > 0:
+                    m_cr = (tot_cr / (Decimal("1") + (int_cr / Decimal("100")))).quantize(Decimal("0.01"))
                 if m_cr > 0:
                     total_prestado_hoy += m_cr
                     movimientos.append({"id": 0, "tipo": "Salida", "categoria": "Crédito", "concepto": f"CRÉDITO NUEVO - {d_cr.get('nombre')}", "monto": m_cr, "fecha": turno_act_b or f_ecuador_hoy, "comprobante": ""})
+
     except Exception as e:
         print(f"Error en balance: {e}")
         caja_base = caja_inicial_sistema
