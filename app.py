@@ -4355,12 +4355,13 @@ def dashboard_principal():
 
             # 2. Conteo y detalle completo de créditos entregados hoy en esta ruta
             cursor.execute("""
-                SELECT *
-                FROM clientes
-                WHERE ruta_id = %s
-                  AND LEFT(COALESCE(fecha_credito::text, ''), 10) IN (%s, %s)
-                ORDER BY id DESC
-            """, (rid, fecha_hoy_real, turno_id_real[:10]))
+                SELECT c.*
+                FROM clientes c
+                JOIN pagos p ON p.cliente_id = c.id AND p.numero_cuota = 1
+                WHERE c.ruta_id = %s
+                  AND LEFT(COALESCE(p.fecha_vencimiento::text, ''), 10) IN (%s, %s, %s)
+                ORDER BY c.id DESC
+            """, (rid, fecha_hoy_real, turno_id_real[:10], (datetime.utcnow() - timedelta(hours=5) + timedelta(days=1)).strftime("%Y-%m-%d")))
             rows_creditos_turno = []
             for r_ct in cursor.fetchall():
                 d_ct = dict(r_ct)
@@ -5541,7 +5542,14 @@ def seccion_balance_maestro():
 
         # Respaldo directo desde clientes creados hoy si no tuvieran asiento en balance_movimientos
         if total_prestado_hoy == Decimal("0.00"):
-            cursor.execute("SELECT * FROM clientes WHERE ruta_id = %s AND LEFT(COALESCE(fecha_credito::text, ''), 10) = %s", (rid, f_ecuador_hoy))
+            f_manana_ec = (datetime.utcnow() - timedelta(hours=5) + timedelta(days=1)).strftime("%Y-%m-%d")
+            cursor.execute("""
+                SELECT c.*
+                FROM clientes c
+                JOIN pagos p ON p.cliente_id = c.id AND p.numero_cuota = 1
+                WHERE c.ruta_id = %s
+                  AND LEFT(COALESCE(p.fecha_vencimiento::text, ''), 10) IN (%s, %s)
+            """, (rid, f_ecuador_hoy, f_manana_ec))
             for cr_h in cursor.fetchall():
                 d_cr = dict(cr_h)
                 tot_cr = Decimal(str(d_cr.get("monto_total") or "0.00"))
