@@ -4354,14 +4354,16 @@ def dashboard_principal():
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
 
             # 2. Conteo y detalle completo de créditos entregados hoy en esta ruta
+            f_manana_local = (date.fromisoformat(fecha_hoy_real[:10]) + timedelta(days=1)).isoformat()
             cursor.execute("""
                 SELECT c.*
                 FROM clientes c
-                JOIN pagos p ON p.cliente_id = c.id AND p.numero_cuota = 1
+                JOIN pagos p ON p.cliente_id = c.id
                 WHERE c.ruta_id = %s
-                  AND LEFT(COALESCE(p.fecha_vencimiento::text, ''), 10) IN (%s, %s, %s)
+                GROUP BY c.id
+                HAVING LEFT(COALESCE(MIN(p.fecha_vencimiento)::text, ''), 10) IN (%s, %s, %s)
                 ORDER BY c.id DESC
-            """, (rid, fecha_hoy_real, turno_id_real[:10], (datetime.utcnow() - timedelta(hours=5) + timedelta(days=1)).strftime("%Y-%m-%d")))
+            """, (rid, fecha_hoy_real, turno_id_real[:10], f_manana_local))
             rows_creditos_turno = []
             for r_ct in cursor.fetchall():
                 d_ct = dict(r_ct)
@@ -5518,7 +5520,7 @@ def seccion_balance_maestro():
         cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
         res_turno = cursor.fetchone()
         turno_act_b = str(dict(res_turno).get("valor") if res_turno else "").strip()
-        f_ecuador_hoy = (datetime.utcnow() - timedelta(hours=5)).strftime("%Y-%m-%d")
+        f_local_hoy = date.today().isoformat()
 
         # Reparar registros de créditos nuevos de hoy que quedaron con fecha='RealDictRo'
         if turno_act_b:
@@ -5533,7 +5535,7 @@ def seccion_balance_maestro():
         if turno_act_b:
             cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND fecha = %s ORDER BY id DESC", (rid, turno_act_b))
         else:
-            cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND LEFT(COALESCE(fecha::text, ''), 10) = %s ORDER BY id DESC", (rid, f_ecuador_hoy))
+            cursor.execute("SELECT id, tipo, categoria, concepto, monto, fecha, comprobante FROM balance_movimientos WHERE ruta_id = %s AND LEFT(COALESCE(fecha::text, ''), 10) = %s ORDER BY id DESC", (rid, f_local_hoy))
         movimientos = [dict(r) for r in cursor.fetchall()]
 
         total_abonos_hoy = sum(Decimal(str(m["monto"])) for m in movimientos if str(m["tipo"]).strip().lower() in ("entrada", "ingreso", "abono") and str(m.get("categoria") or "").strip().lower() == "cobranza")
@@ -5542,14 +5544,15 @@ def seccion_balance_maestro():
 
         # Respaldo directo desde clientes creados hoy si no tuvieran asiento en balance_movimientos
         if total_prestado_hoy == Decimal("0.00"):
-            f_manana_ec = (datetime.utcnow() - timedelta(hours=5) + timedelta(days=1)).strftime("%Y-%m-%d")
+            f_manana_local = (date.today() + timedelta(days=1)).isoformat()
             cursor.execute("""
                 SELECT c.*
                 FROM clientes c
-                JOIN pagos p ON p.cliente_id = c.id AND p.numero_cuota = 1
+                JOIN pagos p ON p.cliente_id = c.id
                 WHERE c.ruta_id = %s
-                  AND LEFT(COALESCE(p.fecha_vencimiento::text, ''), 10) IN (%s, %s)
-            """, (rid, f_ecuador_hoy, f_manana_ec))
+                GROUP BY c.id
+                HAVING LEFT(COALESCE(MIN(p.fecha_vencimiento)::text, ''), 10) IN (%s, %s)
+            """, (rid, f_local_hoy, f_manana_local))
             for cr_h in cursor.fetchall():
                 d_cr = dict(cr_h)
                 tot_cr = Decimal(str(d_cr.get("monto_total") or "0.00"))
@@ -5559,7 +5562,7 @@ def seccion_balance_maestro():
                     m_cr = (tot_cr / (Decimal("1") + (int_cr / Decimal("100")))).quantize(Decimal("0.01"))
                 if m_cr > 0:
                     total_prestado_hoy += m_cr
-                    movimientos.append({"id": 0, "tipo": "Salida", "categoria": "Crédito", "concepto": f"CRÉDITO NUEVO - {d_cr.get('nombre')}", "monto": m_cr, "fecha": turno_act_b or f_ecuador_hoy, "comprobante": ""})
+                    movimientos.append({"id": 0, "tipo": "Salida", "categoria": "Crédito", "concepto": f"CRÉDITO NUEVO - {d_cr.get('nombre')}", "monto": m_cr, "fecha": turno_act_b or f_local_hoy, "comprobante": ""})
 
     except Exception as e:
         print(f"Error en balance: {e}")
