@@ -4347,26 +4347,17 @@ def dashboard_principal():
             """, (rid, inicio_turno_ts))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
 
-            # 2. Conteo y detalle completo de créditos entregados hoy en esta ruta
-            cursor.execute("UPDATE balance_movimientos SET fecha = %s WHERE ruta_id = %s AND fecha = 'RealDictRo'", (turno_id_real, rid))
-            conn_val.commit()
-
+            # 2. Conteo y detalle real de créditos otorgados en la jornada activa
             cursor.execute("""
-                SELECT *
-                FROM clientes
+                SELECT id, concepto, monto
+                FROM balance_movimientos
                 WHERE ruta_id = %s
-                  AND LEFT(COALESCE(fecha_inicio::text, ''), 10) IN (%s, %s)
+                  AND LOWER(TRIM(tipo)) IN ('salida', 'egreso', 'credito')
+                  AND (concepto ILIKE '%%crédito%%' OR concepto ILIKE '%%credito%%' OR concepto ILIKE '%%préstamo%%' OR concepto ILIKE '%%renovación%%' OR concepto ILIKE '%%renovacion%%')
+                  AND fecha = %s
                 ORDER BY id DESC
-            """, (rid, fecha_hoy_real, turno_id_real[:10]))
-            rows_creditos_turno = []
-            for r_ct in cursor.fetchall():
-                d_ct = dict(r_ct)
-                tot_ct = Decimal(str(d_ct.get("monto_total") or "0"))
-                int_ct = Decimal(str(d_ct.get("interes_porcentaje") or d_ct.get("interes") or "20"))
-                cap_ct = Decimal(str(d_ct.get("monto_credito") or d_ct.get("capital") or "0"))
-                if cap_ct <= 0 and tot_ct > 0:
-                    cap_ct = (tot_ct / (Decimal("1") + (int_ct / Decimal("100")))).quantize(Decimal("0.01"))
-                rows_creditos_turno.append({"id": d_ct.get("id"), "concepto": d_ct.get("nombre") or "Cliente", "monto": cap_ct})
+            """, (rid, turno_id_real))
+            rows_creditos_turno = cursor.fetchall()
             creditos_hoy = len(rows_creditos_turno)
 
             ids_creditos_hoy = set()
