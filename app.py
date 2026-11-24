@@ -780,9 +780,9 @@ CONTENIDO_HTML = """
              onclick="navegarRuta('/menu/cliente/{{ c.id }}')"
              style="padding:13px 14px; margin:0; background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer; box-shadow:0 2px 6px rgba(15,23,42,0.03); -webkit-tap-highlight-color:transparent;">
 
-            <div style="width:44px; height:44px; border-radius:12px; background:{{ 'linear-gradient(135deg, #0f2b5c, #1e3a8a)' if saldo_c > 0 else '#f1f5f9' }}; color:{{ '#ffffff' if saldo_c > 0 else '#475569' }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; flex-shrink:0; letter-spacing:0.5px;">
-                {{ iniciales }}
-            </div>
+                <div translate="no" class="notranslate" style="width:44px; height:44px; flex-shrink:0; border-radius:12px; background:{{ 'linear-gradient(135deg, #0f2b5c, #1e3a8a)' if saldo_c > 0 else '#f1f5f9' }}; color:{{ '#ffffff' if saldo_c > 0 else '#64748b' }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px;">
+                    {{ iniciales }}
+                </div>
 
             <div style="flex:1; min-width:0; text-align:left;">
                 <div style="font-weight:800; color:#0f172a; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ c.nombre }}</div>
@@ -861,7 +861,7 @@ CONTENIDO_HTML = """
         <!-- Tarjeta Ejecutiva del Titular -->
         <div style="background:linear-gradient(145deg, #0a1f44 0%, #0f2b5c 60%, #1e3a8a 100%); border-radius:16px; padding:16px; color:#ffffff; margin-bottom:12px; box-shadow:0 8px 20px rgba(15,43,92,0.2); display:flex; align-items:center; justify-content:space-between; gap:12px; text-align:left;">
             <div style="display:flex; align-items:center; gap:12px; min-width:0; flex:1;">
-                <div style="width:48px; height:48px; border-radius:13px; background:rgba(255,255,255,0.14); border:1.5px solid rgba(255,255,255,0.25); color:#ffffff; font-weight:900; font-size:17px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <div translate="no" class="notranslate" style="width:48px; height:48px; border-radius:13px; background:rgba(255,255,255,0.14); border:1.5px solid rgba(255,255,255,0.25); color:#ffffff; font-weight:900; font-size:17px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                     {{ iniciales_p }}
                 </div>
                 <div style="min-width:0;">
@@ -1008,10 +1008,14 @@ CONTENIDO_HTML = """
                         {% set es_completa = (p.pagado == 1 or v_pagado >= (v_cuota - 0.01)) %}
                         {% set es_incompleta = (not es_completa and v_pagado > 0) %}
                         {% set es_vencida = (not es_completa and not es_incompleta and p.fecha < hoy_str) %}
-                        <tr style="border-bottom:1px solid #f1f5f9; background:{{ '#f0fdf4' if es_completa else ('#fffbeb' if es_incompleta else ('#fef2f2' if es_vencida else '#ffffff')) }};">
+                        {% set f_s = (p.fecha|string)[:10] %}
+                        {% set f_ddmmyyyy = (f_s[8:10] ~ '/' ~ f_s[5:7] ~ '/' ~ f_s[:4]) if '-' in f_s and f_s|length >= 10 else f_s %}
+                        {% set fp_s = (p.fecha_pago_real|string) if p.fecha_pago_real else '' %}
+                        {% set fp_fmt = (fp_s[8:10] ~ '/' ~ fp_s[5:7] ~ '/' ~ fp_s[:4] ~ fp_s[10:]) if '-' in fp_s[:10] and fp_s|length >= 10 else (fp_s if fp_s else '-') %}
+                        <tr translate="no" class="notranslate" style="border-bottom:1px solid #f1f5f9; background:{{ '#f0fdf4' if es_completa else ('#fffbeb' if es_incompleta else ('#fef2f2' if es_vencida else '#ffffff')) }};">
                             <td style="padding:6px 4px; font-weight:800; color:#0f172a;">{{ p.numero }}</td>
-                            <td style="padding:6px 4px; color:#334155; font-weight:600; white-space:nowrap;">{{ p.fecha }}</td>
-                            <td style="padding:6px 4px; color:#64748b; font-size:9.5px; line-height:1.2; word-break:break-word;">{{ p.fecha_pago_real or '-' }}</td>
+                            <td style="padding:6px 4px; color:#334155; font-weight:600; white-space:nowrap;">{{ f_ddmmyyyy }}</td>
+                            <td style="padding:6px 4px; color:#64748b; font-size:9.5px; line-height:1.2; word-break:break-word;">{{ fp_fmt }}</td>
                             <td style="padding:6px 4px; text-align:right; font-weight:800; color:#0f172a;">
                                 {% if es_completa %}
                                 ${{ "%.2f"|format(v_cuota) }}
