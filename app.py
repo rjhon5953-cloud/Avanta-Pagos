@@ -4054,15 +4054,14 @@ function aplicarFiltrosDashboard() {
         }
 
         function abrirEditorCreditoHoy(cliId, movId, nombre, monto, interes, cuotas, freq) {
-            if (!cliId) {
+            if (!cliId && !nombre) {
                 alert('No se encontró la ficha activa de este cliente.');
                 return;
             }
-            document.getElementById('editCredCliId').value = cliId;
-            document.getElementById('editCredMovId').value = movId;
+            document.getElementById('editCredCliId').value = cliId || 0;
+            document.getElementById('editCredMovId').value = movId || 0;
             document.getElementById('editCredNombre').innerText = nombre;
             document.getElementById('editCredNombreInput').value = nombre;
-            document.getElementById('editCredCedula').value = '';
             document.getElementById('editCredTelefono').value = '';
             document.getElementById('editCredDireccion').value = '';
             document.getElementById('editCredMonto').value = monto.toFixed(2);
@@ -7554,19 +7553,33 @@ def api_editar_credito_hoy():
         foto_frente = str(data.get("foto_frente", "")).strip()
         foto_reverso = str(data.get("foto_reverso", "")).strip()
 
-        if cli_id <= 0 or monto <= 0 or cuotas <= 0:
+        if monto <= 0 or cuotas <= 0:
             return jsonify({"status": "error", "message": "Valores inválidos."}), 400
 
         monto_total = (monto + (monto * (interes / Decimal("100")))).quantize(Decimal("0.01"))
         valor_cuota = (monto_total / Decimal(str(cuotas))).quantize(Decimal("0.01"))
 
+        rid_edit = int(session.get("ruta_id") or 1)
         conn = get_db()
         with conn.cursor() as cursor:
+            if cli_id <= 0 and nombre:
+                cursor.execute("""
+                    SELECT id FROM clientes
+                    WHERE ruta_id = %s AND LOWER(TRIM(nombre)) = LOWER(TRIM(%s))
+                    ORDER BY id DESC LIMIT 1
+                """, (rid_edit, nombre))
+                row_find = cursor.fetchone()
+                if row_find:
+                    cli_id = int(dict(row_find).get("id") or 0)
+            if cli_id <= 0:
+                return jsonify({"status": "error", "message": "No se encontró el cliente en la base de datos."}), 404
+
             cursor.execute("SELECT nombre, fecha_inicio FROM clientes WHERE id = %s", (cli_id,))
             row_c = cursor.fetchone()
             if row_c:
-                nombre_anterior = str(row_c["nombre"] if isinstance(row_c, dict) else row_c[0]).strip()
-                val_ini = row_c["fecha_inicio"] if isinstance(row_c, dict) else row_c[1]
+                d_c = dict(row_c)
+                nombre_anterior = str(d_c.get("nombre") or nombre).strip()
+                val_ini = d_c.get("fecha_inicio")
                 fecha_ini_dt = val_ini if isinstance(val_ini, date) else date.fromisoformat(str(val_ini)[:10])
             else:
                 nombre_anterior = nombre
