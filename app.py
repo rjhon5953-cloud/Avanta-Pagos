@@ -4356,14 +4356,12 @@ def dashboard_principal():
             # 2. Conteo y detalle completo de créditos entregados hoy en esta ruta
             f_manana_local = (date.fromisoformat(fecha_hoy_real[:10]) + timedelta(days=1)).isoformat()
             cursor.execute("""
-                SELECT c.*
-                FROM clientes c
-                JOIN pagos p ON p.cliente_id = c.id
-                WHERE c.ruta_id = %s
-                GROUP BY c.id
-                HAVING LEFT(COALESCE(MIN(p.fecha_vencimiento)::text, ''), 10) IN (%s, %s, %s)
-                ORDER BY c.id DESC
-            """, (rid, fecha_hoy_real, turno_id_real[:10], f_manana_local))
+                SELECT *
+                FROM clientes
+                WHERE ruta_id = %s
+                  AND LEFT(COALESCE(fecha_vencimiento::text, ''), 10) IN (%s, %s)
+                ORDER BY id DESC
+            """, (rid, fecha_hoy_real, f_manana_local))
             rows_creditos_turno = []
             for r_ct in cursor.fetchall():
                 d_ct = dict(r_ct)
@@ -5546,12 +5544,10 @@ def seccion_balance_maestro():
         if total_prestado_hoy == Decimal("0.00"):
             f_manana_local = (date.today() + timedelta(days=1)).isoformat()
             cursor.execute("""
-                SELECT c.*
-                FROM clientes c
-                JOIN pagos p ON p.cliente_id = c.id
-                WHERE c.ruta_id = %s
-                GROUP BY c.id
-                HAVING LEFT(COALESCE(MIN(p.fecha_vencimiento)::text, ''), 10) IN (%s, %s)
+                SELECT *
+                FROM clientes
+                WHERE ruta_id = %s
+                  AND LEFT(COALESCE(fecha_vencimiento::text, ''), 10) IN (%s, %s)
             """, (rid, f_local_hoy, f_manana_local))
             for cr_h in cursor.fetchall():
                 d_cr = dict(cr_h)
