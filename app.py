@@ -53,6 +53,8 @@ def detectar_moneda_por_tz(tz_name):
     return MONEDAS_POR_TZ.get(tz_name, ("$", "USD"))
 
 app = Flask(__name__)
+from flask_compress import Compress # type: ignore
+Compress(app)
 SECRET_KEY = os.environ.get("SECRET_KEY")
 if not SECRET_KEY or len(SECRET_KEY) < 32:
     raise RuntimeError("Configura SECRET_KEY (mínimo 32 caracteres aleatorios) en las variables de entorno.")
@@ -93,24 +95,20 @@ db_pool = SimpleConnectionPool(
 )
 
 def get_db():
-    """🛡️ FIJADO: Registra, limpia transacciones y repara la conexión en 'g'"""
-    if 'db_conn' not in g:
-        g.db_conn = db_pool.getconn()
+    """Obtiene una conexión lista del pool sin repetir SELECT 1 en la misma petición."""
+    if 'db_conn' in g and not g.db_conn.closed:
+        return g.db_conn
+    conn = db_pool.getconn()
     try:
-        g.db_conn.rollback()
-        with g.db_conn.cursor() as cur:
+        with conn.cursor() as cur:
             cur.execute("SELECT 1")
     except Exception:
         try:
-            db_pool.putconn(g.db_conn, close=True)
+            db_pool.putconn(conn, close=True)
         except Exception:
             pass
-        g.db_conn = db_pool.getconn()
-        try:
-            g.db_conn.rollback()
-        except Exception:
-            pass
-
+        conn = db_pool.getconn()
+    g.db_conn = conn
     return g.db_conn
 
 def release_db(conn):
@@ -119,7 +117,7 @@ def release_db(conn):
 
 @app.teardown_appcontext
 def shutdown_session(error_context=None):
-    """Limpia el contexto RLS y devuelve una conexión sin tenant al pool."""
+    """Limpia el contexto RLS en 1 sola consulta y devuelve la conexión al pool."""
     conn = g.pop('db_conn', None)
     if conn is None:
         return
@@ -128,29 +126,21 @@ def shutdown_session(error_context=None):
         if conn.closed:
             db_pool.putconn(conn, close=True)
             return
-        # Primero deshacemos cualquier transacción pendiente; después limpiamos
-        # los GUC de sesión y HACEMOS COMMIT para que el borrado no sea revertido.
         conn.rollback()
         if not close_conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT set_config('avanta.tenant_id', '', false)")
-                cur.execute("SELECT set_config('avanta.route_id', '', false)")
-                cur.execute("SELECT set_config('avanta.migration_bypass', '', false)")
+                cur.execute(
+                    "SELECT set_config('avanta.tenant_id', '', false), "
+                    "set_config('avanta.route_id', '', false), "
+                    "set_config('avanta.migration_bypass', '', false)"
+                )
             conn.commit()
         db_pool.putconn(conn, close=close_conn)
     except Exception:
         try:
-            conn.rollback()
-        except Exception:
-            pass
-        try:
             db_pool.putconn(conn, close=True)
         except Exception:
-            try:
-                conn.close()
-            except Exception:
-                pass
-
+            pass
 
 # -----------------------------------------------------------------------------
 # SEGURIDAD MULTIEMPRESA: contexto de tenant, contraseñas y Row Level Security
@@ -175,12 +165,15 @@ def _verify_password(stored_value, supplied_value):
 
 
 def _set_tenant_context(conn, empresa_id, ruta_id=None):
-    """Contexto PostgreSQL de la petición; las políticas RLS lo usan en cada consulta."""
+    """Configura el contexto RLS en una sola consulta y lo confirma."""
     with conn.cursor() as cur:
-        cur.execute("SELECT set_config('avanta.tenant_id', %s, false)", (str(int(empresa_id)),))
-        cur.execute("SELECT set_config('avanta.route_id', %s, false)", ("" if ruta_id is None else str(int(ruta_id)),))
-        cur.execute("SELECT set_config('avanta.migration_bypass', '', false)")
-
+        cur.execute(
+            "SELECT set_config('avanta.tenant_id', %s, false), "
+            "set_config('avanta.route_id', %s, false), "
+            "set_config('avanta.migration_bypass', '', false)",
+            (str(int(empresa_id)), "" if ruta_id is None else str(int(ruta_id)))
+        )
+    conn.commit()
 
 def _install_tenant_rls(conn):
     """Migra columnas, repara asignaciones desde rutas y fuerza aislamiento en tablas operativas.
@@ -5589,16 +5582,7 @@ def seccion_balance_maestro():
             cursor.execute("SELECT valor FROM configuracion WHERE llave = 'caja_base' AND ruta_id = %s LIMIT 1", (rid,))
             res_caja = cursor.fetchone()
             caja_inicial_sistema = Decimal(str(dict(res_caja).get("valor") or "0.00")) if res_caja else Decimal("0.00")
-            try:
-                cursor.execute("SELECT * FROM historial_cierres WHERE ruta_id = %s ORDER BY id DESC LIMIT 1", (rid,))
-                row_uc = cursor.fetchone()
-                if row_uc:
-                    d_uc = dict(row_uc)
-                    val_uc = d_uc.get("entregado") or d_uc.get("efectivo_entregado") or d_uc.get("monto_entregado")
-                    if val_uc is not None:
-                        caja_inicial_sistema = Decimal(str(val_uc))
-            except Exception:
-                conn.rollback()
+
             caja_base = caja_inicial_sistema
 
             # 3. Reparar registros que quedaron con fecha='RealDictRo'
@@ -5612,7 +5596,8 @@ def seccion_balance_maestro():
 
             # 5. Movimientos de la jornada activa (exactamente igual que Avanta Dueño)
             cursor.execute("""
-                SELECT id, tipo, categoria, concepto, monto, fecha, comprobante
+                SELECT id, tipo, categoria, concepto, monto, fecha,
+                       CASE WHEN COALESCE(comprobante, '') <> '' THEN '1' ELSE '' END AS comprobante
                 FROM balance_movimientos
                 WHERE ruta_id = %s AND fecha = %s
                 ORDER BY id DESC
@@ -5645,24 +5630,6 @@ def seccion_balance_maestro():
         m_dict = dict(m)
         t_low = str(m_dict.get("tipo") or "").strip().lower()
         m_dict["tipo"] = "Entrada" if t_low in ("ingreso", "entrada", "inyeccion", "base", "abono") else "Salida"
-
-        comprobante_puro = ""
-        if m_dict.get("comprobante"):
-            try:
-                raw_comp = m_dict["comprobante"]
-                if isinstance(raw_comp, memoryview):
-                    raw_comp = raw_comp.tobytes()
-                if isinstance(raw_comp, bytes):
-                    try:
-                        raw_comp = raw_comp.decode('utf-8')
-                    except Exception:
-                        raw_comp = base64.b64encode(raw_comp).decode('utf-8')
-                comprobante_puro = str(raw_comp).replace("\n", "").replace("\r", "").strip()
-                if "base64," in comprobante_puro:
-                    comprobante_puro = comprobante_puro.split("base64,")[-1]
-            except Exception:
-                comprobante_puro = ""
-        m_dict["comprobante"] = comprobante_puro
         m_dict["monto"] = float(m_dict["monto"])
         movimientos_limpios.append(m_dict)
 
