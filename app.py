@@ -2613,14 +2613,14 @@ function navegarRuta(url) {
 function activarGpsNativo() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
-        if(document.getElementById('latitud_input')) {
-            document.getElementById('latitud_input').value = position.coords.latitude;
-            document.getElementById('longitud_input').value = position.coords.longitude;
-        }
+            if (document.getElementById('latitud_input')) {
+                document.getElementById('latitud_input').value = position.coords.latitude;
+                document.getElementById('longitud_input').value = position.coords.longitude;
             }
         });
     }
 }
+
 function verFichaCliente(id) {
     fetch('/api/cliente_info/' + id)
         .then(res => res.json())
