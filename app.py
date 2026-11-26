@@ -7,7 +7,7 @@ from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 from flask import Flask, jsonify, redirect, render_template_string, request, session, send_file, g
 import psycopg2
-from psycopg2.extras import DictCursor
+from psycopg2.extras import DictCursor, execute_values
 from psycopg2.pool import SimpleConnectionPool
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -1260,7 +1260,6 @@ CONTENIDO_HTML = """
 
 {% elif vista == 'pagos_hoy' %}
 <!-- 🛡️ FUERZA EL CREADO DE ICONOS: Asegura que FontAwesome se cargue en la vista inyectada -->
-    <link rel="stylesheet" href="https://cloudflare.com">
     <div class="section-header-title"><i class="fa-solid fa-money-bill-trend-up"></i> GESTIÓN DE COBROS DE HOY</div>
 
     <!-- 🟢 SECCIÓN DE ABONOS REALIZADOS (ESTILO TRYCONTROLLER CON BARRA VERDE) -->
@@ -1900,8 +1899,6 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <title>AVANTA PAGOS v1.3</title>
     <!-- 🌐 FIJADO: Enlaces CDN oficiales para renderizar la tipografía y los iconos vectoriales de la captura -->
-    <link href="https://googleapis.com" rel="stylesheet">
-    <link rel="stylesheet" href="https://cloudflare.com" crossorigin="anonymous">
     <style>
         * { box-sizing: border-box; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
         body { background: #f8fafc; color: #0f172a; padding-bottom: 60px; }
@@ -2605,9 +2602,10 @@ function navegarRuta(url) {
 function activarGpsNativo() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
-            if(document.getElementById('input_latitud')) {
-                document.getElementById('input_latitud').value = position.coords.latitude;
-                document.getElementById('input_longitud').value = position.coords.longitude;
+        if(document.getElementById('latitud_input')) {
+            document.getElementById('latitud_input').value = position.coords.latitude;
+            document.getElementById('longitud_input').value = position.coords.longitude;
+        }
             }
         });
     }
@@ -3086,11 +3084,6 @@ function obtenerCoordenadasGPS() {
             document.getElementById('longitud_input').value = lon;
             
             statusText.innerHTML = `✅ Ubicación fijada: <b>${lat.toFixed(5)}, ${lon.toFixed(5)}</b>`;
-            
-        // CÓDIGO CORREGIDO:
-        // Detecta si es un dispositivo móvil para usar el intent nativo, si no, usa el enlace web
-        const urlMaps = esMovil ? `geo:${lat},${lon}?q=${lat},${lon}(Ubicación+Cliente)` : `https://google.com/maps?q=${lat},${lon}`;
-        window.location.href = urlMaps;
         },
         function (error) {
             statusText.innerText = "❌ No se pudo capturar el GPS.";
@@ -3699,10 +3692,12 @@ async function compartirTicketAvanta() {
                     title: 'Comprobante AVANTA PAGOS'
                 });
                 return;
-            } catch (err) {}
+            } catch (err) {
+                if (err && err.name === 'AbortError') return;
+            }
         }
 
-        // Respaldo si el navegador no soporta compartir archivos: descargar imagen y abrir chat del cliente
+        // Respaldo si el navegador no soporta compartir archivos: descarga la imagen PNG y abre el chat
         const urlDescarga = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = urlDescarga;
@@ -3710,9 +3705,21 @@ async function compartirTicketAvanta() {
         a.click();
         URL.revokeObjectURL(urlDescarga);
 
-        if (telLimpio.length >= 9) {
-            const numWa = telLimpio.startsWith('593') ? telLimpio : '593' + telLimpio.replace(/^0/, '');
-            window.open(`https://wa.me{numWa}`, '_blank');
+        if (telLimpio.length >= 8) {
+            const prefijosPorTz = {
+                'America/Guayaquil': '593', 'America/Bogota': '57', 'America/Lima': '51',
+                'America/Mexico_City': '52', 'America/Monterrey': '52', 'America/Tijuana': '52',
+                'America/Santiago': '56', 'America/Argentina/Buenos_Aires': '54',
+                'America/La_Paz': '591', 'America/Asuncion': '595', 'America/Montevideo': '598',
+                'America/Caracas': '58', 'America/Santo_Domingo': '1', 'America/Guatemala': '502',
+                'America/Tegucigalpa': '504', 'America/Managua': '505', 'America/Costa_Rica': '506',
+                'America/Panama': '507', 'America/El_Salvador': '503', 'America/Sao_Paulo': '55',
+                'Europe/Madrid': '34', 'Europe/London': '44'
+            };
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+            const prefijo = prefijosPorTz[tz] || '';
+            const numWa = (prefijo && telLimpio.startsWith('0')) ? (prefijo + telLimpio.slice(1)) : telLimpio;
+            window.open(`https://wa.me/${numWa}`, '_blank');
         }
     }, 'image/png');
 }
@@ -4248,7 +4255,7 @@ document.addEventListener('click', function() {
 });
 window.addEventListener('load', function() {
     reportarUbicacionCobrador();
-    setInterval(reportarUbicacionCobrador, 30000);
+    setInterval(reportarUbicacionCobrador, 60000);
 });
 
 </script>
@@ -4376,16 +4383,21 @@ def dashboard_principal():
         
     rid = int(session.get("ruta_id") or 1)
 
-    # VALIDACIÓN INTEGRAL DE JORNADA CONTROLADA POR EL DUEÑO
     conn_val = get_db()
+    turno_id_real = ahora_local().date().isoformat()
+    val_caja = "0"
     try:
-        with conn_val.cursor() as cur_val:
-            cur_val.execute("SELECT valor FROM configuracion WHERE llave = 'caja_autorizada' AND ruta_id = %s", (rid,))
-            res_status = cur_val.fetchone()
+        with conn_val.cursor() as cur_cfg:
+            cur_cfg.execute(
+                "SELECT llave, valor FROM configuracion WHERE llave IN ('caja_autorizada', 'fecha_jornada_activa') AND ruta_id = %s",
+                (rid,)
+            )
+            cfg_dash = {str(dict(r).get("llave")): str(dict(r).get("valor") or "").strip() for r in cur_cfg.fetchall()}
+        val_caja = cfg_dash.get("caja_autorizada", "0") or "0"
+        if cfg_dash.get("fecha_jornada_activa"):
+            turno_id_real = cfg_dash["fecha_jornada_activa"]
 
-            val_caja = str(dict(res_status).get("valor") or "0").strip() if res_status else "0"
-
-        if val_caja == "0" or val_caja == 0:
+        if val_caja == "0":
             return """
                 <div style="text-align:center; padding:50px; font-family:sans-serif; background:#0f172a; color:white; min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
                     <h1 style="color:#ef4444; font-size:32px; margin-bottom:10px;">⚠️ Jornada No Autorizada</h1>
@@ -4396,28 +4408,15 @@ def dashboard_principal():
             """, 403
     except Exception as e:
         print(f"Error en validación de jornada: {e}")
-    finally:
-        pass
 
-    # CONTROL MAESTRO: Lee la jornada activa real congelada desde Neon para esta ruta
-    turno_id_real = date.today().isoformat()
-    if conn_val:
-        cursor_j = conn_val.cursor()
-        cursor_j.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
-        row_j = cursor_j.fetchone()
-        cursor_j.close()
-        if row_j and dict(row_j).get("valor"):
-            turno_id_real = str(dict(row_j)["valor"]).strip()
-
-    fecha_hoy_real = turno_id_real[:10] if turno_id_real else date.today().isoformat()
+    fecha_hoy_real = turno_id_real[:10] if turno_id_real else ahora_local().date().isoformat()
     turno_id = turno_id_real or fecha_hoy_real
     hoy_str = fecha_hoy_real
     inicio_turno_ts = f"{turno_id_real[:10]} {turno_id_real[11:13]}:{turno_id_real[13:15]}:{turno_id_real[15:17]}" if len(str(turno_id_real)) >= 17 and "_" in str(turno_id_real) else f"{fecha_hoy_real} 00:00:00"
 
-    # FECHA EN TIEMPO REAL: Formateo en español para el badge superior
     meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-    ahora = datetime.now()
+    ahora = ahora_local()
     fecha_legible = f"{dias_semana[ahora.weekday()]}, {ahora.day:02d} de {meses[ahora.month - 1]} de {ahora.year}"
 
     try:
@@ -5717,13 +5716,13 @@ def guardar_nuevo_cliente():
     latitud = request.form.get("latitud", "")
     longitud = request.form.get("longitud", "")
     
-    fecha_inicio_str = request.form.get("fecha_inicio", date.today().isoformat())
+    fecha_inicio_str = request.form.get("fecha_inicio", ahora_local().date().isoformat())
     try:
         fecha_inicio_dt = datetime.strptime(fecha_inicio_str, "%Y-%m-%d").date()
     except ValueError:
-        fecha_inicio_dt = date.today()
-    if fecha_inicio_dt <= date.today():
-        fecha_inicio_dt = date.today() + timedelta(days=1)
+        fecha_inicio_dt = ahora_local().date()
+    if fecha_inicio_dt <= ahora_local().date():
+        fecha_inicio_dt = ahora_local().date() + timedelta(days=1)
 
     monto_interes = monto * (interes_porcentaje / Decimal("100"))
     monto_total = monto + monto_interes
@@ -5749,7 +5748,7 @@ def guardar_nuevo_cliente():
             rid = int(session.get("ruta_id") or 1)
             cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
             row_fja = cursor.fetchone()
-            turno_balance_cred = str(dict(row_fja).get("valor") if row_fja else date.today().isoformat()).strip()
+            turno_balance_cred = str(dict(row_fja).get("valor") if row_fja else ahora_local().date().isoformat()).strip()
 
             # 🛡️ 1. Inserción limpia del microseguro en el turno activo
             if microseguro_valor > 0:
@@ -5785,9 +5784,6 @@ def guardar_nuevo_cliente():
             else:
                 # Si viene como tupla/lista tradicional
                 max_orden = int(res_orden[0]) if res_orden and res_orden[0] is not None else 0
-
-            cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS foto_cedula_frente TEXT")
-            cursor.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS foto_cedula_reverso TEXT")
 
             try:
                 fecha_vencimiento_dt = calcular_fecha(fecha_inicio_dt, cuotas - 1, frecuencia)
@@ -5842,27 +5838,25 @@ def guardar_nuevo_cliente():
             if cliente_id_renovacion and cliente_id_renovacion.isdigit(): cursor.execute("DELETE FROM pagos WHERE cliente_id = %s", (cliente_id,))
             # Tablas de amortización protegidas contra desfases de bucle semanales
             if cliente_id:
+                filas_pagos = []
                 acumulado = Decimal("0.00")
                 for num in range(1, cuotas + 1):
                     if num == cuotas:
                         valor_cuota_real = monto_total - acumulado
                     else:
                         valor_cuota_real = valor_cuota
-                        
                     acumulado += valor_cuota_real
-                    
                     try:
                         f_cuota = calcular_fecha(fecha_inicio_dt, num - 1, frecuencia)
                     except Exception:
                         f_cuota = fecha_inicio_dt + timedelta(days=(num - 1) * 7 if frecuencia == "Semanal" else (num - 1))
-                        
-                    cursor.execute(
-                        """
-                        INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real, ruta_id)
-                        VALUES (%s, %s, %s, %s, 0, 0, '', %s)
-                        """,
-                        (cliente_id, num, f_cuota.isoformat(), valor_cuota_real, rid)
-                    )
+                    filas_pagos.append((cliente_id, num, f_cuota.isoformat(), valor_cuota_real, 0, 0, '', rid))
+
+                execute_values(
+                    cursor,
+                    "INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real, ruta_id) VALUES %s",
+                    filas_pagos
+                )
                     
         conn.commit()
         return jsonify({
@@ -7658,25 +7652,25 @@ def api_editar_credito_hoy():
 
             cursor.execute("DELETE FROM pagos WHERE cliente_id = %s", (cli_id,))
             acumulado = Decimal("0.00")
+            filas_pagos_edit = []
+            acumulado = Decimal("0.00")
             for num in range(1, cuotas + 1):
                 if num == cuotas:
                     valor_cuota_real = monto_total - acumulado
                 else:
                     valor_cuota_real = valor_cuota
                 acumulado += valor_cuota_real
-
                 try:
                     f_cuota = calcular_fecha(fecha_ini_dt, num - 1, frecuencia)
                 except Exception:
                     f_cuota = fecha_ini_dt + timedelta(days=(num - 1) * 7 if frecuencia == "Semanal" else (num - 1))
+                filas_pagos_edit.append((cli_id, num, f_cuota.isoformat(), valor_cuota_real, 0, 0, '', rid_edit))
 
-                cursor.execute(
-                    """
-                    INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real)
-                    VALUES (%s, %s, %s, %s, 0, 0, '')
-                    """,
-                    (cli_id, num, f_cuota.isoformat(), valor_cuota_real)
-                )
+            execute_values(
+                cursor,
+                "INSERT INTO pagos (cliente_id, numero, fecha, valor, pagado, valor_pagado, fecha_pago_real, ruta_id) VALUES %s",
+                filas_pagos_edit
+            )
 
             nombre_final = nombre_limpio if nombre_limpio else nombre_anterior
             if mov_id > 0:
