@@ -324,20 +324,31 @@ def avanta_cobrador_request_context():
         if rid <= 0 or emp_id <= 0:
             session.clear()
             return redirect("/login")
-        conn = get_db()
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT r.id, r.estado, COALESCE(e.estado, 'Suspendida') AS empresa_estado
-                  FROM rutas r LEFT JOIN empresas e ON e.id = COALESCE(r.empresa_id, 1)
-                 WHERE r.id = %s AND COALESCE(r.empresa_id, 1) = %s
-            """, (rid, emp_id))
-            row = cur.fetchone()
-            if not row or str(row["estado"] or "").lower() != "activa" or str(row["empresa_estado"] or "").lower() != "activa":
-                session.clear()
-                return redirect("/login")
-            _set_tenant_context(conn, emp_id, rid)
-    return None
 
+        for intento in range(2):
+            conn = get_db()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT r.id, r.estado, COALESCE(e.estado, 'Suspendida') AS empresa_estado
+                          FROM rutas r LEFT JOIN empresas e ON e.id = COALESCE(r.empresa_id, 1)
+                         WHERE r.id = %s AND COALESCE(r.empresa_id, 1) = %s
+                    """, (rid, emp_id))
+                    row = cur.fetchone()
+                if not row or str(row["estado"] or "").lower() != "activa" or str(row["empresa_estado"] or "").lower() != "activa":
+                    session.clear()
+                    return redirect("/login")
+                _set_tenant_context(conn, emp_id, rid)
+                break
+            except psycopg2.OperationalError:
+                try:
+                    g.pop("db_conn", None)
+                    db_pool.putconn(conn, close=True)
+                except Exception:
+                    pass
+                if intento == 1:
+                    raise
+    return None
 
 def init_db():
     conn = get_db()
