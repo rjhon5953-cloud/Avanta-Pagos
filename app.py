@@ -7640,7 +7640,8 @@ def api_editar_credito_hoy():
                 fecha_ini_dt = val_ini if isinstance(val_ini, date) else date.fromisoformat(str(val_ini)[:10])
             else:
                 nombre_anterior = nombre_limpio
-                fecha_ini_dt = date.today()
+                fecha_ini_dt = ahora_local().date()
+
 
             cursor.execute("""
                 UPDATE clientes
@@ -7687,7 +7688,7 @@ def api_editar_credito_hoy():
             rid = int(session.get("ruta_id") or 1)
             cursor.execute("SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s", (rid,))
             row_t = cursor.fetchone()
-            turno_act = str(row_t["valor"] if isinstance(row_t, dict) else row_t) if row_t else date.today().isoformat()
+            turno_act = str(dict(row_t).get("valor") or "").strip() if row_t else ahora_local().date().isoformat()
 
             cursor.execute(
                 """
@@ -7698,7 +7699,7 @@ def api_editar_credito_hoy():
             )
             row_ms = cursor.fetchone()
             if row_ms:
-                ms_id = row_ms["id"] if isinstance(row_ms, dict) else row_ms
+                ms_id = int(dict(row_ms)["id"])
                 if microseguro > 0:
                     cursor.execute(
                         "UPDATE balance_movimientos SET monto = %s, concepto = %s WHERE id = %s",
