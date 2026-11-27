@@ -3475,15 +3475,22 @@ async function enviarCreditoAsincrono(event) {
         }
 
         if (resp.ok && (res.status === 'ok' || res.success)) {
-            if (res.ticket && typeof mostrarTicketAvanta === 'function') {
-                mostrarTicketAvanta(res.ticket);
-            } else {
-                const modalOk = document.getElementById('modalCreditoOk');
-                if (modalOk) {
-                    modalOk.style.display = 'flex';
+            try {
+                if (res.ticket && typeof mostrarTicketAvanta === 'function') {
+                    mostrarTicketAvanta(res.ticket);
                 } else {
-                    window.location.href = '/';
+                    const modalOk = document.getElementById('modalCreditoOk');
+                    if (modalOk) {
+                        modalOk.style.display = 'flex';
+                    } else {
+                        window.location.href = '/';
+                    }
                 }
+            } catch (uiErr) {
+                console.warn('Error al mostrar ticket/modal tras guardar crédito:', uiErr);
+                window.location.href = '/';
+            }
+        }
             }
         } else {
             mostrarAvisoAvanta('Registro de Crédito', res.mensaje || res.message || 'No se pudo registrar el crédito.', 'error');
@@ -3513,66 +3520,87 @@ function mostrarTicketAvanta(tk) {
     const esPago = (tk.tipo === 'pago');
     const esRenov = (tk.tipo_operacion || '').includes('RENOVACIÓN');
 
-    document.getElementById('tkBarraTitulo').innerText = esPago
+    const setTexto = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    };
+    const setDisplayPadre = (id, disp) => {
+        const el = document.getElementById(id);
+        if (el && el.parentElement) el.parentElement.style.display = disp;
+    };
+
+    setTexto('tkBarraTitulo', esPago
         ? 'Comprobante de Pago'
-        : (esRenov ? 'Comprobante de Renovación' : 'Comprobante de Crédito');
-    document.getElementById('tkTipoOperacion').innerText = tk.tipo_operacion || (esPago ? 'COMPROBANTE OFICIAL DE PAGO' : 'COMPROBANTE DE CRÉDITO');
-    document.getElementById('tkCliente').innerText = tk.cliente || '-';
-    document.getElementById('tkCedula').innerText = tk.identificacion || 'N/A';
-    document.getElementById('tkTelefono').innerText = tk.telefono || 'N/A';
-    document.getElementById('tkDireccion').innerText = tk.direccion || 'N/A';
+        : (esRenov ? 'Comprobante de Renovación' : 'Comprobante de Crédito'));
+    setTexto('tkTipoOperacion', tk.tipo_operacion || (esPago ? 'COMPROBANTE OFICIAL DE PAGO' : 'COMPROBANTE DE CRÉDITO'));
+    setTexto('tkCliente', tk.cliente || '-');
+    setTexto('tkCedula', tk.identificacion || 'N/A');
+    setTexto('tkTelefono', tk.telefono || 'N/A');
+    setTexto('tkDireccion', tk.direccion || 'N/A');
 
     const rowRef = document.getElementById('tkRowRef');
-    if (tk.referencia && tk.referencia.trim() !== '') {
-        rowRef.innerText = 'Ref/Local: ' + tk.referencia.trim();
-        rowRef.style.display = 'block';
-    } else {
-        rowRef.style.display = 'none';
+    if (rowRef) {
+        if (tk.referencia && tk.referencia.trim() !== '') {
+            rowRef.innerText = 'Ref/Local: ' + tk.referencia.trim();
+            rowRef.style.display = 'block';
+        } else {
+            rowRef.style.display = 'none';
+        }
     }
 
-    const bloqueCond = document.getElementById('tkCodigo').parentElement.parentElement;
-    const bloqueSaldo = document.getElementById('tkSaldo').parentElement.parentElement;
+    const elCodigo = document.getElementById('tkCodigo');
+    const elSaldo = document.getElementById('tkSaldo');
+    const bloqueCond = elCodigo && elCodigo.parentElement ? elCodigo.parentElement.parentElement : null;
+    const bloqueSaldo = elSaldo && elSaldo.parentElement ? elSaldo.parentElement.parentElement : null;
 
     if (esPago) {
-        const rowRef = document.getElementById('tkRowRef');
         if (rowRef) rowRef.style.display = 'none';
-        document.getElementById('tkCedula').parentElement.style.display = 'none';
-        document.getElementById('tkDireccion').parentElement.style.display = 'none';
-        document.getElementById('tkTelefono').parentElement.innerHTML = '<b>WhatsApp:</b> <span>' + (tk.telefono || 'N/A') + '</span>';
-
-        bloqueCond.innerHTML = `
-            <div><b>Fecha de Pago:</b> <span>${tk.fecha_pago || '-'}</span></div>
-            <div style="font-size:15px; color:#16a34a; margin-top:4px;"><b>Monto Cobrado: $${tk.monto_cobrado || '0.00'}</b></div>
-            <div><b>Cuota Procesada:</b> #<span>${tk.cuota_procesada || '1'}</span></div>
-            <div style="font-size:16px; color:#0f172a; margin-top:3px;"><b>Saldo Restante: $${tk.saldo_restante || '0.00'}</b></div>
-        `;
-
+        setDisplayPadre('tkCedula', 'none');
+        setDisplayPadre('tkDireccion', 'none');
+        const elTel = document.getElementById('tkTelefono');
+        if (elTel && elTel.parentElement) {
+            elTel.parentElement.innerHTML = '<b>WhatsApp:</b> <span>' + (tk.telefono || 'N/A') + '</span>';
+        }
+        if (bloqueCond) {
+            bloqueCond.innerHTML = `
+                <div><b>Fecha de Pago:</b> <span>${tk.fecha_pago || '-'}</span></div>
+                <div style="font-size:15px; color:#16a34a; margin-top:4px;"><b>Monto Cobrado:</b> $${tk.monto_cobrado || '0.00'}</div>
+                <div><b>Cuota Procesada:</b> <span>${tk.cuota_procesada || '1'}</span></div>
+                <div style="font-size:16px; color:#0f172a; margin-top:3px;"><b>Saldo Restante:</b> $${tk.saldo_restante || '0.00'}</div>
+            `;
+        }
         const colorAlerta = tk.tipo_alerta === 'mora' ? '#dc2626' : (tk.tipo_alerta === 'adelanto' ? '#0284c7' : '#16a34a');
-        bloqueSaldo.innerHTML = `
-            <div style="font-size:13.5px; font-weight:900; color:${colorAlerta}; line-height:1.35;">${tk.titulo_estado || '¡Gracias por su puntualidad y pago!'}</div>
-            <div style="font-size:11.5px; font-weight:700; color:#475569; margin-top:4px; line-height:1.35;">${tk.subtitulo_estado || ''}</div>
-        `;
-        document.getElementById('tkFechaEmision').innerText = tk.pie_sistema || 'Sistema de Gestión de Cobros Avanta';
+        if (bloqueSaldo) {
+            bloqueSaldo.innerHTML = `
+                <div style="font-size:13.5px; font-weight:900; color:${colorAlerta}; line-height:1.35;">${tk.titulo_estado || 'Gracias por su puntualidad y pago!'}</div>
+                <div style="font-size:11.5px; font-weight:700; color:#475569; margin-top:4px; line-height:1.35;">${tk.subtitulo_estado || ''}</div>
+            `;
+        }
+        setTexto('tkFechaEmision', tk.pie_sistema || 'Sistema de Gestión de Cobros Avanta');
     } else {
         const unidadPlazo = (tk.frecuencia === 'Semanal') ? 'Semanas' : 'Días';
-        bloqueCond.innerHTML = `
-            <div><b>Cód. Crédito:</b> <span id="tkCodigo">${tk.codigo || '000000'}</span></div>
-            <div><b>Modalidad:</b> <span id="tkFrecuencia">${tk.frecuencia || 'Diaria'}</span></div>
-            <div><b>Fecha entrega:</b> <span id="tkFechaInicio">${tk.fecha_inicio || '-'}</span></div>
-            <div><b>Capital entregado:</b> $<span id="tkCapital">${tk.monto_capital || '0.00'}</span></div>
-            <div><b>Total a pagar:</b> $<span id="tkTotal">${tk.monto_total || '0.00'}</span></div>
-            <div><b>Valor cuota:</b> $<span id="tkCuota">${tk.valor_cuota || '0.00'}</span></div>
-            <div><b>Plazo:</b> <span id="tkPlazo">${(tk.cuotas || 0) + ' ' + unidadPlazo}</span></div>
-        `;
-        bloqueSaldo.innerHTML = `
-            <div style="font-size:19px; font-weight:900; color:#0f172a;">Saldo actual: $<span id="tkSaldo">${tk.monto_total || '0.00'}</span></div>
-            <div style="font-size:12.5px; font-weight:700; color:#334155; margin-top:3px;">Vence: <span id="tkVence">${tk.fecha_vencimiento || '-'}</span></div>
-            <div style="font-size:12px; font-weight:800; color:#16a34a; margin-top:2px;">Estado: Al día</div>
-        `;
+        if (bloqueCond) {
+            bloqueCond.innerHTML = `
+                <div><b>Cód. Crédito:</b> <span id="tkCodigo">${tk.codigo || '000000'}</span></div>
+                <div><b>Modalidad:</b> <span id="tkFrecuencia">${tk.frecuencia || 'Diaria'}</span></div>
+                <div><b>Fecha entrega:</b> <span id="tkFechaInicio">${tk.fecha_inicio || '-'}</span></div>
+                <div><b>Capital entregado:</b> $<span id="tkCapital">${tk.monto_capital || '0.00'}</span></div>
+                <div><b>Total a pagar:</b> $<span id="tkTotal">${tk.monto_total || '0.00'}</span></div>
+                <div><b>Valor cuota:</b> $<span id="tkCuota">${tk.valor_cuota || '0.00'}</span></div>
+                <div><b>Plazo:</b> <span id="tkPlazo">${(tk.cuotas || 0) + ' ' + unidadPlazo}</span></div>
+            `;
+        }
+        if (bloqueSaldo) {
+            bloqueSaldo.innerHTML = `
+                <div style="font-size:19px; font-weight:900; color:#0f172a;">Saldo actual: $<span id="tkSaldo">${tk.monto_total || '0.00'}</span></div>
+                <div style="font-size:12.5px; font-weight:700; color:#334155; margin-top:3px;">Vence: <span id="tkVence">${tk.fecha_vencimiento || '-'}</span></div>
+                <div style="font-size:12px; font-weight:800; color:#16a34a; margin-top:2px;">Estado: Al día</div>
+            `;
+        }
     }
 
     const ahora = new Date();
-    document.getElementById('tkFechaEmision').innerText = 'Emitido: ' + ahora.toLocaleDateString('es-EC') + ' ' + ahora.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
+    setTexto('tkFechaEmision', 'Emitido: ' + ahora.toLocaleDateString('es-EC') + ' ' + ahora.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }));
     modal.style.display = 'flex';
 }
 
