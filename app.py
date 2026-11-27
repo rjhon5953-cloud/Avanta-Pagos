@@ -2647,6 +2647,7 @@ function navegarRuta(url) {
         .then(html => {
             bar.style.width = '100%';
             mc.innerHTML = html;
+            if (url === '/' && typeof aplicarFiltrosDashboard === 'function') aplicarFiltrosDashboard();
             window.scrollTo({ top: 0, behavior: 'instant' });
             if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
             setTimeout(() => { bar.style.opacity = '0'; bar.style.width = '0%'; }, 180);
@@ -4035,11 +4036,12 @@ function aplicarFiltrosDashboard() {
             let visibles = 0;
 
             cards.forEach(card => {
-                const nombre = card.getAttribute('data-nombre') || '';
+                const nombre = (card.getAttribute('data-nombre') || '').toLowerCase();
+                const cedula = (card.getAttribute('data-cedula') || '').toLowerCase();
                 const estado = card.getAttribute('data-estado') || 'pendiente';
                 const freq = card.getAttribute('data-frecuencia') || 'diario';
 
-                const matchTexto = nombre.includes(q);
+                const matchTexto = nombre.includes(q) || cedula.includes(q);
                 const matchEstado = (estado === 'pendiente' && showPend) || 
                                     (estado === 'pago' && showPagos) || 
                                     (estado === 'no_pago' && showNoPagos);
@@ -4419,6 +4421,7 @@ document.addEventListener('click', function() {
 window.addEventListener('load', function() {
     reportarUbicacionCobrador();
     setInterval(reportarUbicacionCobrador, 60000);
+    if (document.getElementById('chkPendientes')) aplicarFiltrosDashboard();
 });
 
 </script>
@@ -4586,13 +4589,12 @@ def dashboard_principal():
         with conn_val.cursor() as cursor:
             # 1. Suma real en dólares del recaudo asentado en el turno activo
             cursor.execute("""
-                SELECT COALESCE(SUM(p.valor_pagado), 0) AS total
-                FROM pagos p
-                JOIN clientes c ON p.cliente_id = c.id
-                WHERE c.ruta_id = %s
-                  AND COALESCE(p.valor_pagado, 0) > 0
-                  AND LEFT(COALESCE(p.fecha_pago_real::text, ''), 19) >= %s
-            """, (rid, inicio_turno_ts))
+                SELECT COALESCE(SUM(monto), 0) AS total
+                FROM balance_movimientos
+                WHERE ruta_id = %s
+                  AND categoria = 'Cobranza'
+                  AND fecha = %s
+            """, (rid, turno_id_real))
             recaudo_hoy = Decimal(str(cursor.fetchone()["total"]))
 
             # 2. Conteo y detalle real de créditos otorgados en la jornada activa
@@ -5399,49 +5401,12 @@ def dashboard_principal():
     <div id="msgSinResultados" style="display:none; text-align:center; padding:40px 20px; color:#64748b; font-size:14px; font-weight:600;">
         No hay recaudos disponibles con los filtros seleccionados
     </div>
-    <script>
-        function aplicarFiltrosDashboard() {
-            const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
-            const showPend = document.getElementById('chkPendientes').checked;
-            const showPagos = document.getElementById('chkPagos').checked;
-            const showNoPagos = document.getElementById('chkNoPagos').checked;
-            const fDiario = document.getElementById('chkDiario').checked;
-            const fSemanal = document.getElementById('chkSemanal').checked;
-            const filterByFreq = fDiario || fSemanal;
-
-            const cards = document.querySelectorAll('.cliente-card-premium');
-            let visibles = 0;
-
-            cards.forEach(card => {
-                const nombre = card.getAttribute('data-nombre') || '';
-                const estado = card.getAttribute('data-estado') || 'pendiente';
-                const freq = card.getAttribute('data-frecuencia') || 'diario';
-
-                const matchTexto = nombre.includes(q);
-                const matchEstado = (estado === 'pendiente' && showPend) || 
-                                    (estado === 'pago' && showPagos) || 
-                                    (estado === 'no_pago' && showNoPagos);
-                const matchFreq = !filterByFreq || (freq === 'diario' && fDiario) || (freq === 'semanal' && fSemanal);
-
-                if (matchTexto && matchEstado && matchFreq) {
-                    card.style.display = '';
-                    visibles++;
-                } else {
-                    card.style.setProperty('display', 'none', 'important');
-                }
-            });
-
-            document.getElementById('msgSinResultados').style.display = visibles === 0 ? 'block' : 'none';
-        }
-        aplicarFiltrosDashboard();
-    </script>
     """
     
     # 🎯 Inyectamos el bloque procesado y controlamos el formato nativo para celulares
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return render_template_string(contexto_dash)
-    return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(contexto_dash))
-
+        return contexto_dash
+    return render_template_string(HTML_TEMPLATE, contenido_html=contexto_dash)
 
 @app.route("/menu/clientes")
 def seccion_clientes_maestro():
