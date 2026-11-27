@@ -4601,9 +4601,9 @@ def dashboard_principal():
             """, (rid, f"{fecha_hoy_real}%", inicio_turno_ts, hoy_str, hoy_str, f"{fecha_hoy_real}%"))
             clientes_crudos = cursor.fetchall()
 
-            # Consultamos los abonos reales asentados hoy o en el turno activo (incluye parciales)
+            # Consultamos los IDs de cuotas tocadas en el turno activo
             cursor.execute("""
-                SELECT p.id AS pago_id, p.cliente_id, p.valor_pagado
+                SELECT p.id AS pago_id, p.cliente_id
                 FROM pagos p
                 JOIN clientes c ON p.cliente_id = c.id
                 WHERE c.ruta_id = %s
@@ -4615,10 +4615,27 @@ def dashboard_principal():
             mapa_pagos_hoy = defaultdict(lambda: {"monto": Decimal("0.00"), "ids": []})
             for ab in abonos_turno_rows:
                 cid_h = int(ab["cliente_id"])
-                m_ab = Decimal(str(ab["valor_pagado"]))
-                pid_h = str(ab["pago_id"])
-                mapa_pagos_hoy[cid_h]["monto"] += m_ab
-                mapa_pagos_hoy[cid_h]["ids"].append(pid_h)
+                mapa_pagos_hoy[cid_h]["ids"].append(str(ab["pago_id"]))
+
+            # Consultamos el monto EXACTO cobrado hoy desde balance_movimientos (evita sumar parciales de días anteriores)
+            cursor.execute("""
+                SELECT concepto, monto
+                FROM balance_movimientos
+                WHERE ruta_id = %s
+                  AND categoria = 'Cobranza'
+                  AND fecha = COALESCE(
+                      (SELECT valor FROM configuracion WHERE llave = 'fecha_jornada_activa' AND ruta_id = %s LIMIT 1),
+                      %s
+                  )
+            """, (rid, rid, hoy_str))
+            for bm in cursor.fetchall():
+                conc = str(bm.get("concepto") or "")
+                if "(ID:" in conc:
+                    try:
+                        cid_b = int(conc.split("(ID:")[1].split(")")[0])
+                        mapa_pagos_hoy[cid_b]["monto"] += Decimal(str(bm.get("monto") or "0.00"))
+                    except Exception:
+                        pass
 
             # Reconstruimos la estructura exacta dentro del mismo bloque del cursor
             clientes_ruta = []
@@ -7481,29 +7498,74 @@ def api_revertir_gestion(tipo, id_str):
     try:
         with conn.cursor() as cursor:
             if tipo == "pago":
+                rid = int(session.get("ruta_id") or 0)
                 pago_ids = [int(x) for x in id_str.split(",") if x.strip()]
                 cliente_afectado = None
-                for p_id in pago_ids:
+
+                if pago_ids:
                     cursor.execute(
-                        "UPDATE pagos SET pagado = 0, valor_pagado = 0.00, fecha_pago_real = '' WHERE id = %s AND ruta_id = %s RETURNING cliente_id",
-                        (p_id, int(session.get("ruta_id") or 0))
+                        "SELECT cliente_id FROM pagos WHERE id = ANY(%s) AND ruta_id = %s LIMIT 1",
+                        (pago_ids, rid)
                     )
-                    res = cursor.fetchone()
-                    if res:
-                        cliente_afectado = res["cliente_id"] if isinstance(res, dict) else res[0]
-                        cursor.execute("UPDATE clientes SET estado = 'Activo', fecha_gestion = '' WHERE id = %s AND ruta_id = %s", (cliente_afectado, int(session.get("ruta_id") or 0)))
-                
+                    res_cl = cursor.fetchone()
+                    if res_cl:
+                        cliente_afectado = res_cl["cliente_id"] if isinstance(res_cl, dict) else res_cl[0]
+
                 if cliente_afectado:
+                    # 1. Obtenemos y eliminamos el último abono registrado en el balance para saber el monto EXACTO a revertir
                     cursor.execute(
                         """
                         DELETE FROM balance_movimientos
                         WHERE id IN (
                             SELECT id FROM balance_movimientos
-                            WHERE tipo = 'Entrada' AND categoria = 'Cobranza' AND concepto LIKE %s
+                            WHERE ruta_id = %s AND tipo = 'Entrada' AND categoria = 'Cobranza' AND concepto LIKE %s
                             ORDER BY id DESC LIMIT 1
                         )
+                        RETURNING monto
                         """,
-                        (f"%(ID:{cliente_afectado})%",)
+                        (rid, f"%(ID:{cliente_afectado})%")
+                    )
+                    res_bm = cursor.fetchone()
+                    monto_a_revertir = Decimal(str((res_bm["monto"] if isinstance(res_bm, dict) else res_bm[0]) if res_bm else "0.00"))
+
+                    # 2. Restamos ese monto desde la última cuota tocada hacia atrás, protegiendo abonos de días anteriores
+                    cursor.execute(
+                        "SELECT id, valor_pagado FROM pagos WHERE id = ANY(%s) AND ruta_id = %s ORDER BY numero DESC",
+                        (pago_ids, rid)
+                    )
+                    cuotas_desc = cursor.fetchall()
+
+                    if monto_a_revertir > 0:
+                        restante = monto_a_revertir
+                        for c_row in cuotas_desc:
+                            if restante <= 0:
+                                break
+                            pid_c = c_row["id"] if isinstance(c_row, dict) else c_row[0]
+                            val_p = Decimal(str((c_row["valor_pagado"] if isinstance(c_row, dict) else c_row[1]) or "0.00"))
+                            if val_p <= restante:
+                                restante = round(restante - val_p, 2)
+                                cursor.execute(
+                                    "UPDATE pagos SET pagado = 0, valor_pagado = 0.00, fecha_pago_real = '' WHERE id = %s AND ruta_id = %s",
+                                    (pid_c, rid)
+                                )
+                            else:
+                                nuevo_val = round(val_p - restante, 2)
+                                restante = Decimal("0.00")
+                                cursor.execute(
+                                    "UPDATE pagos SET pagado = 0, valor_pagado = %s WHERE id = %s AND ruta_id = %s",
+                                    (nuevo_val, pid_c, rid)
+                                )
+                    else:
+                        for c_row in cuotas_desc:
+                            pid_c = c_row["id"] if isinstance(c_row, dict) else c_row[0]
+                            cursor.execute(
+                                "UPDATE pagos SET pagado = 0, valor_pagado = 0.00, fecha_pago_real = '' WHERE id = %s AND ruta_id = %s",
+                                (pid_c, rid)
+                            )
+
+                    cursor.execute(
+                        "UPDATE clientes SET estado = 'Activo', fecha_gestion = '' WHERE id = %s AND ruta_id = %s",
+                        (cliente_afectado, rid)
                     )
 
             elif tipo == "salto":
