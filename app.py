@@ -3506,7 +3506,7 @@ async function enviarCreditoAsincrono(event) {
             btn.innerText = txtOriginal;
         }
     }
-
+}
 
 let ultimoTicketAvantaData = null;
 
