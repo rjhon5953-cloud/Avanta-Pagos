@@ -765,7 +765,7 @@ CONTENIDO_HTML = """
                         </div>
                     <!-- 🛠️ Fila Inferior de Utilidades (Foto, Check de Cuota y Saldo) -->
                     <div class="fila-utilidades-premium">
-                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero if cuota_pendiente else 1 }}, {{ (cuota_pendiente.valor - cuota_pendiente.valor_pagado) if cuota_pendiente else 0 }}, {{ c.valor_cuota }}); mostrarAvisoAvanta('Comprobante', 'Adjunta el comprobante para la cuota de {{ c.nombre }}', 'info');
+                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero if cuota_pendiente else 1 }}, {{ (cuota_pendiente.valor - cuota_pendiente.valor_pagado) if cuota_pendiente else 0 }}, {{ c.valor_cuota }}); mostrarAvisoAvanta('Comprobante', 'Adjunta el comprobante para la cuota de {{ c.nombre }}', 'info');">
                             <i class="fa-solid fa-camera"></i>
                         </button>
                         <div class="circulo-check-cuota {% if c.saltado_hoy > 0 %}gestionado{% elif cuotas_pagadas > 0 %}gestionado-ok{% endif %}">
