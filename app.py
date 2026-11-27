@@ -2,6 +2,7 @@ import base64
 import os
 import hmac
 import urllib.parse
+import time
 from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
@@ -325,19 +326,25 @@ def avanta_cobrador_request_context():
             session.clear()
             return redirect("/login")
 
+        ahora_ts = time.time()
+        ultimo_check = float(session.get("_auth_check_ts") or 0)
+        necesita_validar = (ahora_ts - ultimo_check) > 60
+
         for intento in range(2):
             conn = get_db()
             try:
-                with conn.cursor() as cur:
-                    cur.execute("""
-                        SELECT r.id, r.estado, COALESCE(e.estado, 'Suspendida') AS empresa_estado
-                          FROM rutas r LEFT JOIN empresas e ON e.id = COALESCE(r.empresa_id, 1)
-                         WHERE r.id = %s AND COALESCE(r.empresa_id, 1) = %s
-                    """, (rid, emp_id))
-                    row = cur.fetchone()
-                if not row or str(row["estado"] or "").lower() != "activa" or str(row["empresa_estado"] or "").lower() != "activa":
-                    session.clear()
-                    return redirect("/login")
+                if necesita_validar:
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            SELECT r.id, r.estado, COALESCE(e.estado, 'Suspendida') AS empresa_estado
+                              FROM rutas r LEFT JOIN empresas e ON e.id = COALESCE(r.empresa_id, 1)
+                             WHERE r.id = %s AND COALESCE(r.empresa_id, 1) = %s
+                        """, (rid, emp_id))
+                        row = cur.fetchone()
+                    if not row or str(row["estado"] or "").lower() != "activa" or str(row["empresa_estado"] or "").lower() != "activa":
+                        session.clear()
+                        return redirect("/login")
+                    session["_auth_check_ts"] = ahora_ts
                 _set_tenant_context(conn, emp_id, rid)
                 break
             except psycopg2.OperationalError:
@@ -6688,7 +6695,7 @@ def api_marcar_pago(cliente_id, num_cuota):
     hoy_str = str(row_f["valor"]).split("_")[0] if (row_f and row_f["valor"]) else hoy_date.isoformat()
     monto_restante = monto_recaudado
     monto_efectivamente_aplicado = Decimal("0.00")
-    fecha_hora_pago = ahora_loc.strftime("%Y-%m-%d %H:%M")
+    fecha_hora_pago = ahora_loc.strftime("%Y-%m-%d %H:%M:%S")
     try:
         with conn.cursor() as cursor:
             # Bloqueo transaccional del cliente y validación de pertenencia a la ruta.
