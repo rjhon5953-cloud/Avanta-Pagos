@@ -3490,8 +3490,8 @@ async function enviarCreditoAsincrono(event) {
                 console.warn('Error al mostrar ticket/modal tras guardar crédito:', uiErr);
                 window.location.href = '/';
             }
-        }
 
+            }
         } else {
             mostrarAvisoAvanta('Registro de Crédito', res.mensaje || res.message || 'No se pudo registrar el crédito.', 'error');
             if (btn) {
