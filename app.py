@@ -3161,6 +3161,14 @@ function guardarGpsExpediente(clienteId, btn) {
     }, { enableHighAccuracy: true, timeout: 10000 });
 }
 
+function mostrarAvisoSaldoActivo(saldo) {
+    mostrarAvisoAvanta(
+        'Saldo Activo',
+        'Este cliente aún mantiene un saldo pendiente de $' + saldo + '. Debe liquidar su crédito actual antes de conceder uno nuevo.',
+        'alerta'
+    );
+}
+
 function obtenerCoordenadasGPS() {
     const statusText = document.getElementById('status_gps');
     
