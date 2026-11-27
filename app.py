@@ -5402,7 +5402,12 @@ def seccion_clientes_maestro():
                     ), 0) AS saldo_activo
                 FROM clientes c
                 WHERE c.ruta_id = %s
-                GROUP BY LOWER(TRIM(c.nombre))
+                GROUP BY CASE
+                    WHEN LENGTH(TRIM(COALESCE(c.identificacion, ''))) >= 8
+                     AND TRIM(c.identificacion) NOT IN ('0000000000', '1111111111', '1234567890')
+                    THEN TRIM(c.identificacion)
+                    ELSE LOWER(TRIM(c.nombre))
+                END
                 ORDER BY MAX(TRIM(c.nombre)) ASC
             """, (rid,))
             lista_unica = []
@@ -5478,7 +5483,13 @@ def perfil_cliente_detalle(cliente_id):
                            COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
                     FROM clientes c
                     WHERE c.ruta_id = %s
-                      AND (TRIM(COALESCE(c.identificacion, '')) = %s OR LOWER(TRIM(c.nombre)) = LOWER(%s))
+                        AND (
+                            TRIM(COALESCE(c.identificacion, '')) = %s
+                            OR (
+                                LOWER(TRIM(c.nombre)) = LOWER(%s)
+                                AND LENGTH(TRIM(COALESCE(c.identificacion, ''))) < 8
+                            )
+                        )
                     ORDER BY c.id DESC
                 """, (hoy_str, rid, cedula_cli, nombre_cli))
             else:
