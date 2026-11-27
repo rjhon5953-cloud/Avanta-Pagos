@@ -3491,7 +3491,7 @@ async function enviarCreditoAsincrono(event) {
                 window.location.href = '/';
             }
 
-            }
+
         } else {
             mostrarAvisoAvanta('Registro de Crédito', res.mensaje || res.message || 'No se pudo registrar el crédito.', 'error');
             if (btn) {
@@ -3506,7 +3506,7 @@ async function enviarCreditoAsincrono(event) {
             btn.innerText = txtOriginal;
         }
     }
-}
+
 
 let ultimoTicketAvantaData = null;
 
