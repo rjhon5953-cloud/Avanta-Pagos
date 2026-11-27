@@ -765,7 +765,7 @@ CONTENIDO_HTML = """
                         </div>
                     <!-- 🛠️ Fila Inferior de Utilidades (Foto, Check de Cuota y Saldo) -->
                     <div class="fila-utilidades-premium">
-                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero if cuota_pendiente else 1 }}, {{ (cuota_pendiente.valor - cuota_pendiente.valor_pagado) if cuota_pendiente else 0 }}, {{ c.valor_cuota }}); alert('📸 Adjunta el comprobante para la cuota de {{ c.nombre }}');">
+                        <button type="button" class="btn-utilidad-foto" onclick="abrirModalAbono({{ c.id }}, {{ cuota_pendiente.numero if cuota_pendiente else 1 }}, {{ (cuota_pendiente.valor - cuota_pendiente.valor_pagado) if cuota_pendiente else 0 }}, {{ c.valor_cuota }}); mostrarAvisoAvanta('Comprobante', 'Adjunta el comprobante para la cuota de {{ c.nombre }}', 'info');
                             <i class="fa-solid fa-camera"></i>
                         </button>
                         <div class="circulo-check-cuota {% if c.saltado_hoy > 0 %}gestionado{% elif cuotas_pagadas > 0 %}gestionado-ok{% endif %}">
@@ -1217,7 +1217,7 @@ CONTENIDO_HTML = """
                 </button>
                 {% set tiene_saldo_activo = (cred_activo and cred_activo.saldo > 0.01) %}
                 {% if tiene_saldo_activo %}
-                <button type="button" onclick="alert('No se puede conceder un nuevo crédito porque este cliente aún tiene un saldo pendiente de ${{ "%.2f"|format(cred_activo.saldo|float) }}.');"
+                <button type="button" onclick="mostrarAvisoSaldoActivo('{{ "%.2f"|format(cred_activo.saldo|float) }}')"
                         style="flex:1.35; padding:12px 10px; background:#cbd5e1; color:#475569; border:1.5px solid #94a3b8; border-radius:11px; font-weight:800; font-size:12.5px; cursor:not-allowed; display:flex; align-items:center; justify-content:center; gap:5px;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     Saldo Activo (${{ "%.2f"|format(cred_activo.saldo|float) }})
@@ -1373,7 +1373,7 @@ CONTENIDO_HTML = """
                     if (data.status === 'ok') {
                         navegarRuta('/menu/pagos_hoy');
                     } else {
-                        alert('⚠️ No se pudo revertir: ' + (data.message || 'Error en el servidor'));
+                        mostrarAvisoAvanta('Aviso', 'No se pudo revertir: ' + (data.message || 'Error en el servidor'), 'alerta');
                     }
                 })
                 .catch(err => console.error('Error:', err));
@@ -2623,7 +2623,7 @@ function postAccionAvanta(url, destino, mensaje) {
             }
             if (destino) navegarRuta(destino); else window.location.reload();
         })
-        .catch(err => alert(err.message || 'Error de conexión.'));
+        .catch(err => mostrarAvisoAvanta('Conexión', err.message || 'Error de conexión.', 'error'));
     return false;
 }
 
@@ -3002,7 +3002,7 @@ async function confirmarAbono() {
         gestionPreviaIds = '';
         procesarPagoAPI(clienteId, numCuota, monto);
     } else {
-        alert("Ingresa un monto válido mayor a $0.00");
+        mostrarAvisoAvanta('Monto Inválido', 'Ingresa un monto válido mayor a $0.00', 'alerta');
     }
 }
 
@@ -3048,7 +3048,7 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
                     window.location.href = '/';
                 }
             } else {
-                alert(data.message || 'No se pudo procesar el pago.');
+                mostrarAvisoAvanta('Pago no procesado', data.message || 'No se pudo procesar el pago.', 'error');
             }
         });
 }
@@ -3132,13 +3132,13 @@ async function confirmarNoPagoGestor() {
             if (data.status === 'ok') {
                 window.location.reload();
             } else {
-                alert("Error al registrar no pago: " + (data.message || ""));
+                mostrarAvisoAvanta('Error en No Pago', 'Error al registrar no pago: ' + (data.message || ''), 'error');
             }
-        }).catch(err => alert("Error al procesar el salto: " + err));
+        }).catch(err => mostrarAvisoAvanta('Error de Conexión', 'Error al procesar el salto: ' + err, 'error'));
 }
 
 function guardarGpsExpediente(clienteId, btn) {
-    if (!navigator.geolocation) { alert('Tu dispositivo no soporta GPS.'); return; }
+    if (!navigator.geolocation) { mostrarAvisoAvanta('GPS no disponible', 'Tu dispositivo no soporta GPS.', 'alerta'); return; }
     const txtOrig = btn.innerHTML;
     btn.disabled = true;
     btn.innerText = 'Ubicando...';
@@ -3151,11 +3151,11 @@ function guardarGpsExpediente(clienteId, btn) {
         .then(r => r.json())
         .then(d => {
             if (d.status === 'ok') navegarRuta('/menu/cliente/' + clienteId);
-            else { alert(d.message || 'No se pudo guardar el GPS.'); btn.disabled = false; btn.innerHTML = txtOrig; }
+            else { mostrarAvisoAvanta('GPS', d.message || 'No se pudo guardar el GPS.', 'error'); btn.disabled = false; btn.innerHTML = txtOrig; }
         })
-        .catch(() => { alert('Error de conexión.'); btn.disabled = false; btn.innerHTML = txtOrig; });
+        .catch(() => { mostrarAvisoAvanta('Conexión', 'Error de conexión.', 'error'); btn.disabled = false; btn.innerHTML = txtOrig; });
     }, () => {
-        alert('Activa el permiso de ubicación en tu navegador.');
+        mostrarAvisoAvanta('Permiso de Ubicación', 'Activa el permiso de ubicación en tu navegador.', 'alerta');
         btn.disabled = false;
         btn.innerHTML = txtOrig;
     }, { enableHighAccuracy: true, timeout: 10000 });
@@ -3165,11 +3165,11 @@ function obtenerCoordenadasGPS() {
     const statusText = document.getElementById('status_gps');
     
     if (!navigator.geolocation) {
-        alert("❌ Tu dispositivo no soporta geolocalización o el navegador la tiene bloqueada.");
+        mostrarAvisoAvanta('GPS no disponible', 'Tu dispositivo no soporta geolocalización o el navegador la tiene bloqueada.', 'alerta');
         return;
     }
     
-    statusText.innerText = "🛰️ Buscando señal de satélite GPS...";
+    statusText.innerText = "Buscando señal de satélite GPS...";
     
     navigator.geolocation.getCurrentPosition(
         function (posicion) {
@@ -3180,14 +3180,14 @@ function obtenerCoordenadasGPS() {
             document.getElementById('latitud_input').value = lat;
             document.getElementById('longitud_input').value = lon;
             
-            statusText.innerHTML = `✅ Ubicación fijada: <b>${lat.toFixed(5)}, ${lon.toFixed(5)}</b>`;
+            statusText.innerHTML = `Ubicación fijada: <b>${lat.toFixed(5)}</b>, ${lon.toFixed(5)}`;
         },
         function (error) {
-            statusText.innerText = "❌ No se pudo capturar el GPS.";
+            statusText.innerText = "No se pudo capturar el GPS.";
             if (error.code === error.PERMISSION_DENIED) {
-                alert("🚫 Permiso denegado. Debes activar el GPS y dar permisos de ubicación a tu navegador.");
+                mostrarAvisoAvanta('Permiso Denegado', 'Permiso denegado. Debes activar el GPS y dar permisos de ubicación a tu navegador.', 'alerta');
             } else {
-                alert("🛰️ Señal débil. Asegúrate de estar en un lugar con cobertura satelital.");
+                mostrarAvisoAvanta('Señal Débil', 'Señal débil. Asegúrate de estar en un lugar con cobertura satelital.', 'alerta');
             }
         },
         { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
@@ -3221,7 +3221,7 @@ function procesarImagenEnCaliente() {
             imagenComprimidaB64 = canvas.toDataURL('image/jpeg', 0.6);
             document.getElementById('foto_comprimida_b64').value = imagenComprimidaB64;
             fotoListaParaEnviar = true;
-            console.log("⚡ Foto comprimida con éxito.");
+            console.log("Foto comprimida con éxito.");
         };
         img.src = e.target.result;
     };
@@ -3233,7 +3233,7 @@ function procesarYEnviarGasto(event) {
     const form = document.getElementById('formBalance');
     
     if (fileInput.files.length > 0 && !fotoListaParaEnviar) {
-        alert("⏳ Procesando imagen de alta definición... Espera un segundo y vuelve a presionar Guardar.");
+        mostrarAvisoAvanta('Procesando Imagen', 'Procesando imagen de alta definición... Espera un segundo y vuelve a presionar Guardar.', 'info');
         return false;
     }
     form.submit();
@@ -3248,7 +3248,7 @@ function cargarYVerFoto(gastoId) {
                 
                 // 🛡️ FIJADO: Verificación de seguridad para evitar caídas en celulares si el elemento tarda en renderizar
                 if (!img) {
-                    alert("⏳ La interfaz se está acomodando, por favor intenta presionar 'Ver' nuevamente.");
+                    mostrarAvisoAvanta('Cargando Vista', "La interfaz se está acomodando, por favor intenta presionar 'Ver' nuevamente.", 'info');
                     return;
                 }
                 
@@ -3260,9 +3260,9 @@ function cargarYVerFoto(gastoId) {
                 img.src = textoB64;
                 document.getElementById('modalFoto').style.display = 'flex';
             } else {
-                alert("⚠️ No se pudo cargar la imagen o el registro no tiene comprobante.");
+                mostrarAvisoAvanta('Sin Comprobante', 'No se pudo cargar la imagen o el registro no tiene comprobante.', 'alerta');
             }
-        }).catch(err => alert("Error al conectar con el servidor: " + err));
+        }).catch(err => mostrarAvisoAvanta('Error de Conexión', 'Error al conectar con el servidor: ' + err, 'error'));
 }
 
 function revertirGestionDia(tipo, id) {
@@ -3271,10 +3271,10 @@ function revertirGestionDia(tipo, id) {
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'ok') {
-                    alert("✅ Gestión revertida. El cliente ha regresado a la lista por cobrar.");
-                    window.location.reload();
+                    mostrarAvisoAvanta('Gestión Revertida', 'Gestión revertida. El cliente ha regresado a la lista por cobrar.', 'exito');
+                    setTimeout(() => window.location.reload(), 1200);
                 }
-            }).catch(err => alert("Error al conectar: " + err));
+            }).catch(err => mostrarAvisoAvanta('Error de Conexión', 'Error al conectar: ' + err, 'error'));
     }
 }
 
@@ -3329,6 +3329,36 @@ function actualizarPerfilCompleto(e) {
             };
         })
         .catch(err => console.error('Error:', err));
+}
+
+function mostrarAvisoAvanta(titulo, mensaje, tipo = 'info') {
+    const prev = document.getElementById('modalAvisoAvanta');
+    if (prev) prev.remove();
+
+    const estilos = {
+        info:  { bg: 'linear-gradient(135deg,#0f2b5c,#1e3a8a)', sombra: 'rgba(15,43,92,0.28)', svg: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>' },
+        alerta:{ bg: 'linear-gradient(135deg,#d97706,#b45309)', sombra: 'rgba(217,119,6,0.28)',  svg: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
+        exito: { bg: 'linear-gradient(135deg,#16a34a,#15803d)', sombra: 'rgba(22,163,74,0.28)', svg: '<polyline points="20 6 9 17 4 12"/>' },
+        error: { bg: 'linear-gradient(135deg,#dc2626,#b91c1c)', sombra: 'rgba(220,38,38,0.28)', svg: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' }
+    };
+    const cfg = estilos[tipo] || estilos.info;
+
+    const html = `
+        <div id="modalAvisoAvanta" style="position:fixed; inset:0; background:rgba(15,23,42,0.72); backdrop-filter:blur(4px); z-index:99999; display:flex; align-items:center; justify-content:center; padding:20px;">
+            <div style="background:#ffffff; border-radius:20px; width:100%; max-width:340px; padding:26px 22px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.28); border:1px solid #e2e8f0; animation:fadeIn 0.2s ease;">
+                <div style="width:58px; height:58px; border-radius:50%; margin:0 auto 14px auto; display:flex; align-items:center; justify-content:center; background:${cfg.bg}; color:#ffffff; box-shadow:0 8px 18px ${cfg.sombra};">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${cfg.svg}</svg>
+                </div>
+                <h3 style="margin:0 0 6px 0; font-size:17px; font-weight:800; color:#0f172a; letter-spacing:-0.2px;">${titulo}</h3>
+                <p style="margin:0 0 20px 0; font-size:13px; color:#475569; line-height:1.45;">${mensaje}</p>
+                <button type="button" id="btnCerrarAvisoAvanta" style="width:100%; border:none; padding:13px; border-radius:12px; background:linear-gradient(135deg,#0f2b5c,#1e3a8a); color:#ffffff; font-size:14px; font-weight:700; cursor:pointer; box-shadow:0 6px 14px rgba(15,43,92,0.28);">Aceptar</button>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.getElementById('btnCerrarAvisoAvanta').onclick = function() {
+        document.getElementById('modalAvisoAvanta').remove();
+    };
 }
 
 // ⚡ MOTOR GLOBAL ANTI-DOBLE CLIC PARA FORMULARIOS DE CAMPO
@@ -3456,14 +3486,14 @@ async function enviarCreditoAsincrono(event) {
                 }
             }
         } else {
-            alert(res.mensaje || res.message || 'No se pudo registrar el crédito.');
+            mostrarAvisoAvanta('Registro de Crédito', res.mensaje || res.message || 'No se pudo registrar el crédito.', 'error');
             if (btn) {
                 btn.disabled = false;
                 btn.innerText = txtOriginal;
             }
         }
     } catch (e) {
-        alert('Error al guardar el crédito: ' + (e.message || 'Verifica tu conexión.'));
+        mostrarAvisoAvanta('Error de Conexión', 'Error al guardar el crédito: ' + (e.message || 'Verifica tu conexión.'), 'error');
         if (btn) {
             btn.disabled = false;
             btn.innerText = txtOriginal;
@@ -3833,7 +3863,7 @@ function filtrarDirectorioClientes() {
 
 function abrirGpsCliente(lat, lon) {
     if (!lat || !lon) {
-        alert('⚠️ Este cliente no tiene coordenadas GPS.');
+        mostrarAvisoAvanta('Sin Coordenadas', 'Este cliente no tiene coordenadas GPS.', 'alerta');
         return;
     }
     const esMovil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -3849,7 +3879,7 @@ function toggleEdicionPerfil(clienteId) {
     
     if (!modoEdicionActivo) {
         inputs.forEach(inp => { inp.removeAttribute('readonly'); inp.style.background = '#ffffff'; inp.style.borderColor = '#2563eb'; });
-        btn.innerText = '✅ Guardar';
+        btn.innerText = 'Guardar';
         btn.style.background = '#10b981';
         btn.style.color = 'white';
         modoEdicionActivo = true;
@@ -3872,7 +3902,7 @@ function toggleEdicionPerfil(clienteId) {
                 const mPerf = document.getElementById('modalPerfilOk');
                 if (mPerf) mPerf.style.display = 'flex';
             } else {
-                alert('⚠️ Error al guardar: ' + res.message);
+                mostrarAvisoAvanta('Error al Guardar', 'Error al guardar: ' + res.message, 'error');
             }
         });
     }
@@ -4112,7 +4142,7 @@ function aplicarFiltrosDashboard() {
             const btnProbar = document.getElementById('btn_probar_print');
 
             if (!navigator.bluetooth) {
-                alert("Tu navegador no soporta Web Bluetooth. Abre la app desde Google Chrome en Android.");
+                mostrarAvisoAvanta('Bluetooth no compatible', 'Tu navegador no soporta Web Bluetooth. Abre la app desde Google Chrome en Android.', 'alerta');
                 return;
             }
 
@@ -4180,7 +4210,7 @@ function aplicarFiltrosDashboard() {
 
         async function probarImpresionTicket() {
             if (!caracteristicaGatt) {
-                alert("Primero vincula tu impresora térmica de 58mm.");
+                mostrarAvisoAvanta('Impresora no vinculada', 'Primero vincula tu impresora térmica de 58mm.', 'alerta');
                 return;
             }
             try {
@@ -4196,9 +4226,9 @@ function aplicarFiltrosDashboard() {
                 );
                 await caracteristicaGatt.writeValue(initEscPos);
                 await caracteristicaGatt.writeValue(cuerpo);
-                alert("Ticket de prueba enviado a la impresora.");
+                mostrarAvisoAvanta('Prueba Enviada', 'Ticket de prueba enviado a la impresora.', 'exito');
             } catch (error) {
-                alert("Error al imprimir ticket: " + error.message);
+                mostrarAvisoAvanta('Error de Impresión', 'Error al imprimir ticket: ' + error.message, 'error');
             }
         }
 
@@ -4241,7 +4271,7 @@ function aplicarFiltrosDashboard() {
 
         function abrirEditorCreditoHoy(cliId, movId, nombre, monto, interes, cuotas, freq) {
             if (!cliId && !nombre) {
-                alert('No se encontró la ficha activa de este cliente.');
+                mostrarAvisoAvanta('Cliente no encontrado', 'No se encontró la ficha activa de este cliente.', 'alerta');
                 return;
             }
             document.getElementById('editCredCliId').value = cliId || 0;
@@ -4320,13 +4350,13 @@ function aplicarFiltrosDashboard() {
                 if (res.status === 'ok') {
                     window.location.reload();
                 } else {
-                    alert(res.message || 'Error al actualizar el crédito.');
+                    mostrarAvisoAvanta('Error al Actualizar', res.message || 'Error al actualizar el crédito.', 'error');
                     btn.disabled = false;
                     btn.innerText = 'Guardar Cambios';
                 }
             })
             .catch(() => {
-                alert('Error de conexión al guardar.');
+                mostrarAvisoAvanta('Error de Conexión', 'Error de conexión al guardar.', 'error');
                 btn.disabled = false;
                 btn.innerText = 'Guardar Cambios';
             });
