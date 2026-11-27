@@ -2604,17 +2604,30 @@ function navegarRuta(url) {
     if (document.getElementById('drawerOverlay').classList.contains('active')) toggleDrawer();
     const mc = document.getElementById('mainContent');
     if (!mc) { window.location.href = url; return; }
-    mc.style.opacity = '0.55';
-    mc.style.transition = 'opacity 0.1s ease';
+
+    let bar = document.getElementById('avantaTopLoader');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'avantaTopLoader';
+        bar.style.cssText = 'position:fixed;top:0;left:0;height:3px;width:0%;background:#38bdf8;z-index:99999;transition:width 0.35s ease, opacity 0.2s ease;';
+        document.body.appendChild(bar);
+    }
+    bar.style.opacity = '1';
+    bar.style.width = '75%';
+
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(res => res.text())
         .then(html => {
+            bar.style.width = '100%';
             mc.innerHTML = html;
-            mc.style.opacity = '1';
             window.scrollTo({ top: 0, behavior: 'instant' });
             if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
+            setTimeout(() => { bar.style.opacity = '0'; bar.style.width = '0%'; }, 180);
         })
-        .catch(() => { mc.style.opacity = '1'; window.location.href = url; });
+        .catch(() => {
+            bar.style.opacity = '0';
+            window.location.href = url;
+        });
 }
 
 function activarGpsNativo() {
@@ -2986,10 +2999,18 @@ function procesarPagoAPI(clienteId, numCuota, monto) {
     const horaLocalFormateada = `${dia}/${mes}/${anio} ${horas}:${minutes}`;
 
     // ⚡ FIJADO: Ahora sí le pasamos de forma real la variable 'diasMoraGlobalTemporal' a la ruta de Python
+    const metodoPago = (document.getElementById('gpMetodoPago')?.value || 'efectivo').toLowerCase();
+
     fetch('/api/marcar_pago/' + clienteId + '/' + numCuota, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ monto: monto, hora_local: horaLocalFormateada, zona_usuario: zonaUsuario, dias_mora: diasMoraGlobalTemporal })
+        body: JSON.stringify({
+            monto: monto,
+            hora_local: horaLocalFormateada,
+            zona_usuario: zonaUsuario,
+            dias_mora: diasMoraGlobalTemporal,
+            metodo_pago: metodoPago
+        })
     })
         .then(res => res.json())
                 .then(data => {
@@ -3068,9 +3089,16 @@ async function confirmarNoPagoGestor() {
     }
     gestionPreviaTipo = '';
     gestionPreviaIds = '';
+    const razonNp = document.getElementById('gnpRazonSeleccionada')?.value || 'CLIENTE SIN DINERO';
+    const comentariosNp = (document.getElementById('gnpComentarios')?.value || '').trim();
+
     fetch('/api/marcar_no_pago/' + clienteId, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            razon: razonNp,
+            comentarios: comentariosNp
+        })
     })
         .then(res => res.json())
         .then(data => {
@@ -5577,6 +5605,7 @@ def seccion_balance_maestro():
     caja_inicial_sistema = Decimal("0.00")
     caja_base = Decimal("0.00")
     total_abonos_hoy = Decimal("0.00")
+    total_abonos_transf = Decimal("0.00")
     entradas_totales = Decimal("0.00")
     salidas_totales = Decimal("0.00")
     movimientos = []
@@ -5614,6 +5643,7 @@ def seccion_balance_maestro():
             # 5. Movimientos de la jornada activa (exactamente igual que Avanta Dueño)
             cursor.execute("""
                 SELECT id, tipo, categoria, concepto, monto, fecha,
+                       COALESCE(metodo_pago, 'efectivo') AS metodo_pago,
                        CASE WHEN COALESCE(comprobante, '') <> '' THEN '1' ELSE '' END AS comprobante
                 FROM balance_movimientos
                 WHERE ruta_id = %s AND fecha = %s
@@ -5624,12 +5654,16 @@ def seccion_balance_maestro():
             for m in movimientos:
                 t_m = str(m.get("tipo") or "").strip().lower()
                 cat_m = str(m.get("categoria") or "").strip().lower()
+                met_m = str(m.get("metodo_pago") or "efectivo").strip().lower()
                 m_val = Decimal(str(m.get("monto") or "0.00"))
 
                 if t_m in ("ingreso", "entrada", "inyeccion", "base", "abono"):
-                    entradas_totales += m_val
-                    if cat_m == "cobranza":
-                        total_abonos_hoy += m_val
+                    if cat_m == "cobranza" and met_m == "transferencia":
+                        total_abonos_transf += m_val
+                    else:
+                        entradas_totales += m_val
+                        if cat_m == "cobranza":
+                            total_abonos_hoy += m_val
                 elif t_m in ("egreso", "gasto", "retiro", "salida", "credito"):
                     salidas_totales += m_val
     except Exception as e:
@@ -5650,10 +5684,17 @@ def seccion_balance_maestro():
         m_dict["monto"] = float(m_dict["monto"])
         movimientos_limpios.append(m_dict)
 
+    if total_abonos_transf > 0:
+        movimientos_limpios.insert(0, {
+            "id": 0, "tipo": "Entrada", "categoria": "Transferencia",
+            "concepto": "RECAUDACIÓN POR TRANSFERENCIA (NO EFECTIVO)",
+            "monto": float(total_abonos_transf), "fecha": hoy_str, "comprobante": ""
+        })
+
     if total_abonos_hoy > 0:
         movimientos_limpios.insert(0, {
             "id": 0, "tipo": "Entrada", "categoria": "Recaudo",
-            "concepto": "🔸 RECAUDACIÓN DE CUOTAS EN RUTA",
+            "concepto": "RECAUDACIÓN DE CUOTAS EN EFECTIVO",
             "monto": float(total_abonos_hoy), "fecha": hoy_str, "comprobante": ""
         })
 
@@ -6683,7 +6724,12 @@ def api_marcar_pago(cliente_id, num_cuota):
     hora_local_cliente = str(data_pago.get("hora_local", "") or "")
     if not hora_local_cliente:
         hora_local_cliente = datetime.now().strftime("%d/%m/%Y %H:%M")
-            
+    metodo_pago = str(data_pago.get("metodo_pago", "efectivo") or "efectivo").strip().lower()
+    if "transf" in metodo_pago:
+        metodo_pago = "transferencia"
+    else:
+        metodo_pago = "efectivo"
+    
     rid = int(session.get("ruta_id") or 1)
     conn = get_db()
     with conn.cursor() as cur_f:
@@ -6728,16 +6774,16 @@ def api_marcar_pago(cliente_id, num_cuota):
                     monto_restante = round(monto_restante - pendiente_cuota, 2)
                     monto_efectivamente_aplicado += pendiente_cuota
                     cursor.execute(
-                        "UPDATE pagos SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s WHERE id = %s AND ruta_id = %s",
-                        (p["valor"], fecha_hora_pago, p["id"], rid)
+                        "UPDATE pagos SET pagado = 1, valor_pagado = %s, fecha_pago_real = %s, metodo_pago = %s WHERE id = %s AND ruta_id = %s",
+                        (p["valor"], fecha_hora_pago, metodo_pago, p["id"], rid)
                     )
                 else:
                     nuevo_pago_parcial = round(Decimal(str(p["valor_pagado"])) + monto_restante, 2)
                     monto_efectivamente_aplicado += monto_restante
                     monto_restante = Decimal("0.00")
                     cursor.execute(
-                        "UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s WHERE id = %s AND ruta_id = %s",
-                        (nuevo_pago_parcial, fecha_hora_pago, p["id"], rid)
+                        "UPDATE pagos SET valor_pagado = %s, fecha_pago_real = %s, metodo_pago = %s WHERE id = %s AND ruta_id = %s",
+                        (nuevo_pago_parcial, fecha_hora_pago, metodo_pago, p["id"], rid)
                     )
 
             # 2. Evaluamos el estado REAL de la cuenta DESPUÉS de aplicar el pago
@@ -6776,13 +6822,13 @@ def api_marcar_pago(cliente_id, num_cuota):
                 row_j_pago = cursor.fetchone()
                 turno_balance_pago = row_j_pago["valor"] if (row_j_pago and row_j_pago["valor"]) else hoy_str
 
-                concepto_abono = f"💵 ABONO CUOTA - CLIENTE: {c['nombre']} (ID:{cliente_id})"
+                concepto_abono = f"ABONO CUOTA - CLIENTE: {c['nombre']} (ID:{cliente_id})"
                 cursor.execute(
                     """
-                    INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante, ruta_id)
-                    VALUES ('Entrada', 'Cobranza', %s, %s, %s, '', %s)
+                    INSERT INTO balance_movimientos (tipo, categoria, concepto, monto, fecha, comprobante, ruta_id, metodo_pago)
+                    VALUES ('Entrada', 'Cobranza', %s, %s, %s, '', %s, %s)
                     """,
-                    (concepto_abono, monto_efectivamente_aplicado, turno_balance_pago, rid)
+                    (concepto_abono, monto_efectivamente_aplicado, turno_balance_pago, rid, metodo_pago)
                 )
                 
             conn.commit()
@@ -6875,6 +6921,9 @@ def api_marcar_no_pago(cliente_id):
         return jsonify({"status": "error", "message": "No autorizado"}), 401
 
     rid = int(session.get("ruta_id") or 1)
+    data_np = request.get_json(silent=True) or {}
+    razon_np = str(data_np.get("razon") or "CLIENTE SIN DINERO").strip()[:120]
+    comentarios_np = str(data_np.get("comentarios") or "").strip()[:300]
     ahora_ec_np = (datetime.utcnow() - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M:%S")
     conn = get_db()
     try:
@@ -6902,8 +6951,16 @@ def api_marcar_no_pago(cliente_id):
                 """, (rid, turno_act, f"%(ID:{cliente_id})%"))
 
             cursor.execute(
-                "UPDATE clientes SET estado = 'Activo', saltado_hoy = COALESCE(saltado_hoy, 0) + 1, fecha_gestion = %s WHERE id = %s AND ruta_id = %s",
-                (ahora_ec_np, cliente_id, rid)
+                """
+                UPDATE clientes
+                   SET estado = 'Activo',
+                       saltado_hoy = COALESCE(saltado_hoy, 0) + 1,
+                       fecha_gestion = %s,
+                       razon_no_pago = %s,
+                       comentario_no_pago = %s
+                 WHERE id = %s AND ruta_id = %s
+                """,
+                (ahora_ec_np, razon_np, comentarios_np, cliente_id, rid)
             )
         conn.commit()
     except Exception as e:
