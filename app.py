@@ -942,13 +942,34 @@ CONTENIDO_HTML = """
                    style="width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.22); color:#ffffff; display:flex; align-items:center; justify-content:center; text-decoration:none;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 </a>
-                <a href="https://wa.me/{{ tel_limpio }}" target="_blank" title="WhatsApp"
+                {% set cred_top = (creditos | selectattr('id', 'equalto', cliente.id) | list | first) or (creditos[0] if creditos else None) %}
+                {% set ws_msg = ('Hola ' ~ cliente.nombre ~ ', le saludamos de Avanta Pagos. Le recordamos que mantiene ' ~ cred_top.cuotas_vencidas ~ ' cuota(s) vencida(s) con un saldo pendiente de $' ~ ('%.2f'|format(cred_top.saldo|float)) ~ '. Quedamos atentos a su abono.') if (cred_top and cred_top.cuotas_vencidas|int > 0) else '' %}
+                <a href="https://wa.me/{{ tel_limpio }}{% if ws_msg %}?text={{ ws_msg|urlencode }}{% endif %}" target="_blank" title="WhatsApp"
                    style="width:36px; height:36px; border-radius:10px; background:#16a34a; color:#ffffff; display:flex; align-items:center; justify-content:center; text-decoration:none; box-shadow:0 3px 8px rgba(22,163,74,0.3);">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
                 </a>
             </div>
             {% endif %}
         </div>
+        
+        {% set cred_top = (creditos | selectattr('id', 'equalto', cliente.id) | list | first) or (creditos[0] if creditos else None) %}
+        {% if cred_top %}
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px;">
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 8px; text-align:center;">
+                <div style="font-size:9.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Saldo Actual</div>
+                <div style="font-size:14px; font-weight:900; color:#0f2b5c; margin-top:2px;">${{ "%.2f"|format(cred_top.saldo|float) }}</div>
+            </div>
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:10px 8px; text-align:center;">
+                <div style="font-size:9.5px; font-weight:800; color:#15803d; text-transform:uppercase;">Total Pagado</div>
+                <div style="font-size:14px; font-weight:900; color:#16a34a; margin-top:2px;">${{ "%.2f"|format(cred_top.pagado|float) }}</div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 8px; text-align:center;">
+                <div style="font-size:9.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Vencimiento</div>
+                {% set f_v = cred_top.detalle_pagos[-1].fecha|string if cred_top.detalle_pagos else '' %}
+                <div style="font-size:12px; font-weight:800; color:#334155; margin-top:4px;">{{ (f_v[8:10] ~ '/' ~ f_v[5:7] ~ '/' ~ f_v[:4]) if f_v|length >= 10 else '-' }}</div>
+            </div>
+        </div>
+        {% endif %}
 
                 <!-- Calificación Crediticia y Resumen Histórico -->
         {% if calificacion %}
@@ -964,7 +985,7 @@ CONTENIDO_HTML = """
         <!-- Botón Único: HISTORIAL DE CRÉDITOS (Abre ventana emergente con Prestado, Abonado y Préstamos) -->
         {% if resumen %}
         <div onclick="document.getElementById('modalHistorialCreditosCliente').style.display='flex'"
-             style="background:#ffffff; border:1.5px solid #cbd5e1; border-left:4px solid #0f2b5c; border-radius:13px; padding:12px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 2px 6px rgba(15,23,42,0.03);">
+            style="background:#ffffff; border:1.5px solid #cbd5e1; border-left:4px solid #0f2b5c; border-radius:13px; padding:12px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 2px 6px rgba(15,23,42,0.03);">
             <div style="display:flex; align-items:center; gap:10px;">
                 <span style="width:32px; height:32px; border-radius:9px; background:#e0e7ff; color:#0f2b5c; display:flex; align-items:center; justify-content:center;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
@@ -1005,7 +1026,7 @@ CONTENIDO_HTML = """
 
                     {% for cr in creditos %}
                     {% set esta_liq = (cr.saldo <= 0.01) %}
-                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:11px 12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <div onclick="document.getElementById('modalHistorialCreditosCliente').style.display='none'; navegarRuta('/menu/cliente/{{ cr.id }}')" style="background:#f8fafc; border:1px solid {{ '#0f2b5c' if cr.id == cliente.id else '#e2e8f0' }}; border-radius:12px; padding:11px 12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
                         <div>
                             <div style="font-size:12.5px; font-weight:800; color:#0f172a;">Inicio: {{ cr.fecha_inicio }}</div>
                             <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">{{ cr.cuotas_pagadas }}/{{ cr.total_cuotas_real }} cuotas ({{ cr.frecuencia or 'Diaria' }})</div>
@@ -1034,7 +1055,7 @@ CONTENIDO_HTML = """
         {% endif %}
 
         <!-- HISTORIAL DE PAGOS (EXCLUSIVO DEL CRÉDITO ACTIVO ACTUAL) -->
-        {% set cred_activo = creditos[0] if creditos else None %}
+        {% set cred_activo = (creditos | selectattr('id', 'equalto', cliente.id) | list | first) or (creditos[0] if creditos else None) %}
         <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:14px; margin-bottom:12px; box-shadow:0 2px 6px rgba(15,23,42,0.03); text-align:left;">
             <div style="display:flex; align-items:center; justify-content:space-between; padding-bottom:8px; margin-bottom:8px; border-bottom:1.5px solid #f1f5f9;">
                 <div style="display:flex; align-items:center; gap:8px;">
@@ -1137,9 +1158,15 @@ CONTENIDO_HTML = """
                     Abrir Ubicación en Google Maps
                 </button>
             {% else %}
-                <div style="padding:11px 12px; background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:12px; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:7px;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                    Este cliente aún no tiene coordenadas GPS guardadas.
+                <div style="padding:11px 12px; background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:12px; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:7px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span>Sin GPS guardado.</span>
+                    </div>
+                    <button type="button" onclick="guardarGpsExpediente({{ cliente.id }}, this)" style="background:#0f2b5c; color:#ffffff; border:none; border-radius:8px; padding:6px 10px; font-size:11px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px; flex-shrink:0;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        Guardar GPS ahora
+                    </button>
                 </div>
             {% endif %}
         </div>
@@ -3108,6 +3135,30 @@ async function confirmarNoPagoGestor() {
                 alert("Error al registrar no pago: " + (data.message || ""));
             }
         }).catch(err => alert("Error al procesar el salto: " + err));
+}
+
+function guardarGpsExpediente(clienteId, btn) {
+    if (!navigator.geolocation) { alert('Tu dispositivo no soporta GPS.'); return; }
+    const txtOrig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerText = 'Ubicando...';
+    navigator.geolocation.getCurrentPosition(pos => {
+        fetch('/api/cliente/guardar_gps/' + clienteId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ latitud: pos.coords.latitude, longitud: pos.coords.longitude })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'ok') navegarRuta('/menu/cliente/' + clienteId);
+            else { alert(d.message || 'No se pudo guardar el GPS.'); btn.disabled = false; btn.innerHTML = txtOrig; }
+        })
+        .catch(() => { alert('Error de conexión.'); btn.disabled = false; btn.innerHTML = txtOrig; });
+    }, () => {
+        alert('Activa el permiso de ubicación en tu navegador.');
+        btn.disabled = false;
+        btn.innerHTML = txtOrig;
+    }, { enableHighAccuracy: true, timeout: 10000 });
 }
 
 function obtenerCoordenadasGPS() {
@@ -5376,6 +5427,29 @@ def seccion_clientes_maestro():
         return render_template_string(CONTENIDO_HTML, **contexto)
     return render_template_string(HTML_TEMPLATE, contenido_html=render_template_string(CONTENIDO_HTML, **contexto))
 
+@app.route("/api/cliente/guardar_gps/<int:cliente_id>", methods=["POST"])
+def api_guardar_gps_cliente(cliente_id):
+    if not session.get("autenticado"):
+        return jsonify({"status": "error", "message": "No autorizado"}), 401
+    data = request.get_json(silent=True) or {}
+    lat = str(data.get("latitud") or "").strip()
+    lng = str(data.get("longitud") or "").strip()
+    if not lat or not lng:
+        return jsonify({"status": "error", "message": "Coordenadas inválidas"}), 400
+    rid = int(session.get("ruta_id") or 1)
+    conn = get_db()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE clientes SET latitud = %s, longitud = %s WHERE id = %s AND ruta_id = %s",
+                (lat, lng, cliente_id, rid)
+            )
+            conn.commit()
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/menu/cliente/<int:cliente_id>")
 def perfil_cliente_detalle(cliente_id):
     if not session.get("autenticado"):
@@ -5394,29 +5468,31 @@ def perfil_cliente_detalle(cliente_id):
             cedula_cli = str(cliente.get("identificacion") or "").strip()
             nombre_cli = str(cliente.get("nombre") or "").strip()
 
-            # Buscar créditos del cliente solo por cédula válida (8+ dígitos) o por su ID único dentro de la ruta
+            # Buscar todos los créditos del cliente en esta ruta (por cédula válida o por nombre exacto)
             if cedula_cli and len(cedula_cli) >= 8 and cedula_cli not in ("0000000000", "1111111111", "1234567890"):
                 cursor.execute("""
                     SELECT c.*,
-                        COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
-                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id), 0) AS total_cuotas_real,
-                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
-                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
+                           COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
+                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id), 0) AS total_cuotas_real,
+                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
+                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
                     FROM clientes c
-                    WHERE c.ruta_id = %s AND TRIM(c.identificacion) = %s
+                    WHERE c.ruta_id = %s
+                      AND (TRIM(COALESCE(c.identificacion, '')) = %s OR LOWER(TRIM(c.nombre)) = LOWER(%s))
                     ORDER BY c.id DESC
-                """, (hoy_str, rid, cedula_cli))
+                """, (hoy_str, rid, cedula_cli, nombre_cli))
             else:
                 cursor.execute("""
                     SELECT c.*,
-                        COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
-                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id), 0) AS total_cuotas_real,
-                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
-                        COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
+                           COALESCE((SELECT SUM(valor_pagado) FROM pagos WHERE cliente_id = c.id), 0) AS pagado,
+                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id), 0) AS total_cuotas_real,
+                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 1), 0) AS cuotas_pagadas,
+                           COALESCE((SELECT COUNT(*) FROM pagos WHERE cliente_id = c.id AND pagado = 0 AND fecha < %s), 0) AS cuotas_vencidas
                     FROM clientes c
-                    WHERE c.id = %s
+                    WHERE c.ruta_id = %s
+                      AND (c.id = %s OR LOWER(TRIM(c.nombre)) = LOWER(%s))
                     ORDER BY c.id DESC
-                """, (hoy_str, cliente_id))
+                """, (hoy_str, rid, cliente_id, nombre_cli))
 
             historial_creditos = []
             total_cuotas_hist = 0
