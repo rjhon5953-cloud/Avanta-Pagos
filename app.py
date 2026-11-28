@@ -16,29 +16,34 @@ from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 MONEDAS_POR_TZ = {
-    "America/Guayaquil": ("$", "USD"),
-    "America/Bogota": ("$", "COP"),
-    "America/Lima": ("S/", "PEN"),
-    "America/Mexico_City": ("$", "MXN"),
-    "America/Monterrey": ("$", "MXN"),
-    "America/Tijuana": ("$", "MXN"),
-    "America/Santiago": ("$", "CLP"),
-    "America/Argentina/Buenos_Aires": ("$", "ARS"),
-    "America/La_Paz": ("Bs", "BOB"),
-    "America/Asuncion": ("₲", "PYG"),
-    "America/Montevideo": ("$U", "UYU"),
-    "America/Caracas": ("Bs", "VES"),
-    "America/Santo_Domingo": ("RD$", "DOP"),
-    "America/Guatemala": ("Q", "GTQ"),
-    "America/Tegucigalpa": ("L", "HNL"),
-    "America/Managua": ("C$", "NIO"),
-    "America/Costa_Rica": ("₡", "CRC"),
-    "America/Panama": ("$", "USD"),
-    "America/El_Salvador": ("$", "USD"),
-    "America/Sao_Paulo": ("R$", "BRL"),
-    "Europe/Madrid": ("€", "EUR"),
-    "Europe/London": ("£", "GBP"),
+    "America/Guayaquil": ("USD $", "USD"),
+    "America/Bogota": ("COP $", "COP"),
+    "America/Lima": ("PEN S/", "PEN"),
+    "America/Mexico_City": ("MXN $", "MXN"),
+    "America/Monterrey": ("MXN $", "MXN"),
+    "America/Tijuana": ("MXN $", "MXN"),
+    "America/Santiago": ("CLP $", "CLP"),
+    "America/Argentina/Buenos_Aires": ("ARS $", "ARS"),
+    "America/La_Paz": ("BOB Bs", "BOB"),
+    "America/Asuncion": ("PYG ₲", "PYG"),
+    "America/Montevideo": ("UYU $U", "UYU"),
+    "America/Caracas": ("VES Bs", "VES"),
+    "America/Santo_Domingo": ("DOP RD$", "DOP"),
+    "America/Guatemala": ("GTQ Q", "GTQ"),
+    "America/Tegucigalpa": ("HNL L", "HNL"),
+    "America/Managua": ("NIO C$", "NIO"),
+    "America/Costa_Rica": ("CRC ₡", "CRC"),
+    "America/Panama": ("USD $", "USD"),
+    "America/El_Salvador": ("USD $", "USD"),
+    "America/Sao_Paulo": ("BRL R$", "BRL"),
+    "America/New_York": ("USD $", "USD"),
+    "America/Los_Angeles": ("USD $", "USD"),
+    "Europe/Madrid": ("EUR €", "EUR"),
+    "Europe/London": ("GBP £", "GBP"),
 }
+
+def detectar_moneda_por_tz(tz_name):
+    return MONEDAS_POR_TZ.get(tz_name, ("USD $", "USD"))
 
 def obtener_tz_activa():
     tz_name = session.get("tz") or "UTC"
@@ -2392,8 +2397,8 @@ HTML_TEMPLATE = """
 
         <!-- Saldo Actual -->
         <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 0 18px 0; font-size:16px; color:#334155;">
-            <span>Saldo actual: $</span>
-            <b id="gpSaldoTexto" style="font-size:17px; color:#0f172a;">$0.00</b>
+            <span>Saldo actual:</span>
+            <b id="gpSaldoTexto" style="font-size:17px; color:#0f172a;">{{ moneda }}0.00</b>
         </div>
 
         <!-- Switch Castigo -->
@@ -2439,9 +2444,9 @@ HTML_TEMPLATE = """
         <!-- Valor Cuota / Monto Grande -->
         <div style="text-align:left; margin-bottom:18px;">
             <div id="gpLblMonto" style="font-size:14px; color:#334155; font-weight:500;">Valor cuota:</div>
-            <div id="gpDisplayMontoGrande" style="text-align:center; font-size:28px; font-weight:800; color:#0f172a; margin:8px 0;">$0.00</div>
+            <div id="gpDisplayMontoGrande" style="text-align:center; font-size:28px; font-weight:800; color:#0f172a; margin:8px 0;">{{ moneda }}0.00</div>
             <!-- Input para modo Dinero -->
-            <input type="number" step="any" id="abonoMontoInput" oninput="actualizarDesdeInputDineroGP()" placeholder="Ingrese monto ($)" style="display:none; width:100%; padding:12px; font-size:20px; font-weight:800; text-align:center; border:2px solid #0f2b5c; border-radius:8px; box-sizing:border-box; margin-top:6px;">
+            <input type="number" step="any" id="abonoMontoInput" oninput="actualizarDesdeInputDineroGP()" placeholder="Ingrese monto ({{ moneda }})" style="display:none; width:100%; padding:12px; font-size:20px; font-weight:800; text-align:center; border:2px solid #0f2b5c; border-radius:8px; box-sizing:border-box; margin-top:6px;">
         </div>
 
         <!-- Selector de Cuotas (- 1 +) y Slider -->
@@ -2496,8 +2501,8 @@ HTML_TEMPLATE = """
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 0 18px 0; font-size:16px; color:#334155;">
-            <span>Saldo actual: $</span>
-            <b id="gnpSaldoTexto" style="font-size:17px; color:#0f172a;">$0.00</b>
+            <span>Saldo actual:</span>
+            <b id="gnpSaldoTexto" style="font-size:17px; color:#0f172a;">{{ moneda }}0.00</b>
         </div>
 
         <div style="text-align:left; margin-bottom:20px;">
@@ -2997,12 +3002,12 @@ function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 
     if (card) {
         const bTags = card.querySelectorAll('b');
         const lastB = bTags.length > 0 ? bTags[bTags.length - 1] : null;
-        if (lastB && lastB.innerText.includes('$')) {
+        if (lastB && /[0-9]/.test(lastB.innerText)) {
             saldoNum = parseFloat(lastB.innerText.replace(/[^0-9.]/g, '')) || saldoNum;
         }
         if (prevTipo === 'pago') {
             const pagoHoyEl = card.querySelector('[style*="color:#16a34a"]');
-            if (pagoHoyEl && pagoHoyEl.innerText.includes('$')) {
+            if (pagoHoyEl && /[0-9]/.test(pagoHoyEl.innerText)) {
                 const montoPrevio = parseFloat(pagoHoyEl.innerText.replace(/[^0-9.]/g, '')) || 0;
                 saldoNum += montoPrevio;
             }
@@ -3025,7 +3030,7 @@ function abrirModalAbono(clienteId, numCuota, pendiente, valorCuota, diasMora = 
     document.getElementById('gpDiasMora').innerText = textoDiasCard;
     document.getElementById('gpDiasMora').style.color = esAdelanto ? '#16a34a' : (parseInt(textoDiasCard) > 0 ? '#dc2626' : '#0f172a');
     document.getElementById('gpUltimoPago').innerText = card ? (card.getAttribute('data-ultpago') || 'Sin pagos previos') : '-';
-    document.getElementById('gpSaldoTexto').innerText = '$' + saldoNum.toFixed(2);
+    document.getElementById('gpSaldoTexto').innerText = MONEDA_AVANTA + saldoNum.toFixed(2);
 
     document.getElementById('gpValorCuotaBase').value = vCuota;
     document.getElementById('gpSaldoActualNum').value = saldoNum;
@@ -3068,7 +3073,7 @@ function seleccionarTipoPagoGP(tipo) {
         bCuota.style.background = '#ffffff'; bCuota.style.color = '#475569'; bCuota.style.fontWeight = '600';
         stepper.style.display = 'none';
         inputDinero.style.display = 'block';
-        lblMonto.innerText = 'Monto a abonar ($):';
+        lblMonto.innerText = 'Monto a abonar (' + MONEDA_AVANTA + '):';
         inputDinero.focus();
     }
 }
@@ -3096,7 +3101,7 @@ function setCuotasGP(cant) {
     const saldoMax = parseFloat(document.getElementById('gpSaldoActualNum').value) || 0;
     let total = Math.min(saldoMax, n * vCuota);
 
-    document.getElementById('gpDisplayMontoGrande').innerText = '$' + total.toFixed(2);
+    document.getElementById('gpDisplayMontoGrande').innerText = MONEDA_AVANTA + total.toFixed(2);
     document.getElementById('abonoMontoInput').value = total.toFixed(2);
 }
 
@@ -3107,7 +3112,7 @@ function cambiarCuotasGP(delta) {
 
 function actualizarDesdeInputDineroGP() {
     const val = parseFloat(document.getElementById('abonoMontoInput').value) || 0;
-    document.getElementById('gpDisplayMontoGrande').innerText = '$' + val.toFixed(2);
+    document.getElementById('gpDisplayMontoGrande').innerText = MONEDA_AVANTA + val.toFixed(2);
 }
 
 function togglePagarTotalGP() {
@@ -3121,7 +3126,7 @@ function togglePagarTotalGP() {
         const maxC = parseInt(document.getElementById('gpCuotasPendNum').value) || 1;
         const saldoMax = parseFloat(document.getElementById('gpSaldoActualNum').value) || 0;
         setCuotasGP(maxC);
-        document.getElementById('gpDisplayMontoGrande').innerText = '$' + saldoMax.toFixed(2);
+        document.getElementById('gpDisplayMontoGrande').innerText = MONEDA_AVANTA + saldoMax.toFixed(2);
         document.getElementById('abonoMontoInput').value = saldoMax.toFixed(2);
     } else {
         setCuotasGP(1);
@@ -3156,7 +3161,7 @@ async function confirmarAbono() {
         gestionPreviaIds = '';
         procesarPagoAPI(clienteId, numCuota, monto);
     } else {
-        mostrarAvisoAvanta('Monto Inválido', 'Ingresa un monto válido mayor a $0.00', 'alerta');
+        mostrarAvisoAvanta('Monto Inválido', 'Ingresa un monto válido mayor a ' + MONEDA_AVANTA + '0.00', 'alerta');
     }
 }
 
@@ -3223,11 +3228,11 @@ function ejecutarNoPago(clienteId, prevTipo = '', prevIds = '') {
     setTxt('gnpAlias', alias || '-');
     setTxt('gnpDocumento', cedula);
 
-    let saldoTxt = '$0.00';
+    let saldoTxt = MONEDA_AVANTA + '0.00';
     if (card) {
         const bTags = card.querySelectorAll('b');
         const lastB = bTags.length > 0 ? bTags[bTags.length - 1] : null;
-        if (lastB && lastB.innerText.includes('$')) {
+        if (lastB && /[0-9]/.test(lastB.innerText)) {
             saldoTxt = lastB.innerText.trim();
         }
     }
@@ -3318,7 +3323,7 @@ function guardarGpsExpediente(clienteId, btn) {
 function mostrarAvisoSaldoActivo(saldo) {
     mostrarAvisoAvanta(
         'Saldo Activo',
-        'Este cliente aún mantiene un saldo pendiente de $' + saldo + '. Debe liquidar su crédito actual antes de conceder uno nuevo.',
+        'Este cliente aún mantiene un saldo pendiente de ' + MONEDA_AVANTA + saldo + '. Debe liquidar su crédito actual antes de conceder uno nuevo.',
         'alerta'
     );
 }
