@@ -16,34 +16,34 @@ from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 MONEDAS_POR_TZ = {
-    "America/Guayaquil": ("USD $", "USD"),
-    "America/Bogota": ("COP $", "COP"),
-    "America/Lima": ("PEN S/", "PEN"),
-    "America/Mexico_City": ("MXN $", "MXN"),
-    "America/Monterrey": ("MXN $", "MXN"),
-    "America/Tijuana": ("MXN $", "MXN"),
-    "America/Santiago": ("CLP $", "CLP"),
-    "America/Argentina/Buenos_Aires": ("ARS $", "ARS"),
-    "America/La_Paz": ("BOB Bs", "BOB"),
-    "America/Asuncion": ("PYG ₲", "PYG"),
-    "America/Montevideo": ("UYU $U", "UYU"),
-    "America/Caracas": ("VES Bs", "VES"),
-    "America/Santo_Domingo": ("DOP RD$", "DOP"),
-    "America/Guatemala": ("GTQ Q", "GTQ"),
-    "America/Tegucigalpa": ("HNL L", "HNL"),
-    "America/Managua": ("NIO C$", "NIO"),
-    "America/Costa_Rica": ("CRC ₡", "CRC"),
-    "America/Panama": ("USD $", "USD"),
-    "America/El_Salvador": ("USD $", "USD"),
-    "America/Sao_Paulo": ("BRL R$", "BRL"),
-    "America/New_York": ("USD $", "USD"),
-    "America/Los_Angeles": ("USD $", "USD"),
-    "Europe/Madrid": ("EUR €", "EUR"),
-    "Europe/London": ("GBP £", "GBP"),
+    "America/Guayaquil": ("$", "USD"),
+    "America/Bogota": ("$", "COP"),
+    "America/Lima": ("S/", "PEN"),
+    "America/Mexico_City": ("$", "MXN"),
+    "America/Monterrey": ("$", "MXN"),
+    "America/Tijuana": ("$", "MXN"),
+    "America/Santiago": ("$", "CLP"),
+    "America/Argentina/Buenos_Aires": ("$", "ARS"),
+    "America/La_Paz": ("Bs", "BOB"),
+    "America/Asuncion": ("₲", "PYG"),
+    "America/Montevideo": ("$U", "UYU"),
+    "America/Caracas": ("Bs", "VES"),
+    "America/Santo_Domingo": ("RD$", "DOP"),
+    "America/Guatemala": ("Q", "GTQ"),
+    "America/Tegucigalpa": ("L", "HNL"),
+    "America/Managua": ("C$", "NIO"),
+    "America/Costa_Rica": ("₡", "CRC"),
+    "America/Panama": ("$", "USD"),
+    "America/El_Salvador": ("$", "USD"),
+    "America/Sao_Paulo": ("R$", "BRL"),
+    "America/New_York": ("$", "USD"),
+    "America/Los_Angeles": ("$", "USD"),
+    "Europe/Madrid": ("€", "EUR"),
+    "Europe/London": ("£", "GBP"),
 }
 
 def detectar_moneda_por_tz(tz_name):
-    return MONEDAS_POR_TZ.get(tz_name, ("USD $", "USD"))
+    return MONEDAS_POR_TZ.get(tz_name, ("$", "USD"))
 
 def obtener_tz_activa():
     tz_name = session.get("tz") or "UTC"
@@ -1742,7 +1742,7 @@ CONTENIDO_HTML = """
                     Base: {{ moneda }}{{ "%.2f"|format(caja_base) }}
                 </span>
             </div>
-            <div style="font-size:28px; font-weight:900; letter-spacing:-0.5px; line-height:1.1;">{{ moneda }}{{ "%.2f"|format(efectivo_neto) }}</div>
+            <div style="font-size:28px; font-weight:900; letter-spacing:-0.5px; line-height:1.1;">{{ moneda_codigo }} {{ moneda }}{{ "%.2f"|format(efectivo_neto) }}</div>
             <div style="font-size:11px; color:#94a3b8; font-weight:600; margin-top:6px;">
                 Estado de jornada: <b style="color:#ffffff;">{{ balance_estado }}</b>
             </div>
@@ -1755,14 +1755,14 @@ CONTENIDO_HTML = """
                     <span style="width:8px; height:8px; border-radius:50%; background:#16a34a;"></span>
                     <span style="font-size:10.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Entradas</span>
                 </div>
-                <div style="font-size:17px; font-weight:900; color:#16a34a; margin-top:5px;">+{{ moneda }}{{ "%.2f"|format(entradas_totales) }}</div>
+                <div style="font-size:17px; font-weight:900; color:#16a34a; margin-top:5px;">+{{ moneda_codigo }} {{ moneda }}{{ "%.2f"|format(entradas_totales) }}</div>
             </div>
             <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:12px 14px; text-align:left; box-shadow:0 2px 5px rgba(15,23,42,0.02);">
                 <div style="display:flex; align-items:center; gap:6px;">
                     <span style="width:8px; height:8px; border-radius:50%; background:#ef4444;"></span>
                     <span style="font-size:10.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Salidas / Gastos</span>
                 </div>
-                <div style="font-size:17px; font-weight:900; color:#ef4444; margin-top:5px;">-{{ moneda }}{{ "%.2f"|format(salidas_totales) }}</div>
+                <div style="font-size:17px; font-weight:900; color:#ef4444; margin-top:5px;">-{{ moneda_codigo }} {{ moneda }}{{ "%.2f"|format(salidas_totales) }}</div>
             </div>
         </div>
 
@@ -2372,7 +2372,7 @@ HTML_TEMPLATE = """
         <button type="button" onclick="cerrarGestorPantallas()" style="background:transparent; border:none; color:#ffffff; font-size:22px; cursor:pointer; padding:4px 8px; line-height:1;">←</button>
         <div>
             <div style="font-size:17px; font-weight:800; line-height:1.2;">Gestor pagos</div>
-            <div id="gpSubtitulo" style="font-size:11px; color:#cbd5e1; font-weight:500;">Ruta Activa • Avanta Pagos</div>
+            <div id="gpSubtitulo" style="font-size:11px; color:#cbd5e1; font-weight:500;">Ruta Activa • Avanta Pagos • {{ moneda_codigo }}</div>
         </div>
     </div>
 
@@ -2397,7 +2397,7 @@ HTML_TEMPLATE = """
 
         <!-- Saldo Actual -->
         <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 0 18px 0; font-size:16px; color:#334155;">
-            <span>Saldo actual:</span>
+            <span>Saldo actual ({{ moneda_codigo }}):</span>
             <b id="gpSaldoTexto" style="font-size:17px; color:#0f172a;">{{ moneda }}0.00</b>
         </div>
 
@@ -2483,7 +2483,7 @@ HTML_TEMPLATE = """
         <button type="button" onclick="cerrarGestorPantallas()" style="background:transparent; border:none; color:#ffffff; font-size:22px; cursor:pointer; padding:4px 8px; line-height:1;">←</button>
         <div>
             <div style="font-size:17px; font-weight:800; line-height:1.2;">Gestor pagos</div>
-            <div id="gnpSubtitulo" style="font-size:11px; color:#cbd5e1; font-weight:500;">Registro de No Pago • Avanta Pagos</div>
+            <div id="gnpSubtitulo" style="font-size:11px; color:#cbd5e1; font-weight:500;">Registro de No Pago • Avanta Pagos • {{ moneda_codigo }}</div>
         </div>
     </div>
 
@@ -2501,7 +2501,7 @@ HTML_TEMPLATE = """
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 0 18px 0; font-size:16px; color:#334155;">
-            <span>Saldo actual:</span>
+            <span>Saldo actual ({{ moneda_codigo }}):</span>
             <b id="gnpSaldoTexto" style="font-size:17px; color:#0f172a;">{{ moneda }}0.00</b>
         </div>
 
@@ -4707,6 +4707,7 @@ def dashboard_principal():
         
     rid = int(session.get("ruta_id") or 1)
     mon = session.get("moneda_simbolo", "$")
+    mon_cod = session.get("moneda_codigo", "USD")
 
     conn_val = get_db()
     turno_id_real = ahora_local().date().isoformat()
@@ -5037,6 +5038,7 @@ def dashboard_principal():
     <div style="display:flex; align-items:center; justify-content:center; gap:7px; background:#ffffff; border:1px solid #e2e8f0; border-radius:20px; padding:7px 14px; margin:0 auto 12px auto; width:fit-content; box-shadow:0 2px 6px rgba(15,23,42,0.03);">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0f2b5c" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span style="font-size:12px; font-weight:800; color:#1e293b; letter-spacing:0.2px;">{fecha_legible}</span>
+        <span style="font-size:10px; font-weight:900; color:#0f2b5c; background:#e0e7ff; padding:2px 7px; border-radius:99px; letter-spacing:0.4px;">{mon_cod}</span>
     </div>
 
     <!-- PANEL KPI 2x2 EJECUTIVO (SIN CAPITAL EN CALLE) -->
