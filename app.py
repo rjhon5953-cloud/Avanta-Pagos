@@ -53,6 +53,58 @@ def ahora_local():
 def detectar_moneda_por_tz(tz_name):
     return MONEDAS_POR_TZ.get(tz_name, ("$", "USD"))
 
+import re
+
+PREFIJOS_TEL_POR_TZ = {
+    "America/Guayaquil": "593",
+    "America/Bogota": "57",
+    "America/Lima": "51",
+    "America/Mexico_City": "52",
+    "America/Monterrey": "52",
+    "America/Tijuana": "52",
+    "America/Santiago": "56",
+    "America/Argentina/Buenos_Aires": "54",
+    "America/La_Paz": "591",
+    "America/Asuncion": "595",
+    "America/Montevideo": "598",
+    "America/Caracas": "58",
+    "America/Santo_Domingo": "1",
+    "America/Guatemala": "502",
+    "America/Tegucigalpa": "504",
+    "America/Managua": "505",
+    "America/Costa_Rica": "506",
+    "America/Panama": "507",
+    "America/El_Salvador": "503",
+    "America/Sao_Paulo": "55",
+    "America/New_York": "1",
+    "America/Los_Angeles": "1",
+    "Europe/Madrid": "34",
+    "Europe/London": "44",
+}
+
+def formatear_telefono_global(telefono, con_mas=False):
+    raw = str(telefono or "").strip()
+    if not raw:
+        return ""
+    ya_internacional = raw.startswith("+") or raw.startswith("00")
+    digitos = re.sub(r"\D", "", raw)
+    if digitos.startswith("00"):
+        digitos = digitos[2:]
+    if not digitos:
+        return ""
+
+    if not ya_internacional:
+        prefijo = PREFIJOS_TEL_POR_TZ.get(session.get("tz") or "", "")
+        if prefijo:
+            if digitos.startswith(prefijo) and len(digitos) >= len(prefijo) + 8:
+                pass
+            elif digitos.startswith("0"):
+                digitos = prefijo + digitos[1:]
+            else:
+                digitos = prefijo + digitos
+
+    return f"+{digitos}" if con_mas else digitos
+
 app = Flask(__name__)
 from flask_compress import Compress # type: ignore
 Compress(app)
@@ -77,6 +129,14 @@ def inyectar_localizacion():
         "moneda_codigo": session.get("moneda_codigo", "USD"),
         "zona_horaria": session.get("tz", "UTC"),
     }
+
+@app.template_filter("tel_wa")
+def filtro_tel_wa(telefono):
+    return formatear_telefono_global(telefono, con_mas=False)
+
+@app.template_filter("tel_call")
+def filtro_tel_call(telefono):
+    return formatear_telefono_global(telefono, con_mas=True)
 
 # 🛡️ SISTEMA SEGURO: Lee la credencial desde el contenedor secreto de Render sin exponerla en código
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -831,8 +891,7 @@ CONTENIDO_HTML = """
         {% set iniciales = (p1 ~ p2)|upper %}
         {% set saldo_c = c.saldo_activo|default(0)|float %}
         {% set estado_slug = 'activo' if saldo_c > 0 else 'libre' %}
-        {% set tel_ws = (c.telefono or '')|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '')|replace('+', '') %}
-
+        
         <div class="card item-cliente-dir"
              data-filtro="{{ (c.nombre or '')|lower }} {{ (c.referencia or '')|lower }} {{ (c.telefono or '')|lower }} {{ (c.cedula or '')|lower }}"
              data-estado="{{ estado_slug }}"
@@ -867,13 +926,14 @@ CONTENIDO_HTML = """
 
             <div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">
                 {% if c.telefono %}
-                <a href="tel:{{ c.telefono }}" onclick="event.stopPropagation();" title="Llamar cliente"
-                   style="width:34px; height:34px; border-radius:9px; background:#eff6ff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; text-decoration:none; border:1px solid #dbeafe;">
+                {% set tel_ws = c.telefono | tel_wa %}
+                <a href="tel:{{ c.telefono | tel_call }}" onclick="event.stopPropagation();" title="Llamar cliente"
+                    style="width:34px; height:34px; border-radius:9px; background:#eff6ff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; text-decoration:none; border:1px solid #dbeafe;">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 </a>
                 {% if tel_ws %}
                 <a href="https://wa.me/{{ tel_ws }}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" title="WhatsApp cliente"
-                   style="width:34px; height:34px; border-radius:9px; background:#dcfce7; color:#15803d; display:flex; align-items:center; justify-content:center; text-decoration:none; border:1px solid #bbf7d0;">
+                style="width:34px; height:34px; border-radius:9px; background:#dcfce7; color:#15803d; display:flex; align-items:center; justify-content:center; text-decoration:none; border:1px solid #bbf7d0;">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
                 </a>
                 {% endif %}
@@ -903,12 +963,8 @@ CONTENIDO_HTML = """
     {% set ini_1 = palabras_p[0][0] if palabras_p|length > 0 else 'C' %}
     {% set ini_2 = palabras_p[1][0] if palabras_p|length > 1 else (palabras_p[0][1] if palabras_p[0]|length > 1 else 'L') %}
     {% set iniciales_p = (ini_1 ~ ini_2)|upper %}
-    {% set tel_puro = ((cliente.telefono or '') if cliente else '')|replace(' ', '')|replace('-', '')|replace('+', '') %}
-    {% if tel_puro.startswith('0') and tel_puro|length == 10 %}
-        {% set tel_limpio = '593' ~ tel_puro[1:] %}
-    {% else %}
-        {% set tel_limpio = tel_puro %}
-    {% endif %}
+    {% set tel_limpio = (cliente.telefono if cliente else '') | tel_wa %}
+    {% set tel_llamada = (cliente.telefono if cliente else '') | tel_call %}
 
     <div style="padding:0 4px 28px 4px;">
         <!-- Barra Superior de Navegación -->
@@ -939,7 +995,7 @@ CONTENIDO_HTML = """
 
             {% if tel_limpio %}
             <div style="display:flex; gap:6px; flex-shrink:0;">
-                <a href="tel:{{ tel_limpio }}" title="Llamar"
+                <a href="tel:{{ tel_llamada }}" title="Llamar"
                    style="width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.22); color:#ffffff; display:flex; align-items:center; justify-content:center; text-decoration:none;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 </a>
