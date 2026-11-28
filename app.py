@@ -2612,19 +2612,107 @@ function toggleDrawer() {
     document.getElementById('drawer').classList.toggle('active');
     document.getElementById('drawerOverlay').classList.toggle('active');
 }
+
+function mostrarConfirmacionAvanta(titulo, mensaje, onConfirm) {
+    const prev = document.getElementById('modalConfirmAvanta');
+    if (prev) prev.remove();
+
+    const html = `
+        <div id="modalConfirmAvanta" style="position:fixed; inset:0; background:rgba(15,23,42,0.72); backdrop-filter:blur(4px); z-index:99999; display:flex; align-items:center; justify-content:center; padding:20px;">
+            <div style="background:#ffffff; border-radius:20px; width:100%; max-width:340px; padding:24px 20px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.28); border:1px solid #e2e8f0;">
+                <div style="width:54px; height:54px; border-radius:50%; margin:0 auto 12px auto; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#dc2626,#b91c1c); color:#ffffff; box-shadow:0 8px 18px rgba(220,38,38,0.28);">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <h3 style="margin:0 0 6px 0; font-size:17px; font-weight:800; color:#0f172a;">${titulo}</h3>
+                <p style="margin:0 0 20px 0; font-size:13px; color:#475569; line-height:1.45;">${mensaje}</p>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                    <button type="button" id="btnCancelConfirmAvanta" style="border:1.5px solid #cbd5e1; padding:12px; border-radius:11px; background:#f8fafc; color:#334155; font-size:13.5px; font-weight:700; cursor:pointer;">Cancelar</button>
+                    <button type="button" id="btnOkConfirmAvanta" style="border:none; padding:12px; border-radius:11px; background:linear-gradient(135deg,#dc2626,#b91c1c); color:#ffffff; font-size:13.5px; font-weight:800; cursor:pointer;">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.getElementById('btnCancelConfirmAvanta').onclick = () => document.getElementById('modalConfirmAvanta').remove();
+    document.getElementById('btnOkConfirmAvanta').onclick = () => {
+        document.getElementById('modalConfirmAvanta').remove();
+        if (typeof onConfirm === 'function') onConfirm();
+    };
+}
+
 function postAccionAvanta(url, destino, mensaje) {
-    if (mensaje && !confirm(mensaje)) return false;
-    fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-        .then(async (res) => {
-            if (!res.ok) {
-                let msg = 'No se pudo completar la operación.';
-                try { const d = await res.json(); msg = d.message || msg; } catch(e) {}
-                throw new Error(msg);
-            }
-            if (destino) navegarRuta(destino); else window.location.reload();
-        })
-        .catch(err => mostrarAvisoAvanta('Conexión', err.message || 'Error de conexión.', 'error'));
+    const ejecutar = () => {
+        fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(async (res) => {
+                if (!res.ok) {
+                    let msg = 'No se pudo completar la operación.';
+                    try { const d = await res.json(); msg = d.message || msg; } catch(e) {}
+                    throw new Error(msg);
+                }
+                if (destino) navegarRuta(destino); else window.location.reload();
+            })
+            .catch(err => mostrarAvisoAvanta('Conexión', err.message || 'Error de conexión.', 'error'));
+    };
+
+    if (mensaje) {
+        mostrarConfirmacionAvanta('Confirmar acción', mensaje, ejecutar);
+    } else {
+        ejecutar();
+    }
     return false;
+}
+
+function actualizarCabeceraAvanta(url) {
+    const ruta = (url || '/').split('?')[0];
+    const mapa = {
+        '/': { titulo: 'AVANTA PAGOS', volver: '/' },
+        '/menu/clientes': { titulo: 'DIRECTORIO DE CLIENTES', volver: '/' },
+        '/menu/ruta_orden': { titulo: 'SECUENCIA DE RUTA', volver: '/' },
+        '/menu/listados': { titulo: 'LISTADOS Y AUDITORÍA', volver: '/' },
+        '/menu/balance': { titulo: 'BALANCE CONTABLE', volver: '/' },
+        '/menu/perfil': { titulo: 'PERFIL DEL COBRADOR', volver: '/' },
+        '/menu/agregar_lista': { titulo: 'ENRUTAMIENTO ANTICIPADO', volver: '/' },
+        '/menu/salvar_datos': { titulo: 'RESPALDO EN LA NUBE', volver: '/' },
+        '/menu/bluetooth': { titulo: 'IMPRESORA TÉRMICA', volver: '/' },
+        '/menu/configuracion': { titulo: 'ACCIONES MAESTRO', volver: '/' },
+        '/nuevo': { titulo: 'NUEVO CRÉDITO', volver: '/' }
+    };
+
+    let info = mapa[ruta] || { titulo: 'AVANTA PAGOS', volver: '/' };
+    if (ruta.startsWith('/menu/cliente/')) info = { titulo: 'EXPEDIENTE CLIENTE', volver: '/menu/clientes' };
+    if (ruta.startsWith('/mover_renovacion/') || ruta.startsWith('/menu/renovar/')) info = { titulo: 'RENOVAR CRÉDITO', volver: '/menu/clientes' };
+
+    const navTitle = document.querySelector('.navbar .nav-title');
+    if (navTitle) {
+        if (ruta === '/') {
+            navTitle.innerHTML = `
+                <span style="width:24px; height:24px; border-radius:7px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.22); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <svg width="15" height="15" viewBox="0 0 48 48" fill="none">
+                        <path d="M12 37L24 10L36 37" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M9 38C18 32 27 25 36 16" stroke="#fbbf24" stroke-width="4.2" stroke-linecap="round"/>
+                        <path d="M27 16L37 15L36 25" stroke="#fbbf24" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <span>AVANTA PAGOS</span>`;
+        } else {
+            navTitle.innerHTML = `<span>${info.titulo}</span>`;
+        }
+    }
+
+    const btnDer = document.querySelector('.navbar a.btn-nav-icon');
+    if (btnDer) {
+        if (ruta === '/') {
+            btnDer.setAttribute('onclick', "navegarRuta('/nuevo')");
+            btnDer.style.background = '#00a8cc';
+            btnDer.style.border = 'none';
+            btnDer.innerHTML = '<i class="fa-solid fa-plus"></i> Nuevo';
+        } else {
+            btnDer.setAttribute('onclick', `navegarRuta('${info.volver}')`);
+            btnDer.style.background = 'rgba(255,255,255,0.16)';
+            btnDer.style.border = '1px solid rgba(255,255,255,0.22)';
+            btnDer.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Volver';
+        }
+    }
 }
 
 function navegarRuta(url) {
@@ -2647,6 +2735,10 @@ function navegarRuta(url) {
         .then(html => {
             bar.style.width = '100%';
             mc.innerHTML = html;
+            if (window.location.pathname + window.location.search !== url) {
+                window.history.pushState({ url: url }, '', url);
+            }
+            actualizarCabeceraAvanta(url);
             if (url === '/' && typeof aplicarFiltrosDashboard === 'function') aplicarFiltrosDashboard();
             window.scrollTo({ top: 0, behavior: 'instant' });
             if (url === '/nuevo' || url.startsWith('/mover_renovacion')) activarGpsNativo();
