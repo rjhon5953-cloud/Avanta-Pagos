@@ -791,45 +791,39 @@ CONTENIDO_HTML = """
     {% endfor %}
 
 {% elif vista == 'clientes_maestro' %}
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 4px 12px 4px;">
-        <div style="display:flex; align-items:center; gap:8px;">
-            <div style="width:32px; height:32px; border-radius:9px; background:#0f2b5c; color:#ffffff; display:flex; align-items:center; justify-content:center;">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            </div>
-            <div>
-                <div style="font-size:15px; font-weight:800; color:#0f2b5c; line-height:1.1;">DIRECTORIO DE CLIENTES</div>
-                <div style="font-size:11px; color:#64748b; font-weight:600;">{{ lista_clientes|length }} clientes registrados</div>
-            </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:2px 4px 8px 4px;">
+        <div style="font-size:12px; color:#64748b; font-weight:700;">
+            {{ lista_clientes|length }} clientes registrados en directorio
         </div>
     </div>
 
-    <div style="position:relative; margin:0 4px 10px 4px;">
+    <div style="position:relative; margin:0 4px 8px 4px;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute; left:13px; top:50%; transform:translateY(-50%); pointer-events:none;">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
         <input type="text" id="buscadorClientesDir" onkeyup="filtrarDirectorioAvanta()"
-               placeholder="Buscar por nombre, negocio o teléfono..."
-               style="width:100%; padding:13px 14px 13px 40px; border-radius:12px; border:1.5px solid #cbd5e1; font-size:14px; font-weight:500; color:#0f172a; background:#ffffff; outline:none; box-sizing:border-box; box-shadow:0 2px 6px rgba(0,0,0,0.03);">
+               placeholder="Buscar por nombre, negocio, teléfono o cédula..."
+               style="width:100%; padding:11px 14px 11px 40px; border-radius:12px; border:1.5px solid #cbd5e1; font-size:13.5px; font-weight:500; color:#0f172a; background:#ffffff; outline:none; box-sizing:border-box; box-shadow:0 2px 6px rgba(0,0,0,0.03);">
     </div>
 
-    <div style="display:flex; gap:6px; margin:0 4px 14px 4px;">
+    <div style="display:flex; gap:6px; margin:0 4px 10px 4px;">
         <button type="button" class="tab-dir-avanta active" onclick="cambiarTabDirAvanta(this, 'todos')"
-                style="flex:1; padding:9px 6px; border-radius:10px; border:1.5px solid #0f2b5c; background:#0f2b5c; color:#ffffff; font-size:12px; font-weight:700; cursor:pointer;">
+                style="flex:1; padding:8px 6px; border-radius:10px; border:1.5px solid #0f2b5c; background:#0f2b5c; color:#ffffff; font-size:12px; font-weight:700; cursor:pointer;">
             Todos ({{ lista_clientes|length }})
         </button>
         <button type="button" class="tab-dir-avanta" onclick="cambiarTabDirAvanta(this, 'activo')"
-                style="flex:1; padding:9px 6px; border-radius:10px; border:1.5px solid #cbd5e1; background:#ffffff; color:#334155; font-size:12px; font-weight:700; cursor:pointer;">
+                style="flex:1; padding:8px 6px; border-radius:10px; border:1.5px solid #cbd5e1; background:#ffffff; color:#334155; font-size:12px; font-weight:700; cursor:pointer;">
             Con Saldo ({{ total_con_saldo|default(0) }})
         </button>
         <button type="button" class="tab-dir-avanta" onclick="cambiarTabDirAvanta(this, 'libre')"
-                style="flex:1; padding:9px 6px; border-radius:10px; border:1.5px solid #cbd5e1; background:#ffffff; color:#334155; font-size:12px; font-weight:700; cursor:pointer;">
+                style="flex:1; padding:8px 6px; border-radius:10px; border:1.5px solid #cbd5e1; background:#ffffff; color:#334155; font-size:12px; font-weight:700; cursor:pointer;">
             Sin Crédito ({{ total_sin_saldo|default(0) }})
         </button>
     </div>
 
     <input type="hidden" id="filtroEstadoDirActual" value="todos">
 
-    <div id="listaDirectorioClientes" style="display:flex; flex-direction:column; gap:10px; padding:0 4px 96px 4px;">
+    <div id="listaDirectorioClientes" style="display:flex; flex-direction:column; gap:6px; padding:0 4px 105px 4px;">
         {% for c in lista_clientes %}
         {% set palabras = (c.nombre or 'CL').strip().split() %}
         {% set p1 = palabras[0][0] if palabras|length > 0 else 'C' %}
@@ -837,48 +831,55 @@ CONTENIDO_HTML = """
         {% set iniciales = (p1 ~ p2)|upper %}
         {% set saldo_c = c.saldo_activo|default(0)|float %}
         {% set estado_slug = 'activo' if saldo_c > 0 else 'libre' %}
+        {% set tel_ws = (c.telefono or '')|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '')|replace('+', '') %}
 
         <div class="card item-cliente-dir"
-             data-filtro="{{ (c.nombre or '')|lower }} {{ (c.referencia or '')|lower }} {{ (c.telefono or '')|lower }}"
+             data-filtro="{{ (c.nombre or '')|lower }} {{ (c.referencia or '')|lower }} {{ (c.telefono or '')|lower }} {{ (c.cedula or '')|lower }}"
              data-estado="{{ estado_slug }}"
              onclick="navegarRuta('/menu/cliente/{{ c.id }}')"
-             style="padding:13px 14px; margin:0; background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer; box-shadow:0 2px 6px rgba(15,23,42,0.03); -webkit-tap-highlight-color:transparent;">
+             style="padding:10px 12px; margin:0; background:#ffffff; border-radius:12px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; gap:10px; cursor:pointer; box-shadow:0 2px 5px rgba(15,23,42,0.03); -webkit-tap-highlight-color:transparent;">
 
-                <div translate="no" class="notranslate" style="width:44px; height:44px; flex-shrink:0; border-radius:12px; background:{{ 'linear-gradient(135deg, #0f2b5c, #1e3a8a)' if saldo_c > 0 else '#f1f5f9' }}; color:{{ '#ffffff' if saldo_c > 0 else '#64748b' }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px;">
-                    {{ iniciales }}
-                </div>
+            <div translate="no" class="notranslate" style="width:40px; height:40px; flex-shrink:0; border-radius:11px; background:{{ 'linear-gradient(135deg, #0f2b5c, #1e3a8a)' if saldo_c > 0 else '#f1f5f9' }}; color:{{ '#ffffff' if saldo_c > 0 else '#64748b' }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px;">
+                {{ iniciales }}
+            </div>
 
             <div style="flex:1; min-width:0; text-align:left;">
-                <div style="font-weight:800; color:#0f172a; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ c.nombre }}</div>
-                <div style="font-size:12px; color:#64748b; font-weight:500; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                <div style="font-weight:800; color:#0f172a; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ c.nombre }}</div>
+                <div style="font-size:11.5px; color:#64748b; font-weight:500; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                     {{ c.referencia or 'Sin referencia' }}
                 </div>
-                <div style="display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:7px; margin-top:5px; flex-wrap:wrap;">
                     {% if saldo_c > 0 %}
-                        <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:2px 8px; border-radius:6px;">
+                        <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:2px 7px; border-radius:6px;">
                             Saldo: ${{ "%.2f"|format(saldo_c) }}
                         </span>
                     {% else %}
-                        <span style="background:#f1f5f9; color:#64748b; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px;">
+                        <span style="background:#f1f5f9; color:#64748b; font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px;">
                             Disponible para crédito
                         </span>
                     {% endif %}
-                    <span style="font-size:11px; color:#64748b; font-weight:600; display:flex; align-items:center; gap:3px;">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    <span style="font-size:11px; color:#64748b; font-weight:600; display:inline-flex; align-items:center; gap:3px;">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                         {{ c.telefono or 'S/N' }}
                     </span>
                 </div>
             </div>
 
-            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">
                 {% if c.telefono %}
                 <a href="tel:{{ c.telefono }}" onclick="event.stopPropagation();" title="Llamar cliente"
-                   style="width:36px; height:36px; border-radius:10px; background:#eff6ff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; text-decoration:none; border:1px solid #dbeafe;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                   style="width:34px; height:34px; border-radius:9px; background:#eff6ff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; text-decoration:none; border:1px solid #dbeafe;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </a>
+                {% if tel_ws %}
+                <a href="https://wa.me/{{ tel_ws }}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" title="WhatsApp cliente"
+                   style="width:34px; height:34px; border-radius:9px; background:#dcfce7; color:#15803d; display:flex; align-items:center; justify-content:center; text-decoration:none; border:1px solid #bbf7d0;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
                 </a>
                 {% endif %}
-                <div style="width:28px; height:28px; display:flex; align-items:center; justify-content:center; color:#94a3b8;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                {% endif %}
+                <div style="width:22px; height:28px; display:flex; align-items:center; justify-content:center; color:#94a3b8;">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </div>
             </div>
         </div>
@@ -891,7 +892,7 @@ CONTENIDO_HTML = """
 
     <div style="position:fixed; bottom:16px; left:50%; transform:translateX(-50%); width:92%; max-width:460px; z-index:90;">
         <button type="button" onclick="navegarRuta('/nuevo')"
-                style="width:100%; padding:15px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:14px; font-weight:800; font-size:15px; box-shadow:0 8px 20px rgba(15,43,92,0.35); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                style="width:100%; padding:14px; background:linear-gradient(135deg, #0f2b5c, #1e3a8a); color:#ffffff; border:none; border-radius:14px; font-weight:800; font-size:14.5px; box-shadow:0 8px 20px rgba(15,43,92,0.35); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Nuevo Cliente / Crédito
         </button>
