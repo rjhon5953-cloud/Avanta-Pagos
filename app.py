@@ -741,7 +741,7 @@ CONTENIDO_HTML = """
     <div class="section-header-title"><i class="fa-solid fa-route"></i> Ruta Principal</div>
     <input type="text" id="searchInput" class="search-box" placeholder="🔍 Buscar cliente o referencia..." onkeyup="filtrarClientes()">
 
-    <div id="clientesContainer" style="display: flex !important; flex-direction: column !important; gap: 12px !important; width: 100% !important;">
+    <div id="clientesContainer" style="display: flex !important; flex-direction: column !important; gap: 0px !important; width: 100% !important;">
             {% for c in clientes %}
             {% set pagado = c.pagos | map(attribute='valor_pagado') | sum %}
             {% set saldo = c.monto_total - pagado %}
@@ -1366,7 +1366,7 @@ CONTENIDO_HTML = """
 
     <script>
     function revertirGestionDia(tipo, idStr) {
-        if (confirm('¿Está seguro de que desea deshacer esta gestión y regresar al cliente a la Ruta del Día?')) {
+        mostrarConfirmacionAvanta('Revertir Gestión', '¿Está seguro de que desea deshacer esta gestión y regresar al cliente a la Ruta del Día?', () => {
             fetch('/api/revertir_gestion/' + tipo + '/' + idStr, { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
@@ -1377,7 +1377,7 @@ CONTENIDO_HTML = """
                     }
                 })
                 .catch(err => console.error('Error:', err));
-        }
+        });
     }
     </script>
 
@@ -1983,7 +1983,7 @@ HTML_TEMPLATE = """
         
         /* 📱 ESTILOS PREMIUM UNIFICADOS COMPATIBLES CON CELULARES */
         /* 📱 FIJADO: Bloque vertical responsivo rígido para evitar que las tarjetas se monten de lado */
-        .cliente-card-premium { background: #ffffff !important; border-radius: 10px !important; padding: 12px !important; margin-bottom: 12px !important; border: 1px solid #e2e8f0 !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important; width: 100% !important; clear: both !important; }
+        .cliente-card-premium { background: #ffffff !important; border-radius: 10px !important; padding: 10px 12px !important; margin-bottom: 5px !important; border: 1px solid #e2e8f0 !important; display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important; width: 100% !important; clear: both !important; }
         .card-izquierda { display: flex !important; flex-direction: row !important; align-items: flex-start !important; gap: 12px !important; flex: 1 !important; text-align: left !important; width: calc(100% - 60px) !important; }
         .circulo-frecuencia { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #ef4444; color: #ef4444; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; background: #fff1f2; flex-shrink: 0; }
         .circulo-frecuencia.al-dia { border-color: #10b981; color: #10b981; background: #ecfdf5; }
@@ -2691,17 +2691,17 @@ function actualizarCabeceraAvanta(url) {
             btnDer.setAttribute('onclick', "navegarRuta('/nuevo')");
             btnDer.style.background = '#00a8cc';
             btnDer.style.border = 'none';
-            btnDer.innerHTML = '<i class="fa-solid fa-plus"></i> Nuevo';
+            btnDer.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nuevo';
         } else {
             btnDer.setAttribute('onclick', `navegarRuta('${info.volver}')`);
             btnDer.style.background = 'rgba(255,255,255,0.16)';
             btnDer.style.border = '1px solid rgba(255,255,255,0.22)';
-            btnDer.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Volver';
+            btnDer.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>Volver';
         }
     }
 }
 
-function navegarRuta(url) {
+function navegarRuta(url, saltarHistorial = false) {
     if (document.getElementById('drawerOverlay').classList.contains('active')) toggleDrawer();
     const mc = document.getElementById('mainContent');
     if (!mc) { window.location.href = url; return; }
@@ -2721,7 +2721,7 @@ function navegarRuta(url) {
         .then(html => {
             bar.style.width = '100%';
             mc.innerHTML = html;
-            if (window.location.pathname + window.location.search !== url) {
+            if (!saltarHistorial && window.location.pathname + window.location.search !== url) {
                 window.history.pushState({ url: url }, '', url);
             }
             actualizarCabeceraAvanta(url);
@@ -2735,6 +2735,28 @@ function navegarRuta(url) {
             window.location.href = url;
         });
 }
+
+window.addEventListener('popstate', function() {
+    const rutaActual = window.location.pathname + window.location.search;
+    navegarRuta(rutaActual || '/', true);
+});
+
+function actualizarEstadoRedAvanta() {
+    let banner = document.getElementById('bannerOfflineAvanta');
+    if (!navigator.onLine) {
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'bannerOfflineAvanta';
+            banner.style.cssText = 'position:fixed; top:0; left:0; right:0; background:#dc2626; color:#ffffff; text-align:center; padding:7px 12px; font-size:12px; font-weight:800; z-index:100000; box-shadow:0 2px 10px rgba(0,0,0,0.25); letter-spacing:0.2px;';
+            banner.innerText = 'Sin conexión a internet — Verifica tus datos móviles antes de cobrar';
+            document.body.appendChild(banner);
+        }
+    } else if (banner) {
+        banner.remove();
+    }
+}
+window.addEventListener('offline', actualizarEstadoRedAvanta);
+window.addEventListener('online', actualizarEstadoRedAvanta);
 
 function activarGpsNativo() {
     if (navigator.geolocation) {
@@ -3353,7 +3375,7 @@ function cargarYVerFoto(gastoId) {
 }
 
 function revertirGestionDia(tipo, id) {
-    if (confirm('¿Está seguro de que desea deshacer esta gestión y regresar al cliente a la Ruta del Día?')) {
+    mostrarConfirmacionAvanta('Revertir Gestión', '¿Está seguro de que desea deshacer esta gestión y regresar al cliente a la Ruta del Día?', () => {
         fetch('/api/revertir_gestion/' + tipo + '/' + id, { method: 'POST' })
             .then(res => res.json())
             .then(data => {
@@ -3362,7 +3384,7 @@ function revertirGestionDia(tipo, id) {
                     setTimeout(() => window.location.reload(), 1200);
                 }
             }).catch(err => mostrarAvisoAvanta('Error de Conexión', 'Error al conectar: ' + err, 'error'));
-    }
+    });
 }
 
 function imprimirTicket() { window.print(); }
@@ -5142,7 +5164,7 @@ def dashboard_principal():
                         <div style="display:flex; align-items:center; gap:8px;">
                             <label style="width:48px; height:48px; border-radius:10px; background:#e2e8f0; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0;">
                                 <img id="prevEditCedFrente" src="" style="width:100%; height:100%; object-fit:cover; display:none;">
-                                <span id="phEditCedFrente" style="color:#475569; font-size:18px;">📷</span>
+                                <span id="phEditCedFrente" style="color:#475569; display:inline-flex; align-items:center; justify-content:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
                                 <input type="file" accept="image/*" capture="environment" onchange="procesarFotoEditCred(this, 'Frente')" style="display:none;">
                             </label>
                             <div>
@@ -5155,7 +5177,7 @@ def dashboard_principal():
                         <div style="display:flex; align-items:center; gap:8px;">
                             <label style="width:48px; height:48px; border-radius:10px; background:#e2e8f0; border:1.5px solid #cbd5e1; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0;">
                                 <img id="prevEditCedReverso" src="" style="width:100%; height:100%; object-fit:cover; display:none;">
-                                <span id="phEditCedReverso" style="color:#475569; font-size:18px;">📷</span>
+                                <span id="phEditCedReverso" style="color:#475569; display:inline-flex; align-items:center; justify-content:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
                                 <input type="file" accept="image/*" capture="environment" onchange="procesarFotoEditCred(this, 'Reverso')" style="display:none;">
                             </label>
                             <div>
@@ -5249,7 +5271,7 @@ def dashboard_principal():
         </div>
     </div>
 
-    <div id="clientesContainer" style="display:flex; flex-direction:column; gap:5px; width:100%; box-sizing:border-box;">
+    <div id="clientesContainer" style="display:flex; flex-direction:column; gap:0px; width:100%; box-sizing:border-box;">
     """
     
         # 📱 PROCESAMIENTO CONTABLE PREMIUM BLINDADO Y UNIFICADO (DISEÑO LIMPIO EN DASHBOARD)
@@ -6407,7 +6429,6 @@ def seccion_reordenar_ruta():
 def seccion_listados_maestro():
     return redirect("/")
 
-
 @app.route("/menu/agregar_lista")
 def seccion_agregar_lista():
     if not session.get("autenticado"):
@@ -7208,7 +7229,7 @@ def seccion_configuracion_sistema():
             <p style="font-size:11.5px; color:#64748b; margin:0 0 12px 0; line-height:1.35;">
                 Restablece los clientes marcados como No Pago hoy para que vuelvan a aparecer en tu lista de pendientes.
             </p>
-            <form action="/api/configuracion/reset_saltos" method="POST" onsubmit="return confirm('¿Reiniciar los clientes marcados como No Pago hoy para volver a visitarlos?');" style="margin:0;">
+            <form action="/api/configuracion/reset_saltos" method="POST" onsubmit="event.preventDefault(); const f=this; mostrarConfirmacionAvanta('Reiniciar No Pagos', '¿Reiniciar los clientes marcados como No Pago hoy para volver a visitarlos?', () => f.submit()); return false;">
                 <button type="submit" style="width:100%; padding:12px; background:#f1f5f9; border:1.5px solid #cbd5e1; color:#334155; border-radius:10px; font-weight:800; font-size:13px; cursor:pointer;">
                     Reiniciar No Pagos de Hoy
                 </button>
