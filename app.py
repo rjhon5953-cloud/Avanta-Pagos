@@ -775,21 +775,21 @@ CONTENIDO_HTML = """
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:12px;">
         <div style="background:#ffffff; padding:10px 8px; border-radius:8px; border-left:4px solid #10b981; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
             <div style="font-size:9px; color:#6b7280; font-weight:800; text-transform:uppercase;">Recaudado</div>
-            <div style="font-size:14px; font-weight:800; color:#065f46; margin-top:2px;">${{ "%.2f"|format(total_cobrado_hoy) }}</div>
+            <div style="font-size:14px; font-weight:800; color:#065f46; margin-top:2px;">{{ moneda }}{{ "%.2f"|format(total_cobrado_hoy) }}</div>
         </div>
         <div style="background:#ffffff; padding:10px 8px; border-radius:8px; border-left:4px solid #ef4444; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
             <div style="font-size:9px; color:#6b7280; font-weight:800; text-transform:uppercase;">Gastos</div>
-            <div style="font-size:14px; font-weight:800; color:#991b1b; margin-top:2px;">${{ "%.2f"|format(total_gastos_hoy) }}</div>
+            <div style="font-size:14px; font-weight:800; color:#991b1b; margin-top:2px;">{{ moneda }}{{ "%.2f"|format(total_gastos_hoy) }}</div>
         </div>
         <div style="background:#ffffff; padding:10px 8px; border-radius:8px; border-left:4px solid #00a8cc; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
             <div style="font-size:9px; color:#6b7280; font-weight:800; text-transform:uppercase;">En Calle</div>
-            <div style="font-size:14px; font-weight:800; color:#0f2b5c; margin-top:2px;">${{ "%.2f"|format(capital_en_calle) }}</div>
+            <div style="font-size:14px; font-weight:800; color:#0f2b5c; margin-top:2px;">{{ moneda }}{{ "%.2f"|format(capital_en_calle) }}</div>
         </div>
     </div>
 
     <div class="expected-card">
         <div class="kpi-title" style="color:#0369a1;">Recaudo Esperado del Día</div>
-        <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo de Ruta: <b>${{ "%.2f"|format(debido_minimo_dia) }}</b> | Acumulado Mora: <b>${{ "%.2f"|format(debido_total_acumulado) }}</b></div>
+        <div class="kpi-val" style="color:#0369a1; font-size:13px;">🔬 Mínimo de Ruta: <b>{{ moneda }}{{ "%.2f"|format(debido_minimo_dia) }}</b> | Acumulado Mora: <b>{{ moneda }}{{ "%.2f"|format(debido_total_acumulado) }}</b></div>
     </div>
 
     <div style="display:flex; gap:6px; margin-bottom:10px; overflow-x:auto;">
@@ -819,7 +819,7 @@ CONTENIDO_HTML = """
                         <div class="nombre-real">{{ c.nombre }}</div>
                         
                         <div class="grid-metricas-premium">
-                            <div class="metric-col"><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${{ "%.2f"|format(c.valor_cuota) }}</span></div>
+                            <div class="metric-col"><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">{{ moneda }}{{ "%.2f"|format(c.valor_cuota) }}</span></div>
                             <div class="metric-col"><span class="metric-lbl">Pendiente</span><span class="metric-val">{{ cuotas_pagadas }} / {{ c.cuotas }}.0</span></div>
                             <div class="metric-col"><span class="metric-lbl">Pago</span><span class="metric-val">—</span></div>
                         </div>
@@ -831,7 +831,7 @@ CONTENIDO_HTML = """
                         <div class="circulo-check-cuota {% if c.saltado_hoy > 0 %}gestionado{% elif cuotas_pagadas > 0 %}gestionado-ok{% endif %}">
                             {% if c.saltado_hoy > 0 %}{{ c.saltado_hoy }}{% else %}{{ cuotas_pagadas if cuotas_pagadas > 0 else 1 }}{% endif %}
                         </div>
-                        <div class="badge-saldo-premium">Saldo <b>${{ "%.2f"|format(saldo) }}</b></div>
+                        <div class="badge-saldo-premium">Saldo <b>{{ moneda }}{{ "%.2f"|format(saldo) }}</b></div>
                     </div>
                 </div>
             </div>
@@ -910,7 +910,7 @@ CONTENIDO_HTML = """
                 <div style="display:flex; align-items:center; gap:7px; margin-top:5px; flex-wrap:wrap;">
                     {% if saldo_c > 0 %}
                         <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:800; padding:2px 7px; border-radius:6px;">
-                            Saldo: ${{ "%.2f"|format(saldo_c) }}
+                            Saldo: {{ moneda }}{{ "%.2f"|format(saldo_c) }}
                         </span>
                     {% else %}
                         <span style="background:#f1f5f9; color:#64748b; font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px;">
@@ -1014,11 +1014,11 @@ CONTENIDO_HTML = """
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px;">
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 8px; text-align:center;">
                 <div style="font-size:9.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Saldo Actual</div>
-                <div style="font-size:14px; font-weight:900; color:#0f2b5c; margin-top:2px;">${{ "%.2f"|format(cred_top.saldo|float) }}</div>
+                <div style="font-size:14px; font-weight:900; color:#0f2b5c; margin-top:2px;">{{ moneda }}{{ "%.2f"|format(cred_top.saldo|float) }}</div>
             </div>
             <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:10px 8px; text-align:center;">
                 <div style="font-size:9.5px; font-weight:800; color:#15803d; text-transform:uppercase;">Total Pagado</div>
-                <div style="font-size:14px; font-weight:900; color:#16a34a; margin-top:2px;">${{ "%.2f"|format(cred_top.pagado|float) }}</div>
+                <div style="font-size:14px; font-weight:900; color:#16a34a; margin-top:2px;">{{ moneda }}{{ "%.2f"|format(cred_top.pagado|float) }}</div>
             </div>
             <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:10px 8px; text-align:center;">
                 <div style="font-size:9.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Vencimiento</div>
@@ -1073,11 +1073,11 @@ CONTENIDO_HTML = """
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
                         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:11px; padding:10px; text-align:center;">
                             <div style="font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase;">Total Prestado</div>
-                            <div style="font-size:15.5px; font-weight:900; color:#0f172a; margin-top:2px;">${{ resumen.total_prestado }}</div>
+                            <div style="font-size:15.5px; font-weight:900; color:#0f172a; margin-top:2px;">{{ moneda }}{{ resumen.total_prestado }}</div>
                         </div>
                         <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:11px; padding:10px; text-align:center;">
                             <div style="font-size:10px; font-weight:800; color:#15803d; text-transform:uppercase;">Total Abonado</div>
-                            <div style="font-size:15.5px; font-weight:900; color:#16a34a; margin-top:2px;">${{ resumen.total_abonado }}</div>
+                            <div style="font-size:15.5px; font-weight:900; color:#16a34a; margin-top:2px;">{{ moneda }}{{ resumen.total_abonado }}</div>
                         </div>
                     </div>
 
@@ -1092,9 +1092,9 @@ CONTENIDO_HTML = """
                             </span>
                         </div>
                         <div style="text-align:right;">
-                            <div style="font-size:11px; color:#64748b; font-weight:600;">Prestado: ${{ "%.2f"|format(cr.monto|float) }}</div>
-                            <div style="font-size:11px; color:#64748b; font-weight:600;">Total: ${{ "%.2f"|format(cr.monto_total|float) }}</div>
-                            <div style="font-size:13px; font-weight:900; color:{{ '#16a34a' if esta_liq else '#0f2b5c' }}; margin-top:2px;">Saldo: ${{ "%.2f"|format(cr.saldo|float) }}</div>
+                            <div style="font-size:11px; color:#64748b; font-weight:600;">Prestado: {{ moneda }}{{ "%.2f"|format(cr.monto|float) }}</div>
+                            <div style="font-size:11px; color:#64748b; font-weight:600;">Total: {{ moneda }}{{ "%.2f"|format(cr.monto_total|float) }}</div>
+                            <div style="font-size:13px; font-weight:900; color:{{ '#16a34a' if esta_liq else '#0f2b5c' }}; margin-top:2px;">Saldo: {{ moneda }}{{ "%.2f"|format(cr.saldo|float) }}</div>
                         </div>
                     </div>
                     {% else %}
@@ -1121,7 +1121,7 @@ CONTENIDO_HTML = """
                 </div>
                 {% if cred_activo %}
                 <div style="display:flex; align-items:center; gap:6px;">
-                    <span style="font-size:11px; font-weight:800; color:#0f2b5c; background:#eff6ff; padding:4px 8px; border-radius:6px;">Cuota: ${{ "%.2f"|format(cred_activo.valor_cuota|float) }}</span>
+                    <span style="font-size:11px; font-weight:800; color:#0f2b5c; background:#eff6ff; padding:4px 8px; border-radius:6px;">Cuota: {{ moneda }}{{ "%.2f"|format(cred_activo.valor_cuota|float) }}</span>
                     <button type="button" onclick="abrirTicketCreditoDesdeExp()"
                         style="background:#0f2b5c; color:#ffffff; border:none; border-radius:6px; padding:5px 9px; font-size:10px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
@@ -1160,9 +1160,9 @@ CONTENIDO_HTML = """
                             <td style="padding:6px 4px; color:#64748b; font-size:9.5px; line-height:1.2; word-break:break-word;">{{ fp_fmt }}</td>
                             <td style="padding:6px 4px; text-align:right; font-weight:800; color:#0f172a;">
                                 {% if es_completa %}
-                                ${{ "%.2f"|format(v_cuota) }}
+                                {{ moneda }}{{ "%.2f"|format(v_cuota) }}
                                 {% else %}
-                                ${{ "%.2f"|format(v_pagado) }}<div style="font-size:9px; color:#64748b; font-weight:600;">/${{ "%.2f"|format(v_cuota) }}</div>
+                                {{ moneda }}{{ "%.2f"|format(v_pagado) }}<div style="font-size:9px; color:#64748b; font-weight:600;">/{{ moneda }}{{ "%.2f"|format(v_cuota) }}</div>
                                 {% endif %}
                             </td>
                             <td style="padding:6px 5px; text-align:right; font-weight:900; color:{{ '#16a34a' if es_completa else ('#d97706' if es_incompleta else ('#dc2626' if es_vencida else '#64748b')) }};">
@@ -1277,7 +1277,7 @@ CONTENIDO_HTML = """
                 <button type="button" onclick="mostrarAvisoSaldoActivo('{{ "%.2f"|format(cred_activo.saldo|float) }}')"
                         style="flex:1.35; padding:12px 10px; background:#cbd5e1; color:#475569; border:1.5px solid #94a3b8; border-radius:11px; font-weight:800; font-size:12.5px; cursor:not-allowed; display:flex; align-items:center; justify-content:center; gap:5px;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    Saldo Activo (${{ "%.2f"|format(cred_activo.saldo|float) }})
+                    Saldo Activo ({{ moneda }}{{ "%.2f"|format(cred_activo.saldo|float) }})
                 </button>
                 {% else %}
                 <button type="button" onclick="navegarRuta('/mover_renovacion/{{ cliente.id if cliente else 0 }}')"
@@ -1319,7 +1319,7 @@ CONTENIDO_HTML = """
                         <div class="nombre-real">{{ c.nombre }}</div>
                         
                         <div class="grid-metricas-premium">
-                            <div><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">${{ "%.2f"|format(c.valor_cuota) }}</span></div>
+                            <div><span class="metric-lbl">Vr. Cuota</span><span class="metric-val">{{ moneda }}{{ "%.2f"|format(c.valor_cuota) }}</span></div>
                             <div><span class="metric-lbl">Pendiente</span><span class="metric-val">{{ cuotas_pagadas }} / {{ c.cuotas }}.0</span></div>
                             <div><span class="metric-lbl">Pago</span><span class="metric-val">—</span></div>
                         </div>
@@ -1344,7 +1344,7 @@ CONTENIDO_HTML = """
                             {% endif %}
                             <button type="button" onclick="postAccionAvanta('/api/eliminar_cliente/{{ c.id }}', '/menu/clientes', '¿Eliminar de forma permanente?')" class="btn-accion btn-nopagar" style="padding: 6px 12px; background:#dc2626; font-size: 11px;"><i class="fa-solid fa-trash-can"></i> Borrar</button>
                             
-                            <div class="badge-saldo-premium" style="margin-left: auto;">Saldo <b>${{ "%.2f"|format(saldo_restante) }}</b></div>
+                            <div class="badge-saldo-premium" style="margin-left: auto;">Saldo <b>{{ moneda }}{{ "%.2f"|format(saldo_restante) }}</b></div>
                         </div>
                     </div>
                 </div>
@@ -1379,7 +1379,7 @@ CONTENIDO_HTML = """
                             <span style="font-size: 11px; color: #64748b;">Cuotas: <b>{{ p.rango_cuotas }}</b></span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <span style="font-weight: 800; color: #10b981; font-size: 14px;">${{ "%.2f"|format(p.total_abonado) }}</span>
+                            <span style="font-weight: 800; color: #10b981; font-size: 14px;">{{ moneda }}{{ "%.2f"|format(p.total_abonado) }}</span>
                             <button type="button" onclick="revertirGestionDia('pago', '{{ p.pago_ids_str }}')" style="background: #ef4444; border: none; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.25);">
                                 <svg xmlns="http://w3.org" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="color: white !important;">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
@@ -1449,12 +1449,12 @@ CONTENIDO_HTML = """
                     <div class="flex-between" style="border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:8px;">
                         <div>
                             <span style="font-weight:800; font-size:14px; color:#0f2b5c; display:block;">{{ c.nombre }}</span>
-                            <span style="font-size:10px; color:#64748b; display:block; margin-top:2px;">Modalidad: <b>{{ c.frecuencia }}</b> | Cuota: <b>${{ "%.2f"|format(c.valor_cuota) }}</b></span>
+                            <span style="font-size:10px; color:#64748b; display:block; margin-top:2px;">Modalidad: <b>{{ c.frecuencia }}</b> | Cuota: <b>{{ moneda }}{{ "%.2f"|format(c.valor_cuota) }}</b></span>
                         </div>
                         <div style="text-align:right;">
                             <!-- 💰 Badge de Saldo Neto Pendiente Real -->
                             <span style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; display:block;">Saldo Real</span>
-                            <span style="font-size:15px; font-weight:800; color:#ef4444; display:block;">${{ "%.2f"|format(c.saldo_pendiente) }}</span>
+                            <span style="font-size:15px; font-weight:800; color:#ef4444; display:block;">{{ moneda }}{{ "%.2f"|format(c.saldo_pendiente) }}</span>
                         </div>
                     </div>
                     
@@ -1462,15 +1462,15 @@ CONTENIDO_HTML = """
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:11px; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid #e2e8f0;">
                         <div>
                             <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Préstamo</span>
-                            <span style="font-weight:700; color:#334155;">${{ "%.2f"|format(c.monto) }}</span>
+                            <span style="font-weight:700; color:#334155;">{{ moneda }}{{ "%.2f"|format(c.monto) }}</span>
                         </div>
                         <div>
                             <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Con Interés ({{ c.interes_porcentaje }}%)</span>
-                            <span style="font-weight:700; color:#0f2b5c;">${{ "%.2f"|format(c.monto_total) }}</span>
+                            <span style="font-weight:700; color:#0f2b5c;">{{ moneda }}{{ "%.2f"|format(c.monto_total) }}</span>
                         </div>
                         <div>
                             <span style="color:#64748b; font-size:9px; font-weight:800; text-transform:uppercase; display:block;">Cobrado</span>
-                            <span style="font-weight:700; color:#10b981;">${{ "%.2f"|format(c.total_recaudado) }}</span>
+                            <span style="font-weight:700; color:#10b981;">{{ moneda }}{{ "%.2f"|format(c.total_recaudado) }}</span>
                         </div>
                     </div>
                 </div>
@@ -1734,10 +1734,10 @@ CONTENIDO_HTML = """
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <span style="font-size:11px; font-weight:700; color:#cbd5e1; text-transform:uppercase; letter-spacing:0.6px;">Efectivo Líquido Neto</span>
                 <span style="background:rgba(22,163,74,0.22); border:1px solid rgba(74,222,128,0.4); color:#86efac; font-size:10.5px; font-weight:800; padding:3px 9px; border-radius:20px;">
-                    Base: ${{ "%.2f"|format(caja_base) }}
+                    Base: {{ moneda }}{{ "%.2f"|format(caja_base) }}
                 </span>
             </div>
-            <div style="font-size:28px; font-weight:900; letter-spacing:-0.5px; line-height:1.1;">${{ "%.2f"|format(efectivo_neto) }}</div>
+            <div style="font-size:28px; font-weight:900; letter-spacing:-0.5px; line-height:1.1;">{{ moneda }}{{ "%.2f"|format(efectivo_neto) }}</div>
             <div style="font-size:11px; color:#94a3b8; font-weight:600; margin-top:6px;">
                 Estado de jornada: <b style="color:#ffffff;">{{ balance_estado }}</b>
             </div>
@@ -1750,14 +1750,14 @@ CONTENIDO_HTML = """
                     <span style="width:8px; height:8px; border-radius:50%; background:#16a34a;"></span>
                     <span style="font-size:10.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Entradas</span>
                 </div>
-                <div style="font-size:17px; font-weight:900; color:#16a34a; margin-top:5px;">+${{ "%.2f"|format(entradas_totales) }}</div>
+                <div style="font-size:17px; font-weight:900; color:#16a34a; margin-top:5px;">+{{ moneda }}{{ "%.2f"|format(entradas_totales) }}</div>
             </div>
             <div style="background:#ffffff; border-radius:14px; border:1px solid #e2e8f0; padding:12px 14px; text-align:left; box-shadow:0 2px 5px rgba(15,23,42,0.02);">
                 <div style="display:flex; align-items:center; gap:6px;">
                     <span style="width:8px; height:8px; border-radius:50%; background:#ef4444;"></span>
                     <span style="font-size:10.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Salidas / Gastos</span>
                 </div>
-                <div style="font-size:17px; font-weight:900; color:#ef4444; margin-top:5px;">-${{ "%.2f"|format(salidas_totales) }}</div>
+                <div style="font-size:17px; font-weight:900; color:#ef4444; margin-top:5px;">-{{ moneda }}{{ "%.2f"|format(salidas_totales) }}</div>
             </div>
         </div>
 
@@ -1888,7 +1888,7 @@ CONTENIDO_HTML = """
 
                     <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
                         <span style="font-weight:900; font-size:13.5px; color:{{ '#16a34a' if es_entrada else '#ef4444' }};">
-                            {{ '+' if es_entrada else '-' }}${{ "%.2f"|format(g.monto) }}
+                            {{ '+' if es_entrada else '-' }}{{ moneda }}{{ "%.2f"|format(g.monto) }}
                         </span>
 
                         {% if g.comprobante and g.comprobante != "None" and g.comprobante != "" %}
@@ -2924,20 +2924,16 @@ function manejarTipoSeguro() {
 }
 
 // 💱 DETECCIÓN AUTOMÁTICA INTERNACIONAL DE MONEDA NATIVA
+const MONEDA_AVANTA = "{{ moneda }}";
+const MONEDA_CODIGO_AVANTA = "{{ moneda_codigo }}";
+
 const configuracionMonedaLocal = {
-    obtenerSimbolo: function() {
-        const locale = navigator.language || 'es-EC';
-        
-        if (locale.includes('-CO')) return { formato: 'es-CO', divisa: 'COP' };
-        if (locale.includes('-MX')) return { formato: 'es-MX', divisa: 'MXN' };
-        if (locale.includes('-PE')) return { formato: 'es-PE', divisa: 'PEN' };
-        if (locale.includes('-CL')) return { formato: 'es-CL', divisa: 'CLP' };
-        
-        return { formato: 'es-EC', divisa: 'USD' };
-    },
     formatear: function(valor) {
-        const conf = this.obtenerSimbolo();
-        return new Intl.NumberFormat(conf.formato, { style: 'currency', currency: conf.divisa }).format(valor);
+        const num = Number(valor) || 0;
+        return MONEDA_AVANTA + num.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
     }
 };
 
@@ -4705,6 +4701,7 @@ def dashboard_principal():
         return redirect("/login")
         
     rid = int(session.get("ruta_id") or 1)
+    mon = session.get("moneda_simbolo", "$")
 
     conn_val = get_db()
     turno_id_real = ahora_local().date().isoformat()
@@ -4820,10 +4817,10 @@ def dashboard_principal():
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <div style="text-align:left;">
                             <div style="font-size:13.5px; font-weight:800; color:#0f172a;">{nombre_cli_c}</div>
-                            <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">{cuotas_c} cuotas ({freq_c}) • Cuota: ${v_cuota_c:.2f}</div>
+                            <div style="font-size:11px; color:#64748b; font-weight:600; margin-top:2px;">{cuotas_c} cuotas ({freq_c}) • Cuota: {mon}{v_cuota_c:.2f}</div>
                         </div>
                         <div style="text-align:right;">
-                            <div style="font-size:14.5px; font-weight:900; color:#0f2b5c;">${monto_c:.2f}</div>
+                            <div style="font-size:14.5px; font-weight:900; color:#0f2b5c;">{mon}{monto_c:.2f}</div>
                             <span style="display:inline-block; margin-top:3px; font-size:10px; font-weight:800; color:#1d4ed8; background:#dbeafe; padding:2px 7px; border-radius:6px;">HOY</span>
                         </div>
                     </div>
@@ -5047,7 +5044,7 @@ def dashboard_principal():
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </span>
             </div>
-            <div style="font-size:18px; font-weight:900; color:#0f172a; letter-spacing:-0.3px;">${recaudo_hoy:.2f}</div>
+            <div style="font-size:18px; font-weight:900; color:#0f172a; letter-spacing:-0.3px;">{mon}{recaudo_hoy:.2f}</div>
         </div>
 
         <!-- 2. CRÉDITOS HOY (CLICABLE PARA VER DETALLE) -->
@@ -5073,7 +5070,7 @@ def dashboard_principal():
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 </span>
             </div>
-            <div style="font-size:17px; font-weight:900; color:#0369a1; letter-spacing:-0.3px;">${debido_minimo_dia:.2f}</div>
+            <div style="font-size:17px; font-weight:900; color:#0369a1; letter-spacing:-0.3px;">{mon}{debido_minimo_dia:.2f}</div>
         </div>
 
         <!-- 4. ACUMULADO MORA -->
@@ -5084,7 +5081,7 @@ def dashboard_principal():
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 </span>
             </div>
-            <div style="font-size:17px; font-weight:900; color:#b45309; letter-spacing:-0.3px;">${debido_total_acumulado:.2f}</div>
+            <div style="font-size:17px; font-weight:900; color:#b45309; letter-spacing:-0.3px;">{mon}{debido_total_acumulado:.2f}</div>
         </div>
     </div>
 
@@ -5119,7 +5116,7 @@ def dashboard_principal():
             <div style="background:#0f2b5c; color:#ffffff; padding:15px 18px; display:flex; justify-content:space-between; align-items:center;">
                 <div style="text-align:left;">
                     <div style="font-size:15.5px; font-weight:900;">Créditos Realizados Hoy</div>
-                    <div style="font-size:11px; color:#cbd5e1; font-weight:600;">Total colocado: ${total_colocado_turno:.2f}</div>
+                    <div style="font-size:11px; color:#cbd5e1; font-weight:600;">Total colocado: {mon}{total_colocado_turno:.2f}</div>
                 </div>
                 <button type="button" onclick="document.getElementById('modalCreditosHoy').style.display='none'"
                         style="background:rgba(255,255,255,0.15); border:none; color:#ffffff; width:28px; height:28px; border-radius:8px; font-size:16px; font-weight:800; cursor:pointer;">✕</button>
@@ -5420,7 +5417,7 @@ def dashboard_principal():
         if estado_hoy == "pago":
             borde_izq_card = "border-left: 6px solid #16a34a !important;"
             display_card = "display: none !important;"
-            html_col_pago = f'<span class="metric-val" style="color:#16a34a; font-weight:800;">${float(monto_pag_hoy):.2f}</span>'
+            html_col_pago = f'<span class="metric-val" style="color:#16a34a; font-weight:800;">{mon}{float(monto_pag_hoy):.2f}</span>'
             html_botones_derechos = f"""
                 <button type="button" class="btn-accion-premium cobrar" title="Editar Cobro" 
                         onclick="abrirModalAbono({c_id}, {js_num_cuota}, {js_pendiente}, {c_valor_cuota}, {dias_calculados}, 'pago', '{pago_ids_hoy}')"
@@ -5523,7 +5520,7 @@ def dashboard_principal():
                     <div style="display:grid; grid-template-columns:1fr 1.15fr 0.85fr; gap:4px; background:#f8fafc; border:1px solid #f1f5f9; border-radius:10px; padding:6px 8px; margin-bottom:8px;">
                         <div>
                             <div style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Vr. Cuota</div>
-                            <div style="font-size:12.5px; font-weight:900; color:#0f172a;">${c_valor_cuota}</div>
+                            <div style="font-size:12.5px; font-weight:900; color:#0f172a;">{mon}{c_valor_cuota}</div>
                         </div>
                         <div>
                             <div style="font-size:9.5px; font-weight:700; color:#64748b; text-transform:uppercase;">Pendiente</div>
@@ -5542,7 +5539,7 @@ def dashboard_principal():
                         </button>
                         <div style="min-width:26px; height:26px; padding:0 7px; border-radius:8px; font-size:11.5px; display:flex; align-items:center; justify-content:center; {estilo_cuadro_dias}">{texto_cuadro_dias}</div>
                         <div style="background:#f1f5f9; border:1px solid #e2e8f0; border-radius:8px; padding:4px 9px; font-size:11.5px; font-weight:700; color:#475569;">
-                            Saldo <b style="color:#0f172a; font-weight:900;">${c_saldo_restante}</b>
+                            Saldo <b style="color:#0f172a; font-weight:900;">{mon}{c_saldo_restante}</b>
                         </div>
                     </div>
                 </div>
